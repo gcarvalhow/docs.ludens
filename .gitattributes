@@ -1,0 +1,8 @@
+# Normaliza finais de linha: texto sempre LF no repositório.
+* text=auto eol=lf
+
+# Binários das entregas da disciplina — nunca converter nem tentar dar diff.
+*.docx binary
+*.xlsx binary
+*.pdf  binary
+*.png  binary

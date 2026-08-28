@@ -1,6 +1,6 @@
 # Definição do Problema
 
-> **Responsável:** Product Owner · **Última revisão:** 2026-08-28 · **Status:** vigente
+> **Responsável:** Product Owner (Gabriel Carvalho) · **Última revisão:** 2026-08-28 · **Status:** vigente
 
 ## Contexto
 
@@ -54,5 +54,4 @@ A validação presencial de meia-entrada (conferência do documento de estudante
 porta) e a operação de caixa da bilheteria física permanecem processos manuais
 do teatro. A plataforma registra a intenção de compra de meia-entrada, mas não
 substitui a conferência no local — ver
-[regras de negócio](../requirements/business-rules.md) e
-[ADR 004](../architecture/design/004-escopo-da-regra-de-meia-entrada.md).
+[RN04](../requirements/business-rules.md#rn04--meia-entrada).

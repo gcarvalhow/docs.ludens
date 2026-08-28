@@ -1,7 +1,7 @@
 # Equipe e Papéis (Matriz RACI)
 
-> **Responsável:** Product Owner · **Última revisão:** 2026-08-28 · **Status:** vigente
-> Papéis conforme a Matriz RACI do Processo 18 (elaboração 31/07/2026). Planilha original em [`assets/originais/`](../assets/originais/).
+> **Responsável:** Product Owner (Gabriel Carvalho) · **Última revisão:** 2026-08-28 · **Status:** vigente
+> Papéis conforme a Matriz RACI do Processo 18 (elaboração 31/07/2026). Planilha original em [`archive/`](../archive/).
 
 ## Integrantes e papéis
 
@@ -38,12 +38,12 @@ Consultado · **I** = Informado.
 
 | Área | Responsável (R) | Aprovador (A) |
 | --- | --- | --- |
-| [Produto](../product/) e [backlog](https://github.com/orgs/gcarvalhow/projects) | PO | PO |
-| [Requisitos](../requirements/) e regras de negócio | Eng. de Requisitos | PO |
-| [Arquitetura](../architecture/) e módulos de domínio | Dev. Backend | Eng. de Requisitos |
-| [Estratégia de testes](../engineering/testing.md) e [DoR/DoD](../engineering/quality.md) | QA | PO |
-| [Fluxo Git](../engineering/git-flow.md) e [CI/CD](../engineering/ci-cd.md) | DevOps | PO |
-| [Gestão de débito técnico](../engineering/tech-debt.md) | Dev. Backend | PO |
+| [Produto](../product/) e [backlog](https://github.com/orgs/gcarvalhow/projects) | PO (Gabriel Carvalho) | PO (Gabriel Carvalho) |
+| [Requisitos](../requirements/) e regras de negócio | Eng. de Requisitos (Renato Colin Neto) | PO (Gabriel Carvalho) |
+| [Arquitetura do backend](../backend/) e [ADRs](../backend/design/) | Dev. Backend (Igor Thiago Seberino) | Eng. de Requisitos (Renato Colin Neto) |
+| [Testes e CI](../backend/testing.md) e [DoR/DoD](quality.md) | QA (Adrian Cesar Gonçalves) | PO (Gabriel Carvalho) |
+| [Ambiente de desenvolvimento](development.md) | DevOps (Gabriel Carvalho) | PO (Gabriel Carvalho) |
+| [Gestão de débito técnico](tech-debt.md) | Dev. Backend (Igor Thiago Seberino) | PO (Gabriel Carvalho) |
 
 ## Backlog
 

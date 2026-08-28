@@ -2,18 +2,20 @@
 
 > **Registro da entrega do Processo 18.** Conversão fiel do documento assinado
 > (elaboração 31/07/2026). O `.docx` original está em
-> [`assets/originais/`](../assets/originais/).
+> [`archive/`](../archive/).
 >
 > Este é o documento fundacional. A **versão operacional e viva** de cada seção
-> está em [`engineering/`](../engineering/) e [`team/overview.md`](overview.md) —
-> se houver divergência, a versão viva (alinhada ao código) prevalece; ver a
+> está em [`backend/`](../backend/), [`team/`](.) e
+> [`team/overview.md`](overview.md) — se houver divergência, a versão viva
+> (alinhada ao código) prevalece; ver a
 > [convenção do repositório](../README.md).
 
 - **Projeto:** Plataforma de Venda de Ingressos para Teatro Comunitário (Processo 18) — marca **Ludens**
 - **Equipe:** Grupo 18
 - **Arquitetura:** Monólito modular com Domain-Driven Design (DDD)
 - **Data da elaboração:** 31/07/2026
-- **Instituição:** Engenharia de Software — Centro Universitário Católica de Santa Catarina
+- **Disciplina:** Manutenção e Melhoria de Software — 6º semestre do curso de Engenharia de Software
+- **Instituição:** Centro Universitário Católica de Santa Catarina
 
 ---
 
@@ -27,7 +29,7 @@ Ver a tabela completa de integrantes e a Matriz RACI em
 
 ## 2. Processo e gestão de débito técnico
 
-**Responsável:** Desenvolvedor Backend.
+**Responsável:** Desenvolvedor Backend (Igor Thiago Seberino).
 
 ### 2.1. Política de registro de débito técnico
 
@@ -46,12 +48,12 @@ disponibilidade de ingressos) ou o **trabalho de outro membro** do time têm
 **prioridade máxima** e são tratados no ciclo seguinte. A priorização é validada
 com o Product Owner no planejamento do ciclo.
 
-Versão viva: [`engineering/tech-debt.md`](../engineering/tech-debt.md).
+Versão viva: [`team/tech-debt.md`](tech-debt.md).
 
 ## 3. Critérios de qualidade: DoR e DoD
 
-**Responsável:** Quality Assurance (QA) — o DoR é validado em conjunto com o
-Engenheiro de Requisitos.
+**Responsável:** Quality Assurance (QA) — Adrian Cesar Gonçalves — o DoR é
+validado em conjunto com o Engenheiro de Requisitos (Renato Colin Neto).
 
 ### 3.1. Definition of Ready — DoR (pronto para desenvolver)
 
@@ -77,13 +79,13 @@ Uma tarefa só é considerada "Concluída" se atende rigorosamente a todos os it
   sem erros críticos.
 - Os testes automatizados relevantes foram criados/atualizados e estão passando
   na pipeline.
-- O código foi integrado à branch principal (`main` / trunk) sem quebrar o build.
+- O código foi integrado à branch principal (`master` / trunk) sem quebrar o build.
 
-Versão viva: [`engineering/quality.md`](../engineering/quality.md).
+Versão viva: [`team/quality.md`](quality.md).
 
 ## 4. Estratégia de testabilidade
 
-**Responsável:** Quality Assurance (QA).
+**Responsável:** Quality Assurance (QA) — Adrian Cesar Gonçalves.
 
 ### 4.1. Cobertura e níveis de teste
 
@@ -102,11 +104,11 @@ reproduzir, resultado esperado, resultado obtido, severidade e evidência
 (print/log). Bugs de **alta severidade** (que bloqueiam compra ou pagamento, ou
 que expõem dados) impedem o encerramento das tarefas e o fechamento do ciclo.
 
-Versão viva: [`engineering/testing.md`](../engineering/testing.md).
+Versão viva: [`backend/testing.md`](../backend/testing.md).
 
 ## 5. Guia de estilo e padrões de código
 
-**Responsável:** Desenvolvedores Frontend e Backend.
+**Responsável:** Desenvolvedores Frontend (Diego Nessler) e Backend (Igor Thiago Seberino).
 
 ### 5.1. Convenções de código
 
@@ -134,26 +136,21 @@ PostgreSQL; ambiente em contêineres Docker.
 - Nenhuma credencial ou segredo versionado no código; usar variáveis de ambiente
   (`.env` fora do controle de versão).
 
-Versão viva: [`engineering/code-style.md`](../engineering/code-style.md).
+Versão viva: [`backend/code-style.md`](../backend/code-style.md).
 
 ## 6. Fluxo de versionamento e pipeline de CI/CD
 
-**Responsável:** DevOps.
+**Responsável:** DevOps (Gabriel Carvalho).
 
 ### 6.1. Estratégia de branches — Trunk Based Development (TBD)
 
-- `main` (trunk): única branch de longa duração; sempre estável, integrável e
+- `master` (trunk): única branch de longa duração; sempre estável, integrável e
   apta a implantação.
-- Branches de curta duração: criadas a partir de `main` no padrão
+- Branches de curta duração: criadas a partir de `master` no padrão
   `feature/nome-da-funcionalidade` ou `fix/descricao-do-bug`, reintegradas em
   poucos dias.
-- Integração contínua: commits pequenos e frequentes na `main` via Pull Request;
+- Integração contínua: commits pequenos e frequentes na `master` via Pull Request;
   funcionalidades incompletas protegidas por feature flags quando necessário.
-
-> **Nota (2026-08-28):** o README do monorepo original passou a descrever um
-> fluxo com `main` + `develop`, divergindo deste acordo. A divergência está sendo
-> resolvida no [ADR 003](../architecture/design/003-estrategia-de-branches.md),
-> que recomenda manter o TBD puro descrito aqui.
 
 ### 6.2. Padronização de commits
 
@@ -169,8 +166,7 @@ Commits seguem a especificação [Conventional Commits](https://www.conventional
 - **Regra de integração:** nenhum Pull Request é aprovado se o linter acusar
   erros críticos ou se os testes automatizados falharem.
 
-Versão viva: [`engineering/git-flow.md`](../engineering/git-flow.md) e
-[`engineering/ci-cd.md`](../engineering/ci-cd.md).
+Versão viva: [`backend/testing.md`](../backend/testing.md).
 
 ## 7. Compromisso da equipe
 

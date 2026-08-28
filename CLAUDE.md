@@ -19,7 +19,7 @@ READMEs curtos que apontam para cá.
 - Requisitos e regras de negócio carregam **Status** explícito
   (`aprovada` | `proposta — pendente PO`).
 - Não versione binários como fonte de verdade. Os `.docx`/`.xlsx` originais das
-  entregas da disciplina ficam só em `assets/originais/`.
+  entregas da disciplina ficam só em `archive/`.
 - O backlog do projeto vive num **GitHub Project da organização**, não aqui.
   Não crie issue templates de produto neste repositório.
 

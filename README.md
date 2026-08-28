@@ -2,20 +2,19 @@
 
 **Ludens** é a plataforma web de venda de ingressos de um teatro comunitário —
 busca de espetáculos, reserva, compra e confirmação de ingressos. É o projeto
-acadêmico do **Processo/Grupo 18** da disciplina de Engenharia de Software do
-Centro Universitário Católica de Santa Catarina. Arquitetura de **monólito
-modular** orientada a **Domain-Driven Design (DDD)**, backend em FastAPI,
-frontend em React, execução em Docker.
+acadêmico do **Processo/Grupo 18** da disciplina de **Manutenção e Melhoria de
+Software** (6º semestre do curso de Engenharia de Software) do Centro
+Universitário Católica de Santa Catarina.
 
 Este repositório é a **fonte de entrada do projeto**: a documentação de produto,
-requisitos, arquitetura e padrões de engenharia vive centralizada aqui. Os
-repositórios de código têm READMEs curtos que apontam para cá.
+requisitos e padrões de engenharia vive centralizada aqui. Os repositórios de
+código têm READMEs curtos que apontam para cá.
 
 ## Repositórios
 
 | Repositório | Papel | Conteúdo |
 | --- | --- | --- |
-| [`gcarvalhow/docs.ludens`](https://github.com/gcarvalhow/docs.ludens) | Fonte de entrada | Este repositório — produto, requisitos, arquitetura, RACI, padrões |
+| [`gcarvalhow/docs.ludens`](https://github.com/gcarvalhow/docs.ludens) | Fonte de entrada | Este repositório — produto, requisitos, RACI, padrões de engenharia |
 | [`gcarvalhow/api.ludens`](https://github.com/gcarvalhow/api.ludens) | Backend | API FastAPI (monólito modular + DDD), Postgres, Docker |
 | [`gcarvalhow/web.ludens`](https://github.com/gcarvalhow/web.ludens) | Frontend | Aplicação React (Vite) |
 
@@ -26,29 +25,26 @@ repositórios de código têm READMEs curtos que apontam para cá.
 
 ## Requisitos
 
-- [Visão geral da ERS](requirements/overview.md) — objetivo, escopo, contextos de domínio (DDD); lacunas em aberto (RNF)
-- [Requisitos funcionais](requirements/functional.md) — RF01–RF09, com histórias de usuário e critérios de aceitação
+- [Visão geral da ERS](requirements/overview.md) — objetivo, escopo e índice das seções da especificação
+- [Requisitos funcionais e não funcionais](requirements/functional.md) — RF01–RF09 (histórias de usuário e critérios de aceitação), RNF01–RNF06 e o quadro consolidado de dependências técnicas
 - [Regras de negócio](requirements/business-rules.md) — RN01–RN05, cada uma com status de aprovação
-- [Glossário](requirements/glossary.md) — linguagem ubíqua do domínio (DDD)
 
-## Arquitetura
+## Backend (`api.ludens`)
 
-- [Visão geral](architecture/overview.md) — monólito modular + DDD, bounded contexts, stack, mapa dos repositórios
-- [Decisões de design (ADRs)](architecture/design/) — decisões registradas, cada uma com status
+- [Visão geral da arquitetura](backend/overview.md) — módulos, fluxos e schema (desenho, ainda não implementado)
+- [Decisões de design (ADRs)](backend/design/) — outbox in-process, monólito modular
+- [Segurança](backend/security/) — autenticação (JWT + refresh) e variáveis de ambiente
+- [Testes e CI](backend/testing.md) — estratégia de testes do domínio e pipeline de integração contínua
+- [Guia de estilo e código](backend/code-style.md) — PEP 8/Ruff, idioma do código, boas práticas de manutenibilidade
+- [Template de contrato de integração](backend/integration/_template.md) — modelo backend → frontend
 
 ## Time
 
 - [Equipe e RACI](team/overview.md) — papéis, integrantes, Matriz RACI, contatos GitHub
-- [Acordo de Manutenibilidade](team/acordo-de-manutenibilidade.md) — o acordo assinado do Processo 18 (registro da entrega; a versão operacional vive em `engineering/`)
-
-## Engenharia
-
-- [Guia de estilo e código](engineering/code-style.md) — PEP 8/Ruff, ESLint/Prettier, idioma, boas práticas de manutenibilidade
-- [Fluxo Git](engineering/git-flow.md) — estratégia de branches, Conventional Commits, fluxo de Pull Request e code review
-- [CI/CD](engineering/ci-cd.md) — pipeline de lint e testes, Docker como padrão de execução, portões de merge
-- [Qualidade — DoR e DoD](engineering/quality.md) — Definition of Ready e Definition of Done
-- [Estratégia de testes](engineering/testing.md) — foco no domínio do backend, roteiro do fluxo principal, registro de bugs
-- [Gestão de débito técnico](engineering/tech-debt.md) — política de registro, orçamento de ciclo, priorização
+- [Acordo de Manutenibilidade](team/maintainability.md) — o acordo assinado do Processo 18 (registro da entrega; a versão operacional vive em `backend/` e `team/`)
+- [Qualidade — DoR e DoD](team/quality.md) — Definition of Ready e Definition of Done
+- [Gestão de débito técnico](team/tech-debt.md) — política de registro, orçamento de ciclo, priorização
+- [Ambiente de desenvolvimento](team/development.md) — como subir o projeto localmente
 
 ---
 
@@ -57,5 +53,5 @@ comportamento observado têm prioridade sobre o que está escrito aqui se
 divergirem. Ao encontrar uma divergência, corrija o documento — não repita a
 informação desatualizada. Toda mudança em documento vigente entra por Pull
 Request com revisão, igual a código. Os arquivos `.docx`/`.xlsx` originais das
-entregas da disciplina estão preservados em [`assets/originais/`](assets/originais/)
+entregas da disciplina estão preservados em [`archive/`](archive/)
 apenas como registro histórico.

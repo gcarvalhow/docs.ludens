@@ -1,14 +1,18 @@
 # Especificação de Requisitos (ERS) — Visão Geral
 
-> **Responsável:** Engenheiro de Requisitos (R) · **Aprovação:** Product Owner (A) · **Consulta:** QA (C)
-> **Última revisão:** 2026-08-28 · **Status:** vigente
-> Conversão da ERS do Processo 18 (elaboração original 12/08/2026 por Renato Colin Neto). Original em [`assets/originais/`](../assets/originais/).
+> **Status:** vigente · **Última revisão:** 2026-08-28
+>
+> **Papéis (RACI)**
+>
+> - **Responsável (R):** Renato Colin Neto — Engenheiro de Requisitos
+> - **Aprovação (A):** Gabriel Carvalho — Product Owner
+> - **Consulta (C):** Adrian Cesar Gonçalves — QA
 
 Este é o índice da Especificação de Requisitos. O conteúdo está dividido em:
 
-- [Requisitos funcionais](functional.md) — RF01–RF09
+- [Requisitos funcionais e não funcionais](functional.md) — RF01–RF09,
+  RNF01–RNF06 e o quadro consolidado de dependências técnicas
 - [Regras de negócio](business-rules.md) — RN01–RN05
-- [Glossário (linguagem ubíqua)](glossary.md)
 
 ## 1. Introdução
 
@@ -17,7 +21,7 @@ Este é o índice da Especificação de Requisitos. O conteúdo está dividido e
 Especificar os requisitos funcionais, as regras de negócio e os requisitos não
 funcionais da plataforma de venda de ingressos para um teatro comunitário,
 servindo de base para a construção do backlog, a validação do
-[Definition of Ready](../engineering/quality.md) e a modelagem dos módulos de
+[Definition of Ready](../team/quality.md) e a modelagem dos módulos de
 domínio (DDD) pelo time de backend.
 
 ### 1.2. Escopo
@@ -29,20 +33,6 @@ Estão fora do escopo a bilheteria física presencial e a validação de
 meia-entrada no local, que permanecem processos manuais do teatro. Ver
 [escopo do produto](../product/scope.md).
 
-### 1.3. Contextos de domínio (DDD)
-
-Os requisitos estão organizados considerando os contextos de domínio abaixo, que
-servem de referência para a modelagem dos módulos do monólito
-([arquitetura](../architecture/overview.md)):
-
-| Contexto | Responsabilidade |
-| --- | --- |
-| **Catálogo** | Espetáculos e sessões |
-| **Bilheteria / Reserva** | Disponibilidade, reserva e emissão de ingressos |
-| **Pagamento** | Integração com gateway e processamento de pedidos |
-| **Conta** | Cadastro, autenticação e histórico do comprador |
-| **Notificação** | Envio de e-mails transacionais |
-
 ## 2. Requisitos funcionais
 
 Ver [functional.md](functional.md) — RF01 a RF09, cada um com história de
@@ -50,43 +40,43 @@ usuário, critérios de aceitação e dependências técnicas.
 
 ## 3. Regras de negócio
 
-Ver [business-rules.md](business-rules.md) — RN01 a RN05. As regras RN01, RN02 e
-RN03 têm valores numéricos que são **propostas do Engenheiro de Requisitos,
-pendentes de aprovação do PO** antes de entrarem em vigor como critério de DoR.
+Ver [business-rules.md](business-rules.md) — RN01 a RN05, todas **aprovadas pelo
+PO em 2026-08-28** (ver [§ 6](#6-decisões-do-product-owner)).
 
 ## 4. Requisitos não funcionais (RNF)
 
-> **Lacuna conhecida.** A seção de requisitos não funcionais da ERS original
-> está **vazia**. As referências a `RNF02`, `RNF03` e `RNF04` (metas de
-> desempenho, disponibilidade e usabilidade) aparecem na lista de
-> [itens pendentes de validação com o PO](#7-itens-pendentes-de-validação-com-o-product-owner),
-> mas os requisitos em si ainda não foram redigidos. **A fazer:** o Engenheiro
-> de Requisitos redige os RNF e submete ao PO.
+Redigidos em [functional.md § Requisitos não funcionais](functional.md#requisitos-não-funcionais):
+RNF01 segurança e proteção de dados, RNF02 desempenho, RNF03 disponibilidade e
+confiabilidade, RNF04 usabilidade e acessibilidade, RNF05 manutenibilidade,
+RNF06 portabilidade e operação. Todos **aprovados pelo PO em 2026-08-28** (ver
+[§ 6](#6-decisões-do-product-owner)).
 
 ## 5. Dependências técnicas por requisito
 
-> **Lacuna conhecida.** A ERS original prevê uma consolidação das dependências
-> técnicas mapeadas requisito a requisito (para uso na priorização do backlog
-> junto ao Backend e DevOps), mas a seção está **vazia**. As dependências já
-> aparecem em cada RF individual em [functional.md](functional.md); falta o
-> quadro consolidado.
+Quadro consolidado em
+[functional.md § Dependências técnicas por requisito](functional.md#dependências-técnicas-por-requisito),
+montado a partir das dependências listadas em cada RF. Serve de insumo para a
+priorização do backlog junto ao Backend e ao DevOps.
 
-## 6. Glossário (linguagem ubíqua)
-
-Ver [glossary.md](glossary.md) — termos alinhados com o time de Backend para uso
-consistente no código (DDD) e na documentação.
-
-## 7. Itens pendentes de validação com o Product Owner
+## 6. Decisões do Product Owner
 
 Conforme a [Matriz RACI](../team/overview.md), o Product Owner é o Aprovador (A)
-dos requisitos e regras de negócio levantados pelo Engenheiro de Requisitos. Os
-itens a seguir precisam de decisão do PO antes de entrarem no backlog como
-critério de DoR:
+dos requisitos e regras de negócio. Registro das decisões tomadas:
 
-- **RN01** — valor exato do limite de ingressos por CPF
-- **RN02** — prazos e percentuais da política de reembolso
-- **RN03** — tempo de expiração da reserva
-- **RF04** — meios de pagamento suportados e gateway escolhido
-- **RNF02, RNF03, RNF04** — metas de desempenho, disponibilidade e usabilidade
-- **RN04 (escopo da meia-entrada)** — divergência entre a ERS e o código do
-  backend, ver [ADR 004](../architecture/design/004-escopo-da-regra-de-meia-entrada.md)
+### 2026-08-28 — aprovação geral da ERS
+
+O PO aprovou todos os requisitos funcionais (RF01–RF09), não funcionais
+(RNF01–RNF06) e regras de negócio (RN01–RN05). Itens que estavam em aberto:
+
+- **RN01** — limite de **6 ingressos por CPF** por sessão.
+- **RN02** — reembolso **integral até 48h** antes da sessão, **50% entre 48h e
+  24h**, **sem reembolso a menos de 24h**.
+- **RN03** — reserva não paga **expira em 15 minutos**.
+- **RN04 (meia-entrada)** — vale o texto da ERS: o sistema apenas registra a
+  intenção de meia-entrada e **não exige** o número do documento de estudante na
+  emissão. O backend, que hoje exige, será alinhado — débito técnico em
+  [tech-debt](../team/tech-debt.md).
+- **RF04 (pagamento)** — pagamento por **Pix** através do gateway **AbacatePay**.
+- **RNF02–RNF04** — as metas numéricas de desempenho (p95 de 1–2 s),
+  disponibilidade (99% ao mês) e usabilidade (fluxo em até 5 passos, WCAG 2.1
+  AA) valem como critério de Definition of Ready.

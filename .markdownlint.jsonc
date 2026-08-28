@@ -6,7 +6,8 @@
   // links longos e blocos de código estouram naturalmente — não é um erro.
   "MD013": false,
 
-  // HTML inline: os arquivos *.template.md usam <placeholder> de propósito.
+  // HTML inline permitido: modelos e trechos de exemplo usam <placeholder> de
+  // propósito.
   "MD033": false,
 
   // Padrão deliberado do projeto: rótulo em negrito seguido de uma lista de

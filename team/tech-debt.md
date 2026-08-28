@@ -1,7 +1,7 @@
 # Gestão de Débito Técnico
 
-> **Responsável:** Desenvolvedor Backend · **Aprovação:** PO · **Última revisão:** 2026-08-28 · **Status:** vigente
-> Versão operacional do [Acordo de Manutenibilidade §2](../team/acordo-de-manutenibilidade.md).
+> **Responsável:** Desenvolvedor Backend (Igor Thiago Seberino) · **Aprovação:** PO (Gabriel Carvalho) · **Última revisão:** 2026-08-28 · **Status:** vigente
+> Versão operacional do [Acordo de Manutenibilidade §2](maintainability.md).
 
 ## Política de registro
 
@@ -35,8 +35,5 @@ planejamento) os débitos que afetam:
 
 | Débito | Origem | Impacto | Proposta |
 | --- | --- | --- | --- |
-| RNF da ERS não redigidos (desempenho, disponibilidade, usabilidade) | [ERS §4](../requirements/overview.md#4-requisitos-não-funcionais-rnf) | Sem metas objetivas para DoR/DoD | Eng. de Requisitos redige e submete ao PO |
-| Quadro consolidado de dependências técnicas por requisito ausente | [ERS §5](../requirements/overview.md#5-dependências-técnicas-por-requisito) | Priorização do backlog menos precisa | Consolidar a partir das dependências já listadas em cada RF |
-| Divergência ERS RN04 × código da meia-entrada | [ADR 004](../architecture/design/004-escopo-da-regra-de-meia-entrada.md) | Contradição em requisito, afeta DoR | PO aprova o ADR 004; reescrever RN04 |
-| Divergência TBD × `main`+`develop` | [ADR 003](../architecture/design/003-estrategia-de-branches.md) | Fluxo de trabalho ambíguo | PO aprova o ADR 003; remover `develop` |
+| Backend exige documento de estudante na meia-entrada, contra a RN04 aprovada | [RN04](../requirements/business-rules.md#rn04--meia-entrada) | Código diverge de requisito aprovado pelo PO | Remover a obrigatoriedade do documento em `issue_ticket` e nos testes de `tests/test_tickets.py` |
 | CODEOWNERS / handle desatualizados na separação de repos | Migração do monorepo | Revisão automática pode não acionar o dono certo | Recriar CODEOWNERS por repo com a org `gcarvalhow` |

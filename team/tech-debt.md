@@ -14,8 +14,8 @@ tipo **Débito Técnico**, contendo:
 - impacto estimado;
 - proposta de solução.
 
-Os repositórios de código trazem um template de issue "Débito Técnico" com esses
-campos.
+Os repositórios `api.ludens` e `web.ludens` trazem o template de issue "Débito
+Técnico" com esses campos, e a label `débito técnico` existe nos quatro repos.
 
 ## Orçamento de ciclo
 
@@ -33,7 +33,11 @@ planejamento) os débitos que afetam:
 
 ## Débitos conhecidos hoje
 
-| Débito | Origem | Impacto | Proposta |
-| --- | --- | --- | --- |
-| Backend exige documento de estudante na meia-entrada, contra a RN04 aprovada | [RN04](../requirements/business-rules.md#rn04--meia-entrada) | Código diverge de requisito aprovado pelo PO | Remover a obrigatoriedade do documento em `issue_ticket` e nos testes de `tests/test_tickets.py` |
-| CODEOWNERS / handle desatualizados na separação de repos | Migração do monorepo | Revisão automática pode não acionar o dono certo | Recriar CODEOWNERS por repo com a org `gcarvalhow` |
+Nenhum débito técnico em aberto — não há código implementado ainda.
+
+Itens já resolvidos nesta preparação:
+
+| Item | Origem | Resolução |
+| --- | --- | --- |
+| CODEOWNERS / handles desatualizados na separação de repos | Migração do monorepo | `CODEOWNERS` recriado em `api.ludens` (Igor) e `web.ludens` (Diego) com a org `gcarvalhow` (2026-09-01) |
+| Meia-entrada exigindo documento de estudante contra a RN04 | ERS original | Sem código: virou critério de aceite da spec `booking-ticket-issuance` — ver [RN04](../requirements/business-rules.md#rn04--meia-entrada) |

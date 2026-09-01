@@ -17,6 +17,7 @@ código têm READMEs curtos que apontam para cá.
 | [`gcarvalhow/docs.ludens`](https://github.com/gcarvalhow/docs.ludens) | Fonte de entrada | Este repositório — produto, requisitos, RACI, padrões de engenharia |
 | [`gcarvalhow/api.ludens`](https://github.com/gcarvalhow/api.ludens) | Backend | API FastAPI (monólito modular + DDD), Postgres, Docker |
 | [`gcarvalhow/web.ludens`](https://github.com/gcarvalhow/web.ludens) | Frontend | Aplicação React (Vite) |
+| [`gcarvalhow/team.ludens`](https://github.com/gcarvalhow/team.ludens) | Ferramentaria | Plugin Claude Code — papéis do time, pipeline de spec, fluxo TBD |
 
 ## Produto
 
@@ -28,6 +29,13 @@ código têm READMEs curtos que apontam para cá.
 - [Visão geral da ERS](requirements/overview.md) — objetivo, escopo e índice das seções da especificação
 - [Requisitos funcionais e não funcionais](requirements/functional.md) — RF01–RF09 (histórias de usuário e critérios de aceitação), RNF01–RNF06 e o quadro consolidado de dependências técnicas
 - [Regras de negócio](requirements/business-rules.md) — RN01–RN05, cada uma com status de aprovação
+
+## Specs de feature
+
+- [Pipeline de specs](specs/README.md) — como cada feature vai de ideia a issues
+  para a equipe: `spec.md` → `logic.md` → `integration.md` →
+  `implementation-spec.md`, operado pelo plugin
+  [`gcarvalhow/team.ludens`](https://github.com/gcarvalhow/team.ludens)
 
 ## Backend (`api.ludens`)
 

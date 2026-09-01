@@ -4,7 +4,16 @@
 
 Este arquivo é o modelo canônico para gerar o contrato de integração de uma
 feature do Ludens (`api.ludens` → `web.ludens`) **após sua implementação no
-backend**. Copie-o para um arquivo por feature e preencha os campos `<...>`.
+backend**.
+
+> **Onde o contrato de cada feature fica.** O pipeline de spec
+> ([`../../specs/README.md`](../../specs/README.md)) gera
+> `specs/[domínio]-[conceito]/integration.md` — primeiro como **contrato-alvo**
+> (`status: alvo`, o frontend constrói contra ele) e depois como **canônico**
+> (`status: canônico`, o responsável de backend atualiza para refletir o código
+> real). A skill `feature-implementation-spec` do plugin
+> [`gcarvalhow/team.ludens`](https://github.com/gcarvalhow/team.ludens) carrega a
+> versão canônica deste modelo. Preencha os campos `<...>` por feature.
 
 ---
 

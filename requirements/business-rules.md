@@ -51,13 +51,12 @@ A validação do documento comprobatório de estudante é feita **presencialment
 na entrada do evento e está **fora do escopo do sistema** — a emissão do ingresso
 não exige o número do documento.
 
-**Decisão do PO (2026-08-28).** Havia divergência entre este texto (herdado da
-ERS original) e o backend, que hoje **exige** o número do documento de estudante
-para emitir a meia-entrada (`api.ludens`,
-`app/domain/tickets/models.py::issue_ticket`, com testes). O PO decidiu **alinhar
-o código à ERS**: a obrigatoriedade do documento deve ser removida do domínio e
-dos testes. Até o ajuste, permanece o débito técnico registrado em
-[tech-debt](../team/tech-debt.md).
+**Decisão do PO (2026-08-28).** A ERS original chegou a descrever a
+meia-entrada exigindo o número do documento de estudante. O PO decidiu **alinhar
+à ERS acima**: a emissão do ingresso **não** exige o documento. Como o backend
+ainda não tem código, isso não é débito técnico — é **critério de aceite** da
+spec [`booking-ticket-issuance`](../specs/): a emissão de meia-entrada e seus
+testes de domínio não podem exigir o número do documento.
 
 **Status:** aprovada pelo PO em 2026-08-28. Ajuste no backend pendente.
 

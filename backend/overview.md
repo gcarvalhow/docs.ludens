@@ -11,6 +11,13 @@
 > monólito modular + DDD da mesma forma. Diferenças assumidas para o Ludens:
 > **sem Event Sourcing** e **sem broker de mensagens** — ver
 > [ADR 001](design/001-outbox-in-process.md).
+>
+> As **regras de código** que operacionalizam estes padrões vivem na skill
+> `backend-architecture` do plugin
+> [`gcarvalhow/team.ludens`](https://github.com/gcarvalhow/team.ludens) (10
+> arquivos de referência, um por camada). Este documento é a fonte de verdade
+> viva do estado atual; a skill explica o padrão e o porquê e aponta de volta
+> para cá.
 
 ## Stack
 

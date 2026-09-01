@@ -44,10 +44,20 @@ Consultado · **I** = Informado.
 | [Testes e CI](../backend/testing.md) e [DoR/DoD](quality.md) | QA (Adrian Cesar Gonçalves) | PO (Gabriel Carvalho) |
 | [Ambiente de desenvolvimento](development.md) | DevOps (Gabriel Carvalho) | PO (Gabriel Carvalho) |
 | [Gestão de débito técnico](tech-debt.md) | Dev. Backend (Igor Thiago Seberino) | PO (Gabriel Carvalho) |
+| [Ferramentaria do time (`team.ludens`)](https://github.com/gcarvalhow/team.ludens) e [pipeline de specs](../specs/README.md) | DevOps / PO (Gabriel Carvalho) | PO (Gabriel Carvalho) |
 
 ## Backlog
 
-O backlog do produto e as histórias de usuário vivem num **GitHub Project da
-organização `gcarvalhow`**, que agrega issues dos repositórios `api.ludens` e
-`web.ludens`. Este repositório (`docs.ludens`) guarda apenas os requisitos e os
-padrões — não os itens de backlog.
+O backlog do produto e as histórias de usuário vivem no **GitHub Project
+[`@ludens`](https://github.com/orgs/gcarvalhow/projects/2)** da organização
+`gcarvalhow`, que agrega issues dos repositórios `api.ludens`, `web.ludens`,
+`docs.ludens` e `team.ludens`. Este repositório (`docs.ludens`) guarda os
+requisitos, os padrões e as **specs de feature** (`specs/`) — não os itens de
+backlog.
+
+Cada feature é fatiada em issues por responsável (Backend / Frontend / QA) a
+partir da sua `implementation-spec.md`, pelo fluxo `/team-ludens:tbd-start` do
+plugin. Campos do Project: `Area` (backend/frontend/infra/docs), `Priority`
+(3 = mais importante … 0), `Issue Type` (feature/task/refactor/bug), `Status`
+(Backlog/In Progress/Done). Labels: `module: *`, `N1`/`N2`/`N3`,
+`débito técnico`.

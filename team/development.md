@@ -13,6 +13,32 @@
 | [`gcarvalhow/docs.ludens`](https://github.com/gcarvalhow/docs.ludens) | Esta documentação |
 | [`gcarvalhow/api.ludens`](https://github.com/gcarvalhow/api.ludens) | Backend — FastAPI + PostgreSQL |
 | [`gcarvalhow/web.ludens`](https://github.com/gcarvalhow/web.ludens) | Frontend — React (Vite) |
+| [`gcarvalhow/team.ludens`](https://github.com/gcarvalhow/team.ludens) | Plugin Claude Code — papéis, pipeline de spec, fluxo TBD |
+
+## Plugin do time (`team.ludens`)
+
+O pipeline de produto→engenharia→specs e o fluxo Trunk-Based Development são
+operados pelo plugin Claude Code
+[`gcarvalhow/team.ludens`](https://github.com/gcarvalhow/team.ludens). Cada repo
+já declara o que habilita no próprio `.claude/settings.json` (commitado):
+`docs.ludens` usa `core`; `api.ludens` usa `core` + `backend`; `web.ludens` usa
+`core` + `frontend`.
+
+Depois do prompt de *trust* do Claude Code, instale de fato (um plugin por
+comando) e abra uma **sessão nova**:
+
+```bash
+claude plugin marketplace add gcarvalhow/team.ludens
+claude plugin install core@team-ludens --scope project
+claude plugin install backend@team-ludens --scope project   # só api.ludens
+claude plugin install frontend@team-ludens --scope project  # só web.ludens
+claude plugin list                                           # confirme "enabled"
+```
+
+Rode `/team-ludens:setup` para validar `git`/`gh`/`python`. O pipeline completo
+(`feature-design` → `logic-design` → `feature-implementation-spec` → `tbd-start`
+→ `tbd-commit` → `tbd-pr`) está descrito no README do `team.ludens` e em
+[`../specs/README.md`](../specs/README.md).
 
 ## Pré-requisitos
 

@@ -23,6 +23,16 @@ READMEs curtos que apontam para cá.
 - O backlog do projeto vive num **GitHub Project da organização**, não aqui.
   Não crie issue templates de produto neste repositório.
 
+## Specs de feature
+
+As specs de cada feature ficam em `specs/[domínio]-[conceito]/` — quatro
+artefatos (`spec.md` → `logic.md` → `integration.md` → `implementation-spec.md`),
+gerados pelo pipeline do plugin
+[`gcarvalhow/team.ludens`](https://github.com/gcarvalhow/team.ludens) (skills
+`feature-design`, `logic-design`, `feature-implementation-spec`). Convenção e
+ordem em [`specs/README.md`](specs/README.md). Nome de pasta em inglês, conteúdo
+em português. O `.claude/settings.json` deste repo já habilita o plugin `core`.
+
 ## Antes de commitar
 
 - Rode `npx markdownlint-cli2 "**/*.md"` e um verificador de links.

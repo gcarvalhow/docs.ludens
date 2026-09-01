@@ -85,7 +85,7 @@ mesmo serviço de e-mail transacional de `notification-transactional-email` — 
 ## 8. Decisões tomadas
 
 | Ponto | Decisão |
-|---|---|
+| --- | --- |
 | Identificador de login | E-mail + senha. O CPF é obrigatório no cadastro (RN01) mas não é usado para autenticar. |
 | Sessão que se mantém | Dual-token JWT: access token curto (30 min) + refresh token opaco (7 dias) em cookie `HttpOnly; Secure; SameSite=Strict`. Ver `docs.ludens/backend/security/authentication.md`. |
 | Logout | Regenera o `security_stamp` do comprador — invalida todos os tokens em qualquer dispositivo. |

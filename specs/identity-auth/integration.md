@@ -13,7 +13,7 @@ backend implementar). **Módulo backend:** `identity`.
 ## Rotas
 
 | Método | Caminho | Auth | Sucesso | Descrição |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | POST | `/auth/register` | pública | 201 | Cria conta e já autentica |
 | POST | `/auth/login` | pública | 200 | Autentica |
 | POST | `/auth/refresh` | cookie de refresh | 200 | Novo par de tokens (rotaciona refresh) |
@@ -31,8 +31,8 @@ backend implementar). **Módulo backend:** `identity`.
 - `POST /auth/register` → body `{ name, cpf, email, password }` (CPF sem máscara,
   só dígitos). 201 → `{ accessToken, expiresIn }` + `Set-Cookie: refresh_token=...`.
 - `POST /auth/login` → `{ email, password }` → 200 mesmo shape.
-- `POST /auth/refresh` → sem body; lê o cookie → 200 `{ accessToken, expiresIn }`
-  + novo `Set-Cookie`.
+- `POST /auth/refresh` → sem body; lê o cookie → 200 `{ accessToken, expiresIn }`,
+  mais um novo `Set-Cookie` de refresh.
 - `GET /auth/me` → 200 `{ id, name, email, cpf, role }` (só do próprio usuário).
 - `POST /auth/password/forgot` → `{ email }` → **202 sempre**, body
   `{ message: "Se houver uma conta com esse e-mail, enviamos um link." }`.
@@ -41,7 +41,7 @@ backend implementar). **Módulo backend:** `identity`.
 ## Erros esperados (linguagem de negócio)
 
 | Rota | Status | Quando | Mensagem |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | register | 409 | CPF já cadastrado | "Este CPF já possui cadastro." |
 | register | 409 | e-mail já cadastrado | "Este e-mail já está em uso." |
 | register | 422 | CPF inválido | "CPF inválido." |

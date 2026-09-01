@@ -12,7 +12,7 @@ responsavel: Igor (Backend)
 ## Rotas
 
 | Método | Caminho | Auth | Sucesso | Descrição |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | POST | `/reservations` | Bearer (comprador) | 201 | Abre uma reserva |
 | GET | `/reservations/{id}` | Bearer (dono) | 200 | Estado da reserva + tempo restante |
 | POST | `/reservations/{id}/cancel` | Bearer (dono) | 204 | Cancela reserva aberta |
@@ -29,7 +29,7 @@ responsavel: Igor (Backend)
 ## Erros esperados
 
 | Status | Quando | Mensagem |
-|---|---|---|
+| --- | --- | --- |
 | 409 | disponibilidade insuficiente na sessão | "Não há ingressos suficientes para esta sessão." |
 | 409 | limite por CPF excedido (RN01) | "Você já atingiu o limite de 6 ingressos por sessão." |
 | 409 | sessão não está à venda | "Esta sessão não está mais à venda." |

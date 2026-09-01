@@ -76,7 +76,7 @@ Nenhum custo externo identificado. Opera inteiramente sobre o PostgreSQL.
 ## 8. Decisões tomadas
 
 | Ponto | Decisão |
-|---|---|
+| --- | --- |
 | Unidade de reserva | Quantidade + tipo (inteira/meia), sem numeração de poltrona no N1. |
 | Prazo | 15 minutos (RN03), configurável por variável de ambiente. |
 | Expiração | Automática: um processo em background devolve os ingressos das reservas vencidas. O DB é a fonte de verdade — sobrevive a restart da aplicação. |

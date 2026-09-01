@@ -24,7 +24,7 @@ e seu `is_on_sale`).
 ## A. Backend — responsável: Igor
 
 | # | Camada | Caminho | O que fazer |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 1 | domain | `src/app/modules/booking/domain/enumerations/reservation_status.py` | `ReservationStatus(str, Enum)`: `OPEN`, `CONFIRMED`, `EXPIRED`, `CANCELLED` |
 | 2 | domain | `src/app/modules/booking/domain/enumerations/ticket_type.py` | `TicketType(str, Enum)`: `FULL`, `HALF` |
 | 3 | domain | `.../domain/aggregates/reservation.py` | aggregate `Reservation` — campos `buyer_id`, `buyer_cpf`, `session_id`, `quantity`, `ticket_type`, `status`, `expires_at`. Métodos: `open(...)`, `confirm()`, `expire()`, `cancel()`. Cada um valida o estado atual e levanta evento |
@@ -94,7 +94,7 @@ commit 4  feat(booking): rotas de reserva, dependencies e migration
 ## B. Frontend — responsável: Diego · features `booking` + `checkout`
 
 | # | Camada | Caminho | O que fazer |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 1 | endpoints | `src/routes/endpoints.js` | grupo `booking`: `reservations.create`, `reservations.byId(id)`, `reservations.cancel(id)` |
 | 2 | schemas | `src/features/booking/schemas/reservation.schema.js` | Zod: `openReservationSchema` (quantity 1..6, ticketType enum), `reservationSchema` (com `expiresAt` coerce.date, `secondsLeft`, `status` enum) |
 | 3 | services | `src/features/booking/services/reservation.service.js` | `openReservation`, `fetchReservation`, `cancelReservation` |
@@ -126,7 +126,7 @@ npm run lint && npm run build
 ### Casos de teste de domínio (pytest)
 
 | Caso | Cenário | Cobre |
-|---|---|---|
+| --- | --- | --- |
 | `test_abre_reserva_dentro_da_capacidade` | capacidade 10, 3 confirmados, pede 4 → reserva `OPEN`, evento `ReservationOpened` | RF03 |
 | `test_recusa_quando_excede_capacidade` | capacidade 10, 7 confirmados + 2 abertos, pede 2 → `DomainError` | RN05 |
 | `test_recusa_limite_cpf` | CPF já com 5 (confirmados+abertos) na sessão, pede 2 → `DomainError` | RN01 |

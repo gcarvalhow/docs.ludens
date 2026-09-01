@@ -22,7 +22,7 @@ Carregar antes: skill `backend-architecture` (api.ludens), skill
 Ordem: `domain/` → `application/` → `infrastructure/` → `api/` → `migrations/`.
 
 | # | Camada | Caminho | O que fazer |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 1 | domain | `src/app/modules/identity/domain/value_objects/cpf.py` | `CPF` frozen dataclass, valida dígitos verificadores no `__post_init__`, `DomainError` se inválido |
 | 2 | domain | `src/app/modules/identity/domain/value_objects/email.py` | `Email` frozen, valida formato |
 | 3 | domain | `src/app/modules/identity/domain/enumerations/role.py` | `Role(str, Enum)`: `BUYER`, `ADMIN` |
@@ -95,7 +95,7 @@ commit 4  feat(identity): expor rotas de auth, dependencies e migration
 ## B. Frontend — responsável: Diego · feature `account`
 
 | # | Camada | Caminho | O que fazer |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 1 | endpoints | `src/routes/endpoints.js` | grupo `auth`: register, login, refresh, logout, me, passwordForgot, passwordReset |
 | 2 | schemas | `src/features/account/schemas/auth.schema.js` | Zod: `registerSchema` (cpf com refine de 11 dígitos, email, password min 8), `loginSchema`, `changePasswordSchema`, `forgotSchema`, `resetSchema`, `tokenResponseSchema`, `buyerSchema` |
 | 3 | services | `src/features/account/services/auth.service.js` | `register`, `login`, `refresh`, `logout`, `fetchMe`, `forgotPassword`, `resetPassword` — `fetcher` com `withCredentials` para o cookie |
@@ -128,7 +128,7 @@ npm run lint && npm run build
 ### Casos de teste de domínio (pytest)
 
 | Caso | Cenário | Cobre |
-|---|---|---|
+| --- | --- | --- |
 | `test_registra_buyer_com_cpf_valido` | CPF válido → `Buyer` criado, evento `BuyerRegistered`, `role=BUYER` | RF09 |
 | `test_cpf_invalido_recusa` | CPF com DV errado → `DomainError` | RF09 |
 | `test_troca_senha_rotaciona_security_stamp` | `change_password` → `security_stamp` muda, evento emitido | RNF01 |

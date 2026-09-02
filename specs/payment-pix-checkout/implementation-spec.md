@@ -7,8 +7,8 @@ created_at: 2026-09-01
 # Pagamento Pix e criação do pedido — Implementation Spec
 
 **Resumo:** módulo `payment` — aggregate `Order`, cobrança Pix síncrona no
-AbacatePay (exceção do outbox), webhook idempotente que confirma pedido + reserva
-+ emite ingressos numa transação.
+AbacatePay (exceção do outbox), e webhook idempotente que confirma o pedido,
+confirma a reserva e emite os ingressos numa única transação.
 **RF:** RF04 · **RN:** — · **Módulo backend:** `payment` · **Feature frontend:**
 `checkout` · **Contrato:** `specs/payment-pix-checkout/integration.md`
 

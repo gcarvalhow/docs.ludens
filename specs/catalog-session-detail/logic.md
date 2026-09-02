@@ -11,7 +11,7 @@ reviewed_at: 2026-09-01
 
 ### Visitante
 
-1. Abre `/sessoes/:sessionId`. Vê espetáculo, data, horário, local, tipos de
+1. Abre `/sessoes/{sessionId}`. Vê espetáculo, data, horário, local, tipos de
    ingresso (inteira/meia) com preços, e a quantidade disponível.
 2. A quantidade disponível é atualizada por *polling* enquanto a página fica
    aberta.

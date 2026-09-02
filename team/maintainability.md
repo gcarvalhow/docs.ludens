@@ -112,14 +112,14 @@ Versão viva: [`backend/testing.md`](../backend/testing.md).
 
 ### 5.1. Convenções de código
 
-Stack: Frontend em React (Vite); Backend em Python com FastAPI; banco de dados
+Stack: Frontend em Next.js (App Router) com TypeScript; Backend em Python com FastAPI; banco de dados
 PostgreSQL; ambiente em contêineres Docker.
 
 - **Backend (Python/FastAPI):** `snake_case` para variáveis e funções,
   `PascalCase` para classes, `snake_case` para módulos/arquivos (ex.:
   `ticket_service.py`), seguindo a PEP 8.
 - **Frontend (React):** `camelCase` para variáveis e funções, `PascalCase` para
-  componentes e arquivos de componente (ex.: `CheckoutPage.jsx`).
+  componentes e arquivos de componente (ex.: `CheckoutPage.tsx`).
 - **Idioma do código:** identificadores (classes, métodos, variáveis) em
   **Inglês**; comentários em **Português**.
 

@@ -93,19 +93,21 @@ commit 4  feat(booking): rotas de reserva, dependencies e migration
 
 ## B. Frontend — responsável: Diego · features `booking` + `checkout`
 
+> **Stack:** Next.js (App Router) + TypeScript. Convenções completas na skill `frontend-architecture` do `team.ludens`: `services/` fica sob `server/`, tipos em `server/types/` (`z.infer`), rotas em `src/app/<rota>/page.tsx` (Server Component), `'use client'` só onde há hook/estado/handler, barrels `index.ts`. Os caminhos abaixo são o mapa da feature — ajuste a extensão/pasta ao padrão da skill.
+
 | # | Camada | Caminho | O que fazer |
 | --- | --- | --- | --- |
-| 1 | endpoints | `src/routes/endpoints.js` | grupo `booking`: `reservations.create`, `reservations.byId(id)`, `reservations.cancel(id)` |
-| 2 | schemas | `src/features/booking/schemas/reservation.schema.js` | Zod: `openReservationSchema` (quantity 1..6, ticketType enum), `reservationSchema` (com `expiresAt` coerce.date, `secondsLeft`, `status` enum) |
-| 3 | services | `src/features/booking/services/reservation.service.js` | `openReservation`, `fetchReservation`, `cancelReservation` |
-| 4 | queries | `src/features/booking/hooks/queries/query-options.js` + `useReservationQueries.js` | `detail(id)` com `refetchInterval` curto enquanto `status === 'open'` |
-| 5 | mutations | `src/features/booking/hooks/mutations/useReservationMutations.js` | `open` (sucesso → navega a `/checkout/:id` + toast; erro 409 → toast por caso e volta à sessão), `cancel` (invalida a sessão + navega) |
-| 6 | hooks | `src/features/checkout/hooks/useReservationCountdown.js` | deriva `secondsLeft` de `expiresAt`; ao zerar, dispara refetch da reserva |
-| 7 | components | `src/features/booking/components/TicketPicker.jsx` | quantidade + tipo, na página da sessão; chama `open` |
-| 8 | components | `src/features/checkout/components/CheckoutFrame.jsx` | mostra contador (`useReservationCountdown`), estado da reserva, botão cancelar; ao `status` virar `expired`/`cancelled`, mostra o estado final e CTA de reservar de novo |
-| 9 | components/ui | `src/features/checkout/components/ui/Countdown.jsx` | apresentacional puro (recebe `secondsLeft`) |
-| 10 | rotas | `src/App.jsx` | `/checkout/:reservationId` protegida por `RequireAuth` |
-| 11 | barrels | `index.js` em toda subpasta + raiz das features | obrigatório |
+| 1 | endpoints | `src/routes/endpoints.ts` | grupo `booking`: `reservations.create`, `reservations.byId(id)`, `reservations.cancel(id)` |
+| 2 | schemas | `src/features/booking/schemas/reservation.schema.ts` | Zod: `openReservationSchema` (quantity 1..6, ticketType enum), `reservationSchema` (com `expiresAt` coerce.date, `secondsLeft`, `status` enum) |
+| 3 | services | `src/features/booking/services/reservation.service.ts` | `openReservation`, `fetchReservation`, `cancelReservation` |
+| 4 | queries | `src/features/booking/hooks/queries/query-options.ts` + `useReservationQueries.ts` | `detail(id)` com `refetchInterval` curto enquanto `status === 'open'` |
+| 5 | mutations | `src/features/booking/hooks/mutations/useReservationMutations.ts` | `open` (sucesso → navega a `/checkout/:id` + toast; erro 409 → toast por caso e volta à sessão), `cancel` (invalida a sessão + navega) |
+| 6 | hooks | `src/features/checkout/hooks/useReservationCountdown.ts` | deriva `secondsLeft` de `expiresAt`; ao zerar, dispara refetch da reserva |
+| 7 | components | `src/features/booking/components/TicketPicker.tsx` | quantidade + tipo, na página da sessão; chama `open` |
+| 8 | components | `src/features/checkout/components/CheckoutFrame.tsx` | mostra contador (`useReservationCountdown`), estado da reserva, botão cancelar; ao `status` virar `expired`/`cancelled`, mostra o estado final e CTA de reservar de novo |
+| 9 | components/ui | `src/features/checkout/components/ui/Countdown.tsx` | apresentacional puro (recebe `secondsLeft`) |
+| 10 | rotas | `src/app/` (App Router: uma `page.tsx` por rota) | `/checkout/[reservationId]` protegida por `RequireAuth` |
+| 11 | barrels | `index.ts` em toda subpasta + raiz das features | obrigatório |
 
 ### Passo a passo TBD (Frontend)
 
@@ -114,7 +116,7 @@ git checkout master && git pull && git checkout -b feat/<NN>-booking-reservation
 commit 1  feat(booking): endpoints, schemas e services de reserva
 commit 2  feat(booking): queries, mutations e hook de contador de reserva
 commit 3  feat(booking): seletor de ingresso e frame de checkout com contador
-commit 4  chore(booking): barrels index.js
+commit 4  chore(booking): barrels index.ts
 npm run lint && npm run build
 /team-ludens:tbd-pr
 ```

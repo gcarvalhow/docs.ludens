@@ -94,20 +94,22 @@ commit 4  feat(identity): expor rotas de auth, dependencies e migration
 
 ## B. Frontend — responsável: Diego · feature `account`
 
+> **Stack:** Next.js (App Router) + TypeScript. Convenções completas na skill `frontend-architecture` do `team.ludens`: `services/` fica sob `server/`, tipos em `server/types/` (`z.infer`), rotas em `src/app/<rota>/page.tsx` (Server Component), `'use client'` só onde há hook/estado/handler, barrels `index.ts`. Os caminhos abaixo são o mapa da feature — ajuste a extensão/pasta ao padrão da skill.
+
 | # | Camada | Caminho | O que fazer |
 | --- | --- | --- | --- |
-| 1 | endpoints | `src/routes/endpoints.js` | grupo `auth`: register, login, refresh, logout, me, passwordForgot, passwordReset |
-| 2 | schemas | `src/features/account/schemas/auth.schema.js` | Zod: `registerSchema` (cpf com refine de 11 dígitos, email, password min 8), `loginSchema`, `changePasswordSchema`, `forgotSchema`, `resetSchema`, `tokenResponseSchema`, `buyerSchema` |
-| 3 | services | `src/features/account/services/auth.service.js` | `register`, `login`, `refresh`, `logout`, `fetchMe`, `forgotPassword`, `resetPassword` — `fetcher` com `withCredentials` para o cookie |
-| 4 | lib | `src/lib/fetcher.js` | wrapper fetch/axios: injeta `Authorization`, em 401 tenta `refresh` uma vez e repete; `withCredentials: true` |
-| 5 | context | `src/features/account/contexts/AuthContext.jsx` | guarda o access token em memória (nunca `localStorage`), expõe `buyer`, `isAuthenticated`, `login`, `logout` |
-| 6 | queries | `src/features/account/hooks/queries/query-options.js` + `useAccountQueries.js` | `me` query (`enabled` quando há token) |
-| 7 | mutations | `src/features/account/hooks/mutations/useAuthMutations.js` | `register`, `login`, `logout`, `changePassword`, `forgotPassword`, `resetPassword` — cada uma com toast; sucesso de login/register popula o `AuthContext` |
-| 8 | forms | `src/features/account/hooks/forms/{useRegisterForm,useLoginForm,useResetPasswordForm}.js` | resolver Zod = schema de request; máscara de CPF só na exibição |
-| 9 | components | `src/features/account/components/{RegisterForm,LoginForm,ForgotPasswordForm,ResetPasswordForm,RequireAuth}.jsx` | `RequireAuth` protege rotas autenticadas; redireciona a `/login` guardando o destino |
-| 10 | components/ui | `src/features/account/components/ui/AuthCard.jsx` | layout puro de formulário de auth |
-| 11 | rotas | `src/App.jsx` | `/login`, `/registro`, `/recuperar-senha`, `/redefinir-senha` |
-| 12 | barrels | `index.js` em toda subpasta + na raiz da feature | obrigatório |
+| 1 | endpoints | `src/routes/endpoints.ts` | grupo `auth`: register, login, refresh, logout, me, passwordForgot, passwordReset |
+| 2 | schemas | `src/features/account/schemas/auth.schema.ts` | Zod: `registerSchema` (cpf com refine de 11 dígitos, email, password min 8), `loginSchema`, `changePasswordSchema`, `forgotSchema`, `resetSchema`, `tokenResponseSchema`, `buyerSchema` |
+| 3 | services | `src/features/account/services/auth.service.ts` | `register`, `login`, `refresh`, `logout`, `fetchMe`, `forgotPassword`, `resetPassword` — `fetcher` com `withCredentials` para o cookie |
+| 4 | lib | `src/lib/fetcher.ts` | wrapper fetch/axios: injeta `Authorization`, em 401 tenta `refresh` uma vez e repete; `withCredentials: true` |
+| 5 | context | `src/features/account/contexts/AuthContext.tsx` | guarda o access token em memória (nunca `localStorage`), expõe `buyer`, `isAuthenticated`, `login`, `logout` |
+| 6 | queries | `src/features/account/hooks/queries/query-options.ts` + `useAccountQueries.ts` | `me` query (`enabled` quando há token) |
+| 7 | mutations | `src/features/account/hooks/mutations/useAuthMutations.ts` | `register`, `login`, `logout`, `changePassword`, `forgotPassword`, `resetPassword` — cada uma com toast; sucesso de login/register popula o `AuthContext` |
+| 8 | forms | `src/features/account/hooks/forms/{useRegisterForm,useLoginForm,useResetPasswordForm}.ts` | resolver Zod = schema de request; máscara de CPF só na exibição |
+| 9 | components | `src/features/account/components/{RegisterForm,LoginForm,ForgotPasswordForm,ResetPasswordForm,RequireAuth}.tsx` | `RequireAuth` protege rotas autenticadas; redireciona a `/login` guardando o destino |
+| 10 | components/ui | `src/features/account/components/ui/AuthCard.tsx` | layout puro de formulário de auth |
+| 11 | rotas | `src/app/` (App Router: uma `page.tsx` por rota) | `/login`, `/registro`, `/recuperar-senha`, `/redefinir-senha` |
+| 12 | barrels | `index.ts` em toda subpasta + na raiz da feature | obrigatório |
 
 ### Passo a passo TBD (Frontend)
 
@@ -116,7 +118,7 @@ git checkout master && git pull && git checkout -b feat/<NN>-account-auth
 commit 1  feat(account): endpoints, schemas e services de auth + fetcher com refresh
 commit 2  feat(account): AuthContext, queries e mutations de auth
 commit 3  feat(account): formulários e telas de login/registro/recuperação + RequireAuth
-commit 4  chore(account): barrels index.js da feature
+commit 4  chore(account): barrels index.ts da feature
 npm run lint && npm run build
 /team-ludens:tbd-pr
 ```

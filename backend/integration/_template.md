@@ -43,7 +43,7 @@ Esse modelo existe para corrigir isso.
 
 ## O que o backend precisa saber sobre o frontend
 
-O `web.ludens` (React + Vite) tipicamente organiza a integração em camadas:
+O `web.ludens` (Next.js + TypeScript) tipicamente organiza a integração em camadas:
 
 1. definição de endpoints e base URLs;
 2. schemas e tipos derivados do contrato da API;

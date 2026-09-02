@@ -28,7 +28,7 @@ Consultado · **I** = Informado.
 | Atividade | Adrian (QA) | Diego (Frontend) | Gabriel (PO) | Gabriel (DevOps) | Igor (Backend) | Renato (Eng. Requisitos) |
 | --- | :---: | :---: | :---: | :---: | :---: | :---: |
 | Definir o plano inicial de testes e os critérios de qualidade | **R** | — | **A** | — | — | **C** |
-| Configurar o projeto React (Vite) e prototipar as telas principais | **C** | **R** | **A** | — | — | — |
+| Configurar o projeto Next.js (App Router) e prototipar as telas principais | **C** | **R** | **A** | — | — | — |
 | Organizar e priorizar o backlog do produto | — | — | **R/A** | — | — | **C** |
 | Configurar o ambiente Docker e a pipeline inicial de CI/CD | — | **I** | — | **R** | **A** | — |
 | Estruturar o backend (FastAPI) e modelar os módulos de domínio | — | **I** | — | **C** | **R** | **A** |

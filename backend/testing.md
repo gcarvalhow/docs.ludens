@@ -90,9 +90,9 @@ execução — a aplicação deve construir e subir via Docker sem erros.
 | Etapa | Comando | Ferramenta |
 | --- | --- | --- |
 | Setup | Node 20 | `actions/setup-node` |
-| Instalar | `npm ci` (fallback `npm install`) | — |
+| Instalar | `npm install` (`npm ci` quando houver lockfile) | — |
 | Lint | `npm run lint` | ESLint + Prettier |
-| Build | `npm run build` | Vite |
+| Build | `npm run build` | Next.js |
 
 ### `docs.ludens` — Documentação
 

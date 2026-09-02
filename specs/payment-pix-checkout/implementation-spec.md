@@ -88,18 +88,20 @@ commit 5  feat(payment): rotas, dependencies, migration e config do AbacatePay
 
 ## B. Frontend — responsável: Diego · feature `checkout`
 
+> **Stack:** Next.js (App Router) + TypeScript. Convenções completas na skill `frontend-architecture` do `team.ludens`: `services/` fica sob `server/`, tipos em `server/types/` (`z.infer`), rotas em `src/app/<rota>/page.tsx` (Server Component), `'use client'` só onde há hook/estado/handler, barrels `index.ts`. Os caminhos abaixo são o mapa da feature — ajuste a extensão/pasta ao padrão da skill.
+
 | # | Camada | Caminho | O que fazer |
 | --- | --- | --- | --- |
-| 1 | endpoints | `src/routes/endpoints.js` | `checkout.start`, `orders.byId(id)` |
-| 2 | schemas | `src/features/checkout/schemas/checkout.schema.js` | Zod: `checkoutResponseSchema`, `orderSchema` (status enum, tickets opcional) |
-| 3 | services | `src/features/checkout/services/checkout.service.js` | `startCheckout(reservationId)`, `fetchOrder(id)` |
-| 4 | queries | `.../hooks/queries/query-options.js` | `order(id)` com `refetchInterval` enquanto `status === 'pending'` |
-| 5 | mutations | `.../hooks/mutations/useCheckoutMutations.js` | `start` — sucesso guarda a resposta (QR); erro 409 → volta à sessão; 502 → estado "tente de novo" |
-| 6 | hooks | `.../hooks/usePaymentStatus.js` | observa a query de order; ao virar `paid` navega para a confirmação; `failed` para a sessão |
-| 7 | components | `.../components/PaymentPanel.jsx` | integra `CheckoutFrame` (contador da reserva) + QR + estados |
-| 8 | components/ui | `.../components/ui/{PixQr.jsx,AwaitingPayment.jsx,PaymentFailed.jsx}` | apresentacionais puros |
-| 9 | rotas | `src/App.jsx` | `/checkout/:reservationId` já existe (booking); adiciona `/pedido/:orderId` de confirmação |
-| 10 | barrels | `index.js` | obrigatório |
+| 1 | endpoints | `src/routes/endpoints.ts` | `checkout.start`, `orders.byId(id)` |
+| 2 | schemas | `src/features/checkout/schemas/checkout.schema.ts` | Zod: `checkoutResponseSchema`, `orderSchema` (status enum, tickets opcional) |
+| 3 | services | `src/features/checkout/services/checkout.service.ts` | `startCheckout(reservationId)`, `fetchOrder(id)` |
+| 4 | queries | `.../hooks/queries/query-options.ts` | `order(id)` com `refetchInterval` enquanto `status === 'pending'` |
+| 5 | mutations | `.../hooks/mutations/useCheckoutMutations.ts` | `start` — sucesso guarda a resposta (QR); erro 409 → volta à sessão; 502 → estado "tente de novo" |
+| 6 | hooks | `.../hooks/usePaymentStatus.ts` | observa a query de order; ao virar `paid` navega para a confirmação; `failed` para a sessão |
+| 7 | components | `.../components/PaymentPanel.tsx` | integra `CheckoutFrame` (contador da reserva) + QR + estados |
+| 8 | components/ui | `.../components/ui/{PixQr.tsx,AwaitingPayment.tsx,PaymentFailed.tsx}` | apresentacionais puros |
+| 9 | rotas | `src/app/` (App Router: uma `page.tsx` por rota) | `/checkout/[reservationId]` já existe (booking); adiciona `/pedido/[orderId]` de confirmação |
+| 10 | barrels | `index.ts` | obrigatório |
 
 ### Passo a passo TBD (Frontend)
 

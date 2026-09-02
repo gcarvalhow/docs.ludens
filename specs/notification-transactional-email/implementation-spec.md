@@ -90,12 +90,14 @@ commit 4  feat(payment): rota resend-ticket emitindo TicketEmailResendRequested
 
 ## B. Frontend — responsável: Diego · feature `account`
 
+> **Stack:** Next.js (App Router) + TypeScript. Convenções completas na skill `frontend-architecture` do `team.ludens`: `services/` fica sob `server/`, tipos em `server/types/` (`z.infer`), rotas em `src/app/<rota>/page.tsx` (Server Component), `'use client'` só onde há hook/estado/handler, barrels `index.ts`. Os caminhos abaixo são o mapa da feature — ajuste a extensão/pasta ao padrão da skill.
+
 | # | Camada | Caminho | O que fazer |
 | --- | --- | --- | --- |
-| 1 | endpoints | `src/routes/endpoints.js` | `orders.resendTicket(id)` |
-| 2 | services | `src/features/account/services/order.service.js` | `resendTicket(orderId)` |
-| 3 | mutations | `.../hooks/mutations/useOrderMutations.js` | `resendTicket` → toast "E-mail reenviado" |
-| 4 | components | `.../components/OrderCard.jsx` | botão "Reenviar por e-mail" (pedido pago) |
+| 1 | endpoints | `src/routes/endpoints.ts` | `orders.resendTicket(id)` |
+| 2 | services | `src/features/account/services/order.service.ts` | `resendTicket(orderId)` |
+| 3 | mutations | `.../hooks/mutations/useOrderMutations.ts` | `resendTicket` → toast "E-mail reenviado" |
+| 4 | components | `.../components/OrderCard.tsx` | botão "Reenviar por e-mail" (pedido pago) |
 
 ### Passo a passo TBD (Frontend)
 

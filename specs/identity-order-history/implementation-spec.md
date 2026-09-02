@@ -44,17 +44,19 @@ commit 3  feat(payment): rotas GET /me/orders e /me/orders/{id}
 
 ## B. Frontend — responsável: Diego · feature `account`
 
+> **Stack:** Next.js (App Router) + TypeScript. Convenções completas na skill `frontend-architecture` do `team.ludens`: `services/` fica sob `server/`, tipos em `server/types/` (`z.infer`), rotas em `src/app/<rota>/page.tsx` (Server Component), `'use client'` só onde há hook/estado/handler, barrels `index.ts`. Os caminhos abaixo são o mapa da feature — ajuste a extensão/pasta ao padrão da skill.
+
 | # | Camada | Caminho | O que fazer |
 | --- | --- | --- | --- |
-| 1 | endpoints | `src/routes/endpoints.js` | `orders.mine.list`, `orders.mine.byId(id)` |
-| 2 | schemas | `src/features/account/schemas/order.schema.js` | Zod: `orderSummarySchema`, `orderDetailSchema` (tickets, canCancel, refundLabel opcional), `pagedOrdersSchema` |
-| 3 | services | `src/features/account/services/order.service.js` | `fetchMyOrders(page)`, `fetchMyOrder(id)` |
-| 4 | queries | `.../hooks/queries/query-options.js` + `useOrderQueries.js` | `list(page)`, `detail(id)` |
-| 5 | components | `.../components/OrderHistory.jsx` | lista paginada; loading/empty ("Você ainda não fez nenhuma compra")/error |
-| 6 | components | `.../components/OrderDetail.jsx` | pedido + `TicketList` (de booking-ticket-issuance) + botões "Cancelar" (abre `CancelOrderDialog` de RF07 se `canCancel`) e "Reenviar por e-mail" (`useOrderMutations.resendTicket`) |
-| 7 | components/ui | `.../components/ui/OrderStatusBadge.jsx` | mapeia status → rótulo pt-BR e cor |
-| 8 | rotas | `src/App.jsx` | `/minhas-compras` e `/minhas-compras/:orderId` protegidas por `RequireAuth` |
-| 9 | barrels | `index.js` | obrigatório |
+| 1 | endpoints | `src/routes/endpoints.ts` | `orders.mine.list`, `orders.mine.byId(id)` |
+| 2 | schemas | `src/features/account/schemas/order.schema.ts` | Zod: `orderSummarySchema`, `orderDetailSchema` (tickets, canCancel, refundLabel opcional), `pagedOrdersSchema` |
+| 3 | services | `src/features/account/services/order.service.ts` | `fetchMyOrders(page)`, `fetchMyOrder(id)` |
+| 4 | queries | `.../hooks/queries/query-options.ts` + `useOrderQueries.ts` | `list(page)`, `detail(id)` |
+| 5 | components | `.../components/OrderHistory.tsx` | lista paginada; loading/empty ("Você ainda não fez nenhuma compra")/error |
+| 6 | components | `.../components/OrderDetail.tsx` | pedido + `TicketList` (de booking-ticket-issuance) + botões "Cancelar" (abre `CancelOrderDialog` de RF07 se `canCancel`) e "Reenviar por e-mail" (`useOrderMutations.resendTicket`) |
+| 7 | components/ui | `.../components/ui/OrderStatusBadge.tsx` | mapeia status → rótulo pt-BR e cor |
+| 8 | rotas | `src/app/` (App Router: uma `page.tsx` por rota) | `/minhas-compras` e `/minhas-compras/[orderId]` protegidas por `RequireAuth` |
+| 9 | barrels | `index.ts` | obrigatório |
 
 ### Passo a passo TBD (Frontend)
 

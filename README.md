@@ -16,7 +16,7 @@ código têm READMEs curtos que apontam para cá.
 | --- | --- | --- |
 | [`gcarvalhow/docs.ludens`](https://github.com/gcarvalhow/docs.ludens) | Fonte de entrada | Este repositório — produto, requisitos, RACI, padrões de engenharia |
 | [`gcarvalhow/api.ludens`](https://github.com/gcarvalhow/api.ludens) | Backend | API FastAPI (monólito modular + DDD), Postgres, Docker |
-| [`gcarvalhow/web.ludens`](https://github.com/gcarvalhow/web.ludens) | Frontend | Aplicação React (Vite) |
+| [`gcarvalhow/web.ludens`](https://github.com/gcarvalhow/web.ludens) | Frontend | Aplicação Next.js (App Router, TypeScript) |
 | [`gcarvalhow/team.ludens`](https://github.com/gcarvalhow/team.ludens) | Ferramentaria | Plugin Claude Code — papéis do time, pipeline de spec, fluxo TBD |
 
 ## Produto

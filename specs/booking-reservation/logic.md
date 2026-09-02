@@ -19,7 +19,7 @@ reviewed_at: 2026-09-01
    - confere a disponibilidade (RN05): confirmados + reservas abertas não
      vencidas + quantidade pedida ≤ capacidade;
    - se tudo passa, cria a reserva com prazo de 15 minutos e leva o comprador ao
-     checkout (`/checkout/:reservationId`), mostrando o contador.
+     checkout (`/checkout/{reservationId}`), mostrando o contador.
 3. Se falhar: mensagem específica ("Não há ingressos suficientes para esta
    sessão", "Você já atingiu o limite de 6 ingressos por sessão", "Esta sessão
    não está mais à venda").

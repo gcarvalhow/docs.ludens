@@ -78,15 +78,17 @@ commit 4  feat(booking): handler de SessionCancelled + migration (code único)
 
 ## B. Frontend — responsável: Diego · features `checkout` + `account`
 
+> **Stack:** Next.js (App Router) + TypeScript. Convenções completas na skill `frontend-architecture` do `team.ludens`: `services/` fica sob `server/`, tipos em `server/types/` (`z.infer`), rotas em `src/app/<rota>/page.tsx` (Server Component), `'use client'` só onde há hook/estado/handler, barrels `index.ts`. Os caminhos abaixo são o mapa da feature — ajuste a extensão/pasta ao padrão da skill.
+
 | # | Camada | Caminho | O que fazer |
 | --- | --- | --- | --- |
-| 1 | schemas | `src/features/checkout/schemas/ticket.schema.js` | Zod: `ticketSchema` ({ id, type, code, qrData, status, session }) — reusado por `account` |
+| 1 | schemas | `src/features/checkout/schemas/ticket.schema.ts` | Zod: `ticketSchema` ({ id, type, code, qrData, status, session }) — reusado por `account` |
 | 2 | services | (usa `fetchOrder` de checkout / `fetchOrders` de account) | tickets vêm embutidos no pedido pago |
-| 3 | components | `src/features/checkout/components/ConfirmationView.jsx` | tela pós-pagamento: dados da sessão + lista de ingressos |
-| 4 | components/ui | `src/features/checkout/components/ui/TicketCard.jsx` | apresentacional: código + QR (lib de QR client-side a partir de `qrData`) + tipo; badge "cancelado" se `status === 'invalid'` |
-| 5 | components | `src/features/account/components/TicketList.jsx` | mesma `TicketCard`, dentro de "Minhas compras" |
-| 6 | rotas | `src/App.jsx` | `/pedido/:orderId` (confirmação) |
-| 7 | barrels | `index.js` | obrigatório |
+| 3 | components | `src/features/checkout/components/ConfirmationView.tsx` | tela pós-pagamento: dados da sessão + lista de ingressos |
+| 4 | components/ui | `src/features/checkout/components/ui/TicketCard.tsx` | apresentacional: código + QR (lib de QR client-side a partir de `qrData`) + tipo; badge "cancelado" se `status === 'invalid'` |
+| 5 | components | `src/features/account/components/TicketList.tsx` | mesma `TicketCard`, dentro de "Minhas compras" |
+| 6 | rotas | `src/app/` (App Router: uma `page.tsx` por rota) | `/pedido/[orderId]` (confirmação) |
+| 7 | barrels | `index.ts` | obrigatório |
 
 ### Passo a passo TBD (Frontend)
 

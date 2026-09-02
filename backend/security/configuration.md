@@ -32,7 +32,7 @@ Cada variável carrega uma classificação:
 | `JWT_SECRET_KEY` | `str` — obrigatória | `SECRET` | Gerar com `openssl rand -hex 32`. Rotacionar invalida todos os access tokens ativos. |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `int` (default `30`) | `CONFIG` | TTL do access token. |
 | `REFRESH_TOKEN_EXPIRE_DAYS` | `int` (default `7`) | `CONFIG` | TTL do refresh token. |
-| `ALLOWED_ORIGINS` | `list[str]` (default `["http://localhost:5173"]`) | `CONFIG` | Origens permitidas no CORS. Em produção, o domínio real do `web.ludens`. |
+| `ALLOWED_ORIGINS` | `list[str]` (default `["http://localhost:3000"]`) | `CONFIG` | Origens permitidas no CORS. Em produção, o domínio real do `web.ludens` (Next.js roda em :3000 em dev). |
 | `OUTBOX_RELAY_INTERVAL_SECONDS` | `int` (default `2`) | `CONFIG` | Cadência do polling do relay ([ADR 001](../design/001-outbox-in-process.md)). |
 
 ## Variáveis adicionadas por funcionalidade

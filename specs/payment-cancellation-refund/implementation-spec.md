@@ -67,16 +67,18 @@ commit 4  feat(payment): rotas de preview e cancelamento; handler de SessionCanc
 
 ## B. Frontend — responsável: Diego · feature `account`
 
+> **Stack:** Next.js (App Router) + TypeScript. Convenções completas na skill `frontend-architecture` do `team.ludens`: `services/` fica sob `server/`, tipos em `server/types/` (`z.infer`), rotas em `src/app/<rota>/page.tsx` (Server Component), `'use client'` só onde há hook/estado/handler, barrels `index.ts`. Os caminhos abaixo são o mapa da feature — ajuste a extensão/pasta ao padrão da skill.
+
 | # | Camada | Caminho | O que fazer |
 | --- | --- | --- | --- |
-| 1 | endpoints | `src/routes/endpoints.js` | `orders.refundPreview(id)`, `orders.cancel(id)` |
-| 2 | schemas | `src/features/account/schemas/refund.schema.js` | Zod: `refundPreviewSchema` ({ refundAmount, total, policyLabel enum, allowed, hoursToSession }) |
-| 3 | services | `src/features/account/services/refund.service.js` | `fetchRefundPreview`, `cancelOrder` |
-| 4 | queries | `.../hooks/queries/query-options.js` | `refundPreview(id)` (`enabled` quando o dialog abre) |
-| 5 | mutations | `.../hooks/mutations/useRefundMutations.js` | `cancelOrder` — sucesso invalida `orderList` + toast "reembolso em processamento"; erro 409 → toast com a mensagem da RN02 |
-| 6 | components | `.../components/CancelOrderDialog.jsx` | abre com o preview; mostra `policyLabel` legível; botão desabilitado se `!allowed` |
-| 7 | components/ui | `.../components/ui/RefundBadge.jsx` | rótulo "Reembolso integral / de 50% / não permitido" |
-| 8 | barrels | `index.js` | obrigatório |
+| 1 | endpoints | `src/routes/endpoints.ts` | `orders.refundPreview(id)`, `orders.cancel(id)` |
+| 2 | schemas | `src/features/account/schemas/refund.schema.ts` | Zod: `refundPreviewSchema` ({ refundAmount, total, policyLabel enum, allowed, hoursToSession }) |
+| 3 | services | `src/features/account/services/refund.service.ts` | `fetchRefundPreview`, `cancelOrder` |
+| 4 | queries | `.../hooks/queries/query-options.ts` | `refundPreview(id)` (`enabled` quando o dialog abre) |
+| 5 | mutations | `.../hooks/mutations/useRefundMutations.ts` | `cancelOrder` — sucesso invalida `orderList` + toast "reembolso em processamento"; erro 409 → toast com a mensagem da RN02 |
+| 6 | components | `.../components/CancelOrderDialog.tsx` | abre com o preview; mostra `policyLabel` legível; botão desabilitado se `!allowed` |
+| 7 | components/ui | `.../components/ui/RefundBadge.tsx` | rótulo "Reembolso integral / de 50% / não permitido" |
+| 8 | barrels | `index.ts` | obrigatório |
 
 ### Passo a passo TBD (Frontend)
 

@@ -70,16 +70,18 @@ commit 3  feat(catalog): exportar SessionRef, lock e contagem em dependencies
 
 ## B. Frontend — responsável: Diego · feature `catalog`
 
+> **Stack:** Next.js (App Router) + TypeScript. Convenções completas na skill `frontend-architecture` do `team.ludens`: `services/` fica sob `server/`, tipos em `server/types/` (`z.infer`), rotas em `src/app/<rota>/page.tsx` (Server Component), `'use client'` só onde há hook/estado/handler, barrels `index.ts`. Os caminhos abaixo são o mapa da feature — ajuste a extensão/pasta ao padrão da skill.
+
 | # | Camada | Caminho | O que fazer |
 | --- | --- | --- | --- |
-| 1 | endpoints | `src/routes/endpoints.js` | `catalog.shows.byId(id)`, `catalog.sessions.byId(id)` |
-| 2 | schemas | `src/features/catalog/schemas/session.schema.js` | Zod: `sessionDetailSchema` (status enum, ticketTypes), `showDetailSchema` |
-| 3 | services | `src/features/catalog/services/session.service.js` | `fetchSessionById`, `fetchShowById` |
-| 4 | queries | `.../hooks/queries/query-options.js` | `sessionDetail(id)` com `refetchInterval: 15000` e `staleTime: 5000` |
-| 5 | components | `.../components/SessionDetail.jsx` | conecta a query; loading/error/empty; passa dados ao view |
-| 6 | components/ui | `.../components/ui/SessionDetailView.jsx` | apresentacional: cabeçalho, preços, `availableCount`, rótulo de status; slot para o `TicketPicker` de `booking` |
-| 7 | rotas | `src/App.jsx` | `/espetaculos/:showId`, `/sessoes/:sessionId` |
-| 8 | barrels | `index.js` | obrigatório |
+| 1 | endpoints | `src/routes/endpoints.ts` | `catalog.shows.byId(id)`, `catalog.sessions.byId(id)` |
+| 2 | schemas | `src/features/catalog/schemas/session.schema.ts` | Zod: `sessionDetailSchema` (status enum, ticketTypes), `showDetailSchema` |
+| 3 | services | `src/features/catalog/services/session.service.ts` | `fetchSessionById`, `fetchShowById` |
+| 4 | queries | `.../hooks/queries/query-options.ts` | `sessionDetail(id)` com `refetchInterval: 15000` e `staleTime: 5000` |
+| 5 | components | `.../components/SessionDetail.tsx` | conecta a query; loading/error/empty; passa dados ao view |
+| 6 | components/ui | `.../components/ui/SessionDetailView.tsx` | apresentacional: cabeçalho, preços, `availableCount`, rótulo de status; slot para o `TicketPicker` de `booking` |
+| 7 | rotas | `src/app/` (App Router: uma `page.tsx` por rota) | `/espetaculos/[showId]`, `/sessoes/[sessionId]` |
+| 8 | barrels | `index.ts` | obrigatório |
 
 ### Passo a passo TBD (Frontend)
 

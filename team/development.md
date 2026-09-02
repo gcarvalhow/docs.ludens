@@ -12,7 +12,7 @@
 | --- | --- |
 | [`gcarvalhow/docs.ludens`](https://github.com/gcarvalhow/docs.ludens) | Esta documentação |
 | [`gcarvalhow/api.ludens`](https://github.com/gcarvalhow/api.ludens) | Backend — FastAPI + PostgreSQL |
-| [`gcarvalhow/web.ludens`](https://github.com/gcarvalhow/web.ludens) | Frontend — React (Vite) |
+| [`gcarvalhow/web.ludens`](https://github.com/gcarvalhow/web.ludens) | Frontend — Next.js (App Router, TypeScript) |
 | [`gcarvalhow/team.ludens`](https://github.com/gcarvalhow/team.ludens) | Plugin Claude Code — papéis, pipeline de spec, fluxo TBD |
 
 ## Plugin do time (`team.ludens`)
@@ -87,13 +87,15 @@ Ambos rodam na pipeline e são portão de merge — ver
 ```bash
 git clone https://github.com/gcarvalhow/web.ludens
 cd web.ludens
-npm ci
-npm run dev      # http://localhost:5173
+npm install
+npm run dev      # http://localhost:3000
 npm run lint
 npm run build
 ```
 
-O detalhamento do frontend (design, camadas de integração) virá numa pasta
+Stack: **Next.js (App Router) + TypeScript** — as regras de código estão na skill
+`frontend-architecture` do plugin `team.ludens`. O detalhamento do frontend
+(design, camadas de integração) virá numa pasta
 `frontend/` própria.
 
 ## Documentação (`docs.ludens`)

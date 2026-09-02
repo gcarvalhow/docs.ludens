@@ -50,18 +50,20 @@ commit 4  feat(catalog): rotas admin (require_admin), router e migration
 
 ## B. Frontend — responsável: Diego · feature `catalog` (área admin)
 
+> **Stack:** Next.js (App Router) + TypeScript. Convenções completas na skill `frontend-architecture` do `team.ludens`: `services/` fica sob `server/`, tipos em `server/types/` (`z.infer`), rotas em `src/app/<rota>/page.tsx` (Server Component), `'use client'` só onde há hook/estado/handler, barrels `index.ts`. Os caminhos abaixo são o mapa da feature — ajuste a extensão/pasta ao padrão da skill.
+
 | # | Camada | Caminho | O que fazer |
 | --- | --- | --- | --- |
-| 1 | endpoints | `src/routes/endpoints.js` | grupo `catalog.admin`: shows CRUD + publish/unpublish, sessions CRUD + cancel |
-| 2 | schemas | `src/features/catalog/schemas/admin.schema.js` | Zod: `showFormSchema`, `sessionFormSchema` (startsAt futuro), `adminShowSchema`, `adminSessionSchema` |
-| 3 | services | `src/features/catalog/services/admin-catalog.service.js` | funções por rota |
-| 4 | queries | `.../hooks/queries/query-options.js` | `adminShowList` |
-| 5 | mutations | `.../hooks/mutations/useAdminCatalogMutations.js` | create/update/publish/unpublish/deleteShow, create/update/cancel/deleteSession — invalida `adminShowList` + toasts; erro 409 de delete → toast "cancele em vez de excluir" |
-| 6 | forms | `.../hooks/forms/{useShowForm,useSessionForm}.js` | resolver = schema de request |
-| 7 | components | `.../components/admin/{ShowList,ShowForm,SessionForm,SessionRow}.jsx` | `SessionRow` mostra `ticketsSold` e habilita "excluir" só se `canDelete` |
-| 8 | components/ui | `.../components/ui/ConfirmCancelSessionDialog.jsx` | confirma cancelamento avisando do reembolso |
-| 9 | rotas | `src/App.jsx` | `/admin/espetaculos` protegida por `RequireAuth` + checagem de `role === 'ADMIN'` |
-| 10 | barrels | `index.js` | obrigatório |
+| 1 | endpoints | `src/routes/endpoints.ts` | grupo `catalog.admin`: shows CRUD + publish/unpublish, sessions CRUD + cancel |
+| 2 | schemas | `src/features/catalog/schemas/admin.schema.ts` | Zod: `showFormSchema`, `sessionFormSchema` (startsAt futuro), `adminShowSchema`, `adminSessionSchema` |
+| 3 | services | `src/features/catalog/services/admin-catalog.service.ts` | funções por rota |
+| 4 | queries | `.../hooks/queries/query-options.ts` | `adminShowList` |
+| 5 | mutations | `.../hooks/mutations/useAdminCatalogMutations.ts` | create/update/publish/unpublish/deleteShow, create/update/cancel/deleteSession — invalida `adminShowList` + toasts; erro 409 de delete → toast "cancele em vez de excluir" |
+| 6 | forms | `.../hooks/forms/{useShowForm,useSessionForm}.ts` | resolver = schema de request |
+| 7 | components | `.../components/admin/{ShowList,ShowForm,SessionForm,SessionRow}.tsx` | `SessionRow` mostra `ticketsSold` e habilita "excluir" só se `canDelete` |
+| 8 | components/ui | `.../components/ui/ConfirmCancelSessionDialog.tsx` | confirma cancelamento avisando do reembolso |
+| 9 | rotas | `src/app/` (App Router: uma `page.tsx` por rota) | `/admin/espetaculos` protegida por `RequireAuth` + checagem de `role === 'ADMIN'` |
+| 10 | barrels | `index.ts` | obrigatório |
 
 ### Passo a passo TBD (Frontend)
 

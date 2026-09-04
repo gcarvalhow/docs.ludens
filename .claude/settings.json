@@ -9,6 +9,9 @@
       "Bash(git log:*)"
     ]
   },
+  "enabledPlugins": {
+    "core@team-ludens": true
+  },
   "extraKnownMarketplaces": {
     "team-ludens": {
       "source": {
@@ -16,8 +19,5 @@
         "repo": "gcarvalhow/team.ludens"
       }
     }
-  },
-  "enabledPlugins": {
-    "core@team-ludens": true
   }
 }

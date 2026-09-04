@@ -2,6 +2,7 @@
 status: draft
 spec: booking-reservation
 created_at: 2026-09-01
+updated_at: 2026-09-03
 ---
 
 # Reserva temporária de ingressos — Implementation Spec
@@ -93,27 +94,34 @@ commit 4  feat(booking): rotas de reserva, dependencies e migration
 
 ## B. Frontend — responsável: Diego · features `booking` + `checkout`
 
-> **Stack:** Next.js (App Router) + TypeScript. Convenções completas na skill `frontend-architecture` do `team.ludens`: `services/` fica sob `server/`, tipos em `server/types/` (`z.infer`), rotas em `src/app/<rota>/page.tsx` (Server Component), `'use client'` só onde há hook/estado/handler, barrels `index.ts`. Os caminhos abaixo são o mapa da feature — ajuste a extensão/pasta ao padrão da skill.
+Stack: **Next.js (App Router) + TypeScript estrito** — ver skill `frontend-architecture`.
+Arquivos `.ts`/`.tsx`; rotas em `src/app/**/page.tsx` (Server Components; segmento
+dinâmico `[id]`); componentes/hooks com estado, handler ou hook de React levam
+`'use client'`; navegação por `useRouter` de `next/navigation`; camadas na ordem
+`endpoints → schemas → server/types → server/services → hooks/queries →
+hooks/mutations → hooks → components/ui → components → rota`; barrel `index.ts` em
+toda subpasta. Aliases: `@booking/*`, `@checkout/*`, `@web/*`, `@account/*`.
 
 | # | Camada | Caminho | O que fazer |
 | --- | --- | --- | --- |
 | 1 | endpoints | `src/routes/endpoints.ts` | grupo `booking`: `reservations.create`, `reservations.byId(id)`, `reservations.cancel(id)` |
 | 2 | schemas | `src/features/booking/schemas/reservation.schema.ts` | Zod: `openReservationSchema` (quantity 1..6, ticketType enum), `reservationSchema` (com `expiresAt` coerce.date, `secondsLeft`, `status` enum) |
-| 3 | services | `src/features/booking/services/reservation.service.ts` | `openReservation`, `fetchReservation`, `cancelReservation` |
-| 4 | queries | `src/features/booking/hooks/queries/query-options.ts` + `useReservationQueries.ts` | `detail(id)` com `refetchInterval` curto enquanto `status === 'open'` |
-| 5 | mutations | `src/features/booking/hooks/mutations/useReservationMutations.ts` | `open` (sucesso → navega a `/checkout/:id` + toast; erro 409 → toast por caso e volta à sessão), `cancel` (invalida a sessão + navega) |
-| 6 | hooks | `src/features/checkout/hooks/useReservationCountdown.ts` | deriva `secondsLeft` de `expiresAt`; ao zerar, dispara refetch da reserva |
-| 7 | components | `src/features/booking/components/TicketPicker.tsx` | quantidade + tipo, na página da sessão; chama `open` |
-| 8 | components | `src/features/checkout/components/CheckoutFrame.tsx` | mostra contador (`useReservationCountdown`), estado da reserva, botão cancelar; ao `status` virar `expired`/`cancelled`, mostra o estado final e CTA de reservar de novo |
-| 9 | components/ui | `src/features/checkout/components/ui/Countdown.tsx` | apresentacional puro (recebe `secondsLeft`) |
-| 10 | rotas | `src/app/` (App Router: uma `page.tsx` por rota) | `/checkout/[reservationId]` protegida por `RequireAuth` |
-| 11 | barrels | `index.ts` em toda subpasta + raiz das features | obrigatório |
+| 3 | server/types | `src/features/booking/server/types/index.ts` | `z.infer` dos schemas — nunca `interface` manual |
+| 4 | server/services | `src/features/booking/server/services/reservation.service.ts` | `openReservation`, `fetchReservation`, `cancelReservation` — request + `schema.parse` |
+| 5 | queries | `src/features/booking/hooks/queries/query-options.ts` + `useReservationQueries.ts` | `detail(id)` com `refetchInterval` curto enquanto `status === 'open'` |
+| 6 | mutations | `src/features/booking/hooks/mutations/useReservationMutations.ts` | `open` (sucesso → `router.push('/checkout/<id>')` + toast; erro 409 → toast por caso e volta à sessão), `cancel` (invalida a sessão + navega) |
+| 7 | hooks | `src/features/checkout/hooks/useReservationCountdown.ts` | `'use client'`; deriva `secondsLeft` de `expiresAt`; ao zerar, dispara refetch da reserva |
+| 8 | components | `src/features/booking/components/TicketPicker.tsx` | `'use client'`; quantidade + tipo, na página da sessão; chama `open` |
+| 9 | components | `src/features/checkout/components/CheckoutFrame.tsx` | `'use client'`; mostra contador (`useReservationCountdown`), estado da reserva, botão cancelar; ao `status` virar `expired`/`cancelled`, mostra o estado final e CTA de reservar de novo |
+| 10 | components/ui | `src/features/checkout/components/ui/Countdown.tsx` | apresentacional puro (recebe `secondsLeft`) |
+| 11 | rotas | `src/app/checkout/[reservationId]/page.tsx` | Server Component; renderiza a tela client dentro de `<RequireAuth>` |
+| 12 | barrels | `index.ts` em toda subpasta + raiz das features | obrigatório |
 
 ### Passo a passo TBD (Frontend)
 
 ```text
 git checkout master && git pull && git checkout -b feat/<NN>-booking-reservation
-commit 1  feat(booking): endpoints, schemas e services de reserva
+commit 1  feat(booking): endpoints, schemas, server/types e services de reserva
 commit 2  feat(booking): queries, mutations e hook de contador de reserva
 commit 3  feat(booking): seletor de ingresso e frame de checkout com contador
 commit 4  chore(booking): barrels index.ts

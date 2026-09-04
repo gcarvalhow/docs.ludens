@@ -2,6 +2,7 @@
 status: draft
 spec: payment-pix-checkout
 created_at: 2026-09-01
+updated_at: 2026-09-03
 ---
 
 # Pagamento Pix e criação do pedido — Implementation Spec
@@ -88,29 +89,36 @@ commit 5  feat(payment): rotas, dependencies, migration e config do AbacatePay
 
 ## B. Frontend — responsável: Diego · feature `checkout`
 
-> **Stack:** Next.js (App Router) + TypeScript. Convenções completas na skill `frontend-architecture` do `team.ludens`: `services/` fica sob `server/`, tipos em `server/types/` (`z.infer`), rotas em `src/app/<rota>/page.tsx` (Server Component), `'use client'` só onde há hook/estado/handler, barrels `index.ts`. Os caminhos abaixo são o mapa da feature — ajuste a extensão/pasta ao padrão da skill.
+Stack: **Next.js (App Router) + TypeScript estrito** — ver skill `frontend-architecture`.
+Arquivos `.ts`/`.tsx`; rotas em `src/app/**/page.tsx` (Server Components; segmento
+dinâmico `[id]`); componentes/hooks com estado, handler ou hook de React levam
+`'use client'`; navegação por `useRouter` de `next/navigation`; camadas na ordem
+`endpoints → schemas → server/types → server/services → hooks/queries →
+hooks/mutations → hooks → components/ui → components → rota`; barrel `index.ts` em
+toda subpasta. Aliases: `@checkout/*`, `@web/*`.
 
 | # | Camada | Caminho | O que fazer |
 | --- | --- | --- | --- |
 | 1 | endpoints | `src/routes/endpoints.ts` | `checkout.start`, `orders.byId(id)` |
 | 2 | schemas | `src/features/checkout/schemas/checkout.schema.ts` | Zod: `checkoutResponseSchema`, `orderSchema` (status enum, tickets opcional) |
-| 3 | services | `src/features/checkout/services/checkout.service.ts` | `startCheckout(reservationId)`, `fetchOrder(id)` |
-| 4 | queries | `.../hooks/queries/query-options.ts` | `order(id)` com `refetchInterval` enquanto `status === 'pending'` |
-| 5 | mutations | `.../hooks/mutations/useCheckoutMutations.ts` | `start` — sucesso guarda a resposta (QR); erro 409 → volta à sessão; 502 → estado "tente de novo" |
-| 6 | hooks | `.../hooks/usePaymentStatus.ts` | observa a query de order; ao virar `paid` navega para a confirmação; `failed` para a sessão |
-| 7 | components | `.../components/PaymentPanel.tsx` | integra `CheckoutFrame` (contador da reserva) + QR + estados |
-| 8 | components/ui | `.../components/ui/{PixQr.tsx,AwaitingPayment.tsx,PaymentFailed.tsx}` | apresentacionais puros |
-| 9 | rotas | `src/app/` (App Router: uma `page.tsx` por rota) | `/checkout/[reservationId]` já existe (booking); adiciona `/pedido/[orderId]` de confirmação |
-| 10 | barrels | `index.ts` | obrigatório |
+| 3 | server/types | `src/features/checkout/server/types/index.ts` | `z.infer` dos schemas — nunca `interface` manual |
+| 4 | server/services | `src/features/checkout/server/services/checkout.service.ts` | `startCheckout(reservationId)`, `fetchOrder(id)` — request + `schema.parse` |
+| 5 | queries | `src/features/checkout/hooks/queries/query-options.ts` | `order(id)` com `refetchInterval` enquanto `status === 'pending'` |
+| 6 | mutations | `src/features/checkout/hooks/mutations/useCheckoutMutations.ts` | `start` — sucesso guarda a resposta (QR); erro 409 → volta à sessão; 502 → estado "tente de novo" |
+| 7 | hooks | `src/features/checkout/hooks/usePaymentStatus.ts` | `'use client'`; observa a query de order; ao virar `paid` navega para a confirmação; `failed` para a sessão |
+| 8 | components | `src/features/checkout/components/PaymentPanel.tsx` | `'use client'`; integra `CheckoutFrame` (contador da reserva) + QR + estados |
+| 9 | components/ui | `src/features/checkout/components/ui/{PixQr,AwaitingPayment,PaymentFailed}.tsx` | apresentacionais puros |
+| 10 | rotas | `src/app/checkout/[reservationId]/page.tsx` já existe (booking); adiciona `src/app/pedido/[orderId]/page.tsx` de confirmação | Server Components |
+| 11 | barrels | `index.ts` | obrigatório |
 
 ### Passo a passo TBD (Frontend)
 
 ```text
 git checkout master && git pull && git checkout -b feat/<NN>-checkout-pix
-commit 1  feat(checkout): endpoints, schemas e services de checkout
+commit 1  feat(checkout): endpoints, schemas, server/types e services de checkout
 commit 2  feat(checkout): query de pedido com polling + mutations
 commit 3  feat(checkout): painel de pagamento (QR, aguardando, falha)
-commit 4  chore(checkout): barrels
+commit 4  chore(checkout): barrels index.ts
 npm run lint && npm run build
 /team-ludens:tbd-pr
 ```

@@ -12,11 +12,17 @@ guarda o resultado.
 
 ```text
 specs/[domínio]-[conceito]/
-  spec.md               ← o que a feature é e por quê (produto)
-  logic.md              ← regras, estados, fluxos por perfil, contrato FE↔BE (negócio)
-  integration.md        ← contrato backend → frontend (rotas, request/response, erros)
-  implementation-spec.md ← mapa de todo o código a implementar, por responsável, com passo a passo TBD
+  spec.md         ← o que a feature é e por quê (produto)
+  logic.md        ← regras, estados, fluxos por perfil, contrato FE↔BE (negócio)
+  integration.md  ← contrato backend → frontend (rotas, request/response, erros)
+  backend.md      ← todo o código Python da feature, arquivo a arquivo, + passo a passo TBD
+  frontend.md     ← todo o código .ts/.tsx da feature, arquivo a arquivo, + passo a passo TBD
+  quality.md      ← DoR, casos de domínio (pytest) com código, testes de integração, roteiro manual
 ```
+
+`backend.md` / `frontend.md` / `quality.md` substituíram o antigo
+`implementation-spec.md` único: cada superfície tem o seu documento e cada arquivo
+listado vem com o **código completo pronto para colar**, não um esqueleto.
 
 - `[domínio]` é sempre um dos cinco módulos:
   `identity` · `catalog` · `booking` · `payment` · `notification`.
@@ -33,12 +39,13 @@ Exemplos: `specs/booking-reservation/`, `specs/catalog-show-search/`,
 | 1 | `spec.md` | skill `feature-design` (agente `product-thinking`) | **aprovação explícita do PO** (`status: approved`) |
 | 2 | `logic.md` | skill `logic-design` | revisão conjunta dos tech leads de FE e BE (`status: reviewed`) |
 | 3 | `integration.md` | skill `feature-implementation-spec` gera o **contrato-alvo**; o responsável de backend atualiza para o **canônico** ao fim da implementação | aprovação do responsável de backend |
-| 4 | `implementation-spec.md` | skill `feature-implementation-spec` (delegando a `senior-dev` e `qa-engineer`) | nenhuma fatia com bloqueio em aberto |
+| 4 | `backend.md` + `frontend.md` + `quality.md` | skill `feature-implementation-spec` (delegando a `senior-dev` e `qa-engineer`) | nenhuma fatia com bloqueio em aberto |
 
-Depois do artefato 4, cada fatia (Backend / Frontend / QA) vira uma issue no
+Depois do artefato 4, cada superfície (Backend / Frontend / QA) vira uma issue no
 GitHub Project [`@ludens`](https://github.com/orgs/gcarvalhow/projects/2) via
-`/team-ludens:tbd-start` — sub-issue de uma issue-mãe por feature, com a checklist
-de arquivos e passos copiada da `implementation-spec.md`.
+`/team-ludens:tbd-start` — issue-mãe (`Issue Type = feature`) em `docs.ludens`;
+sub-issues nativas em `api.ludens` (Backend, QA) e `web.ludens` (Frontend), com a
+checklist de arquivos copiada do documento da superfície.
 
 ## Mapa RF → spec (N1 / MVP)
 
@@ -60,4 +67,4 @@ de arquivos e passos copiada da `implementation-spec.md`.
 `spec.md`: `draft` → `approved` → `in-progress` → `done` (ou `archived`).
 `logic.md`: `draft` → `reviewed`.
 `integration.md`: `alvo` → `canônico`.
-`implementation-spec.md`: `draft` → `done`.
+`backend.md` / `frontend.md` / `quality.md`: `draft` → `done`.

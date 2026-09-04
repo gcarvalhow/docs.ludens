@@ -25,8 +25,9 @@ READMEs curtos que apontam para cá.
 
 ## Specs de feature
 
-As specs de cada feature ficam em `specs/[domínio]-[conceito]/` — quatro
-artefatos (`spec.md` → `logic.md` → `integration.md` → `implementation-spec.md`),
+As specs de cada feature ficam em `specs/[domínio]-[conceito]/` — os artefatos
+`spec.md` → `logic.md` → `integration.md` → `backend.md` + `frontend.md` +
+`quality.md` (os três últimos: código completo por superfície),
 gerados pelo pipeline do plugin
 [`gcarvalhow/team.ludens`](https://github.com/gcarvalhow/team.ludens) (skills
 `feature-design`, `logic-design`, `feature-implementation-spec`). Convenção e

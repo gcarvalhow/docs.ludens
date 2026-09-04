@@ -2,6 +2,7 @@
 status: draft
 spec: identity-order-history
 created_at: 2026-09-01
+updated_at: 2026-09-03
 ---
 
 # Histórico de compras — Implementation Spec
@@ -44,28 +45,34 @@ commit 3  feat(payment): rotas GET /me/orders e /me/orders/{id}
 
 ## B. Frontend — responsável: Diego · feature `account`
 
-> **Stack:** Next.js (App Router) + TypeScript. Convenções completas na skill `frontend-architecture` do `team.ludens`: `services/` fica sob `server/`, tipos em `server/types/` (`z.infer`), rotas em `src/app/<rota>/page.tsx` (Server Component), `'use client'` só onde há hook/estado/handler, barrels `index.ts`. Os caminhos abaixo são o mapa da feature — ajuste a extensão/pasta ao padrão da skill.
+Stack: **Next.js (App Router) + TypeScript estrito** — ver skill `frontend-architecture`.
+Arquivos `.ts`/`.tsx`; rotas em `src/app/**/page.tsx` (Server Components; segmento
+dinâmico `[orderId]`); componentes com estado, handler ou hook de React levam
+`'use client'`; camadas na ordem `endpoints → schemas → server/types →
+server/services → hooks/queries → components/ui → components → rota`; barrel
+`index.ts` em toda subpasta. Tipos por `z.infer`. Aliases: `@account/*`, `@web/*`.
 
 | # | Camada | Caminho | O que fazer |
 | --- | --- | --- | --- |
 | 1 | endpoints | `src/routes/endpoints.ts` | `orders.mine.list`, `orders.mine.byId(id)` |
 | 2 | schemas | `src/features/account/schemas/order.schema.ts` | Zod: `orderSummarySchema`, `orderDetailSchema` (tickets, canCancel, refundLabel opcional), `pagedOrdersSchema` |
-| 3 | services | `src/features/account/services/order.service.ts` | `fetchMyOrders(page)`, `fetchMyOrder(id)` |
-| 4 | queries | `.../hooks/queries/query-options.ts` + `useOrderQueries.ts` | `list(page)`, `detail(id)` |
-| 5 | components | `.../components/OrderHistory.tsx` | lista paginada; loading/empty ("Você ainda não fez nenhuma compra")/error |
-| 6 | components | `.../components/OrderDetail.tsx` | pedido + `TicketList` (de booking-ticket-issuance) + botões "Cancelar" (abre `CancelOrderDialog` de RF07 se `canCancel`) e "Reenviar por e-mail" (`useOrderMutations.resendTicket`) |
-| 7 | components/ui | `.../components/ui/OrderStatusBadge.tsx` | mapeia status → rótulo pt-BR e cor |
-| 8 | rotas | `src/app/` (App Router: uma `page.tsx` por rota) | `/minhas-compras` e `/minhas-compras/[orderId]` protegidas por `RequireAuth` |
-| 9 | barrels | `index.ts` | obrigatório |
+| 3 | server/types | `src/features/account/server/types/index.ts` | `z.infer` dos schemas — nunca `interface` manual |
+| 4 | server/services | `src/features/account/server/services/order.service.ts` | `fetchMyOrders(page)`, `fetchMyOrder(id)` — request + `schema.parse` |
+| 5 | queries | `src/features/account/hooks/queries/query-options.ts` + `useOrderQueries.ts` | `list(page)`, `detail(id)` |
+| 6 | components | `src/features/account/components/OrderHistory.tsx` | `'use client'`; lista paginada; loading/empty ("Você ainda não fez nenhuma compra")/error |
+| 7 | components | `src/features/account/components/OrderDetail.tsx` | `'use client'`; pedido + `TicketList` (de booking-ticket-issuance) + botões "Cancelar" (abre `CancelOrderDialog` de RF07 se `canCancel`) e "Reenviar por e-mail" (`useOrderMutations.resendTicket`) |
+| 8 | components/ui | `src/features/account/components/ui/OrderStatusBadge.tsx` | mapeia status → rótulo pt-BR e cor |
+| 9 | rotas | `src/app/minhas-compras/page.tsx` e `src/app/minhas-compras/[orderId]/page.tsx` | Server Components; cada um renderiza a tela client dentro de `<RequireAuth>` |
+| 10 | barrels | `index.ts` | obrigatório |
 
 ### Passo a passo TBD (Frontend)
 
 ```text
 git checkout master && git pull && git checkout -b feat/<NN>-account-order-history
-commit 1  feat(account): endpoints, schemas e services de histórico
+commit 1  feat(account): endpoints, schemas, server/types e services de histórico
 commit 2  feat(account): queries de pedidos e badge de status
 commit 3  feat(account): lista e detalhe de compras com ações de cancelar/reenviar
-commit 4  chore(account): barrels
+commit 4  chore(account): barrels index.ts
 npm run lint && npm run build
 /team-ludens:tbd-pr
 ```

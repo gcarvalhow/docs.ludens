@@ -2,6 +2,7 @@
 status: draft
 spec: catalog-session-detail
 created_at: 2026-09-01
+updated_at: 2026-09-03
 ---
 
 # Detalhe da sessão — Implementation Spec
@@ -70,27 +71,33 @@ commit 3  feat(catalog): exportar SessionRef, lock e contagem em dependencies
 
 ## B. Frontend — responsável: Diego · feature `catalog`
 
-> **Stack:** Next.js (App Router) + TypeScript. Convenções completas na skill `frontend-architecture` do `team.ludens`: `services/` fica sob `server/`, tipos em `server/types/` (`z.infer`), rotas em `src/app/<rota>/page.tsx` (Server Component), `'use client'` só onde há hook/estado/handler, barrels `index.ts`. Os caminhos abaixo são o mapa da feature — ajuste a extensão/pasta ao padrão da skill.
+Stack: **Next.js (App Router) + TypeScript estrito** — ver skill `frontend-architecture`.
+Arquivos `.ts`/`.tsx`; rotas em `src/app/**/page.tsx` (Server Components; segmento
+dinâmico `[id]`, `await params`); componentes/hooks com estado ou hook de React
+levam `'use client'`; camadas na ordem `endpoints → schemas → server/types →
+server/services → hooks/queries → components/ui → components → rota`; barrel
+`index.ts` em toda subpasta. Aliases: `@catalog/*`, `@web/*`.
 
 | # | Camada | Caminho | O que fazer |
 | --- | --- | --- | --- |
 | 1 | endpoints | `src/routes/endpoints.ts` | `catalog.shows.byId(id)`, `catalog.sessions.byId(id)` |
 | 2 | schemas | `src/features/catalog/schemas/session.schema.ts` | Zod: `sessionDetailSchema` (status enum, ticketTypes), `showDetailSchema` |
-| 3 | services | `src/features/catalog/services/session.service.ts` | `fetchSessionById`, `fetchShowById` |
-| 4 | queries | `.../hooks/queries/query-options.ts` | `sessionDetail(id)` com `refetchInterval: 15000` e `staleTime: 5000` |
-| 5 | components | `.../components/SessionDetail.tsx` | conecta a query; loading/error/empty; passa dados ao view |
-| 6 | components/ui | `.../components/ui/SessionDetailView.tsx` | apresentacional: cabeçalho, preços, `availableCount`, rótulo de status; slot para o `TicketPicker` de `booking` |
-| 7 | rotas | `src/app/` (App Router: uma `page.tsx` por rota) | `/espetaculos/[showId]`, `/sessoes/[sessionId]` |
-| 8 | barrels | `index.ts` | obrigatório |
+| 3 | server/types | `src/features/catalog/server/types/index.ts` | `z.infer` dos schemas — nunca `interface` manual |
+| 4 | server/services | `src/features/catalog/server/services/session.service.ts` | `fetchSessionById`, `fetchShowById` — request + `schema.parse` |
+| 5 | queries | `src/features/catalog/hooks/queries/query-options.ts` | `sessionDetail(id)` com `refetchInterval: 15000` e `staleTime: 5000` |
+| 6 | components | `src/features/catalog/components/SessionDetail.tsx` | `'use client'`; conecta a query; loading/error/empty; passa dados ao view |
+| 7 | components/ui | `src/features/catalog/components/ui/SessionDetailView.tsx` | apresentacional: cabeçalho, preços, `availableCount`, rótulo de status; slot para o `TicketPicker` de `booking` |
+| 8 | rotas | `src/app/espetaculos/[showId]/page.tsx`, `src/app/sessoes/[sessionId]/page.tsx` | Server Components; `await params`, `prefetch` + `HydrationBoundary`, renderizam `<SessionDetail>` |
+| 9 | barrels | `index.ts` | obrigatório |
 
 ### Passo a passo TBD (Frontend)
 
 ```text
 git checkout master && git pull && git checkout -b feat/<NN>-catalog-session-detail
-commit 1  feat(catalog): endpoints, schemas e services de detalhe da sessão
+commit 1  feat(catalog): endpoints, schemas, server/types e services de detalhe da sessão
 commit 2  feat(catalog): query com polling de disponibilidade
-commit 3  feat(catalog): tela e view de detalhe da sessão
-commit 4  chore(catalog): barrels
+commit 3  feat(catalog): tela, view e rotas de detalhe da sessão com prefetch
+commit 4  chore(catalog): barrels index.ts
 npm run lint && npm run build
 /team-ludens:tbd-pr
 ```

@@ -2,6 +2,7 @@
 status: draft
 spec: notification-transactional-email
 created_at: 2026-09-01
+updated_at: 2026-09-03
 ---
 
 # E-mails transacionais — Implementation Spec
@@ -90,14 +91,16 @@ commit 4  feat(payment): rota resend-ticket emitindo TicketEmailResendRequested
 
 ## B. Frontend — responsável: Diego · feature `account`
 
-> **Stack:** Next.js (App Router) + TypeScript. Convenções completas na skill `frontend-architecture` do `team.ludens`: `services/` fica sob `server/`, tipos em `server/types/` (`z.infer`), rotas em `src/app/<rota>/page.tsx` (Server Component), `'use client'` só onde há hook/estado/handler, barrels `index.ts`. Os caminhos abaixo são o mapa da feature — ajuste a extensão/pasta ao padrão da skill.
+Stack: **Next.js (App Router) + TypeScript estrito** — ver skill `frontend-architecture`.
+Arquivos `.ts`/`.tsx`; componente com handler leva `'use client'`; barrel
+`index.ts`. Aliases: `@account/*`, `@web/*`.
 
 | # | Camada | Caminho | O que fazer |
 | --- | --- | --- | --- |
 | 1 | endpoints | `src/routes/endpoints.ts` | `orders.resendTicket(id)` |
-| 2 | services | `src/features/account/services/order.service.ts` | `resendTicket(orderId)` |
-| 3 | mutations | `.../hooks/mutations/useOrderMutations.ts` | `resendTicket` → toast "E-mail reenviado" |
-| 4 | components | `.../components/OrderCard.tsx` | botão "Reenviar por e-mail" (pedido pago) |
+| 2 | server/services | `src/features/account/server/services/order.service.ts` | `resendTicket(orderId)` |
+| 3 | mutations | `src/features/account/hooks/mutations/useOrderMutations.ts` | `resendTicket` → toast "E-mail reenviado" |
+| 4 | components | `src/features/account/components/OrderCard.tsx` | `'use client'`; botão "Reenviar por e-mail" (pedido pago) |
 
 ### Passo a passo TBD (Frontend)
 

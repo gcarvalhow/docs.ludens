@@ -55,9 +55,9 @@ O backlog do produto e as histórias de usuário vivem no **GitHub Project
 requisitos, os padrões e as **specs de feature** (`specs/`) — não os itens de
 backlog.
 
-Cada feature é fatiada em issues por responsável (Backend / Frontend / QA) a
-partir da sua `implementation-spec.md`, pelo fluxo `/team-ludens:tbd-start` do
-plugin. Campos do Project: `Area` (backend/frontend/infra/docs), `Priority`
+Cada feature é fatiada em issues por superfície (Backend / Frontend / QA) a
+partir dos seus `backend.md` / `frontend.md` / `quality.md`, pelo fluxo
+`/team-ludens:tbd-start` do plugin. Campos do Project: `Area` (backend/frontend/infra/docs), `Priority`
 (3 = mais importante … 0), `Issue Type` (feature/task/refactor/bug), `Status`
 (Backlog/In Progress/Done). Labels: `module: *`, `N1`/`N2`/`N3`,
 `débito técnico`.

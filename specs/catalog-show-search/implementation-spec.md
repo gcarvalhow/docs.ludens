@@ -2,6 +2,7 @@
 status: draft
 spec: catalog-show-search
 created_at: 2026-09-01
+updated_at: 2026-09-03
 ---
 
 # Busca e filtro de espetáculos — Implementation Spec
@@ -42,28 +43,34 @@ commit 3  feat(catalog): expor GET /shows e GET /genres
 
 ## B. Frontend — responsável: Diego · feature `catalog`
 
-> **Stack:** Next.js (App Router) + TypeScript. Convenções completas na skill `frontend-architecture` do `team.ludens`: `services/` fica sob `server/`, tipos em `server/types/` (`z.infer`), rotas em `src/app/<rota>/page.tsx` (Server Component), `'use client'` só onde há hook/estado/handler, barrels `index.ts`. Os caminhos abaixo são o mapa da feature — ajuste a extensão/pasta ao padrão da skill.
+Stack: **Next.js (App Router) + TypeScript estrito** — ver skill `frontend-architecture`.
+Arquivos `.ts`/`.tsx`; rotas em `src/app/**/page.tsx` (Server Components); todo
+componente/hook com estado, handler ou hook de React leva `'use client'`; camadas
+na ordem `endpoints → schemas → server/types → server/services → hooks/queries →
+hooks → components/ui → components → rota`; barrel `index.ts` em toda subpasta.
+Aliases: `@catalog/*`, `@web/*`.
 
 | # | Camada | Caminho | O que fazer |
 | --- | --- | --- | --- |
 | 1 | endpoints | `src/routes/endpoints.ts` | `catalog.shows.list`, `catalog.genres` |
 | 2 | schemas | `src/features/catalog/schemas/show.schema.ts` | Zod: `showCardSchema`, `pagedShowsSchema`, `genreSchema` |
-| 3 | services | `src/features/catalog/services/show.service.ts` | `fetchShows(filters)`, `fetchGenres()` |
-| 4 | queries | `.../hooks/queries/query-options.ts` + `useCatalogQueries.ts` | `showList(filters)` com key incluindo os filtros; `genres` |
-| 5 | hooks | `.../hooks/useShowFilters.ts` | estado dos filtros (fromDate, genre, page) sincronizado com a query string da URL |
-| 6 | components | `.../components/ShowGrid.tsx` | conecta `useCatalogQueries` + `useShowFilters`; trata loading/empty/error |
-| 7 | components | `.../components/ShowFilters.tsx` | seletor de data + gênero |
-| 8 | components/ui | `.../components/ui/ShowCard.tsx` | apresentacional: imagem, título, sinopse curta, datas, faixa de preço |
-| 9 | rotas | `src/app/` (App Router: uma `page.tsx` por rota) | `/` → `ShowGrid` |
-| 10 | barrels | `index.ts` em toda subpasta + raiz | obrigatório |
+| 3 | server/types | `src/features/catalog/server/types/index.ts` | `z.infer` dos schemas — nunca `interface` manual |
+| 4 | server/services | `src/features/catalog/server/services/show.service.ts` | `fetchShows(filters)`, `fetchGenres()` — request + `schema.parse` |
+| 5 | queries | `src/features/catalog/hooks/queries/query-options.ts` + `useCatalogQueries.ts` | `showList(filters)` com key incluindo os filtros; `genres` |
+| 6 | hooks | `src/features/catalog/hooks/useShowFilters.ts` | `'use client'`; estado dos filtros (fromDate, genre, page) sincronizado com a query string via `useSearchParams`/`useRouter` |
+| 7 | components | `src/features/catalog/components/ShowGrid.tsx` | `'use client'`; conecta `useCatalogQueries` + `useShowFilters`; trata loading/empty/error |
+| 8 | components | `src/features/catalog/components/ShowFilters.tsx` | `'use client'`; seletor de data + gênero |
+| 9 | components/ui | `src/features/catalog/components/ui/ShowCard.tsx` | apresentacional: imagem, título, sinopse curta, datas, faixa de preço |
+| 10 | rotas | `src/app/page.tsx` | Server Component; `prefetch` do `showList` + `HydrationBoundary`, renderiza `<ShowGrid>` |
+| 11 | barrels | `index.ts` em toda subpasta + raiz | obrigatório |
 
 ### Passo a passo TBD (Frontend)
 
 ```text
 git checkout master && git pull && git checkout -b feat/<NN>-catalog-show-search
-commit 1  feat(catalog): endpoints, schemas e services de busca
+commit 1  feat(catalog): endpoints, schemas, server/types e services de busca
 commit 2  feat(catalog): queries e hook de filtros de espetáculo
-commit 3  feat(catalog): grade, filtros e card de espetáculo
+commit 3  feat(catalog): grade, filtros e card de espetáculo + rota com prefetch
 commit 4  chore(catalog): barrels index.ts
 npm run lint && npm run build
 /team-ludens:tbd-pr

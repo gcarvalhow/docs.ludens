@@ -2,6 +2,7 @@
 status: draft
 spec: payment-cancellation-refund
 created_at: 2026-09-01
+updated_at: 2026-09-03
 ---
 
 # Cancelamento e reembolso — Implementation Spec
@@ -67,27 +68,32 @@ commit 4  feat(payment): rotas de preview e cancelamento; handler de SessionCanc
 
 ## B. Frontend — responsável: Diego · feature `account`
 
-> **Stack:** Next.js (App Router) + TypeScript. Convenções completas na skill `frontend-architecture` do `team.ludens`: `services/` fica sob `server/`, tipos em `server/types/` (`z.infer`), rotas em `src/app/<rota>/page.tsx` (Server Component), `'use client'` só onde há hook/estado/handler, barrels `index.ts`. Os caminhos abaixo são o mapa da feature — ajuste a extensão/pasta ao padrão da skill.
+Stack: **Next.js (App Router) + TypeScript estrito** — ver skill `frontend-architecture`.
+Arquivos `.ts`/`.tsx`; componentes com estado, handler ou hook de React levam
+`'use client'`; camadas na ordem `endpoints → schemas → server/types →
+server/services → hooks/queries → hooks/mutations → components/ui → components`;
+barrel `index.ts` em toda subpasta. Tipos por `z.infer`. Aliases: `@account/*`, `@web/*`.
 
 | # | Camada | Caminho | O que fazer |
 | --- | --- | --- | --- |
 | 1 | endpoints | `src/routes/endpoints.ts` | `orders.refundPreview(id)`, `orders.cancel(id)` |
 | 2 | schemas | `src/features/account/schemas/refund.schema.ts` | Zod: `refundPreviewSchema` ({ refundAmount, total, policyLabel enum, allowed, hoursToSession }) |
-| 3 | services | `src/features/account/services/refund.service.ts` | `fetchRefundPreview`, `cancelOrder` |
-| 4 | queries | `.../hooks/queries/query-options.ts` | `refundPreview(id)` (`enabled` quando o dialog abre) |
-| 5 | mutations | `.../hooks/mutations/useRefundMutations.ts` | `cancelOrder` — sucesso invalida `orderList` + toast "reembolso em processamento"; erro 409 → toast com a mensagem da RN02 |
-| 6 | components | `.../components/CancelOrderDialog.tsx` | abre com o preview; mostra `policyLabel` legível; botão desabilitado se `!allowed` |
-| 7 | components/ui | `.../components/ui/RefundBadge.tsx` | rótulo "Reembolso integral / de 50% / não permitido" |
-| 8 | barrels | `index.ts` | obrigatório |
+| 3 | server/types | `src/features/account/server/types/index.ts` | `RefundPreview = z.infer<typeof refundPreviewSchema>` |
+| 4 | server/services | `src/features/account/server/services/refund.service.ts` | `fetchRefundPreview`, `cancelOrder` — request + `schema.parse` |
+| 5 | queries | `src/features/account/hooks/queries/query-options.ts` | `refundPreview(id)` (`enabled` quando o dialog abre) |
+| 6 | mutations | `src/features/account/hooks/mutations/useRefundMutations.ts` | `cancelOrder` — sucesso invalida `orderList` + toast "reembolso em processamento"; erro 409 → toast com a mensagem da RN02 |
+| 7 | components | `src/features/account/components/CancelOrderDialog.tsx` | `'use client'`; abre com o preview; mostra `policyLabel` legível; botão desabilitado se `!allowed` |
+| 8 | components/ui | `src/features/account/components/ui/RefundBadge.tsx` | rótulo "Reembolso integral / de 50% / não permitido" |
+| 9 | barrels | `index.ts` | obrigatório |
 
 ### Passo a passo TBD (Frontend)
 
 ```text
 git checkout master && git pull && git checkout -b feat/<NN>-account-refund
-commit 1  feat(account): endpoints, schema e service de reembolso
+commit 1  feat(account): endpoints, schema, tipo e service de reembolso
 commit 2  feat(account): query de preview e mutation de cancelamento
 commit 3  feat(account): dialog de cancelamento com a política RN02 legível
-commit 4  chore(account): barrels
+commit 4  chore(account): barrels index.ts
 npm run lint && npm run build
 /team-ludens:tbd-pr
 ```

@@ -34,7 +34,7 @@ código têm READMEs curtos que apontam para cá.
 
 - [Pipeline de specs](specs/README.md) — como cada feature vai de ideia a issues
   para a equipe: `spec.md` → `logic.md` → `integration.md` →
-  `implementation-spec.md`, operado pelo plugin
+  `backend.md` + `frontend.md` + `quality.md`, operado pelo plugin
   [`gcarvalhow/team.ludens`](https://github.com/gcarvalhow/team.ludens)
 
 ## Backend (`api.ludens`)

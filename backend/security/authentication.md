@@ -2,8 +2,9 @@
 
 > **Status:** proposto — **não há código implementado** · **Última revisão:** 2026-08-28
 > Fixa o **modelo de segurança** que a autenticação vai seguir, herdado da
-> autenticação humana do backend da DOM Med. O contrato de rotas
-> (`/identity/...`) entra com a spec do módulo `identity`, não aqui. O Ludens tem
+> autenticação humana de um backend privado anterior do mesmo autor. O
+> contrato de rotas (`/identity/...`) entra com a spec do módulo `identity`,
+> não aqui. O Ludens tem
 > **apenas autenticação humana** — não existe autenticação de serviço/worker.
 
 Atende [RF09](../../requirements/functional.md#rf09--cadastro-e-autenticação-de-usuário)

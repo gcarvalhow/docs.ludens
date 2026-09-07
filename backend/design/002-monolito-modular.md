@@ -1,7 +1,7 @@
 # Design 002 — Monólito modular
 
 > **Status:** proposto · **Última revisão:** 2026-08-28
-> Padrão herdado do backend da plataforma DOM Med (`api.hub.dommed`), que usa a
+> Padrão herdado de um backend privado anterior do mesmo autor, que usa a
 > mesma abordagem. Adaptado ao domínio do Ludens.
 
 ## Contexto

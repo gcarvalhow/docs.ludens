@@ -81,7 +81,6 @@ execução — a aplicação deve construir e subir via Docker sem erros.
 | --- | --- | --- |
 | Setup | Python 3.12 | `actions/setup-python` |
 | Instalar | `pip install -e ".[dev]"` | — |
-| Lint | `ruff check .` | Ruff |
 | Testes | `pytest -q` | Pytest |
 | Build | `docker build` do backend | Docker |
 
@@ -106,7 +105,7 @@ npx markdown-link-check README.md   # ou lychee
 
 ## Portões de merge
 
-- Lint verde (Ruff / ESLint).
+- Lint verde no frontend (ESLint) — o backend não tem lint automatizado na pipeline.
 - Testes verdes (Pytest).
 - Build Docker sem erros.
 - Pelo menos **1 aprovação** de outro desenvolvedor no Pull Request.

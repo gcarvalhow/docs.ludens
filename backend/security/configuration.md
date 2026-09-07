@@ -1,7 +1,8 @@
 # Configuração — Variáveis de Ambiente
 
 > **Status:** proposto — **não há código implementado** · **Última revisão:** 2026-08-28
-> Fixa o **mecanismo** de configuração (igual ao backend da DOM Med) e as
+> Fixa o **mecanismo** de configuração (igual a um backend privado anterior do
+> mesmo autor) e as
 > variáveis **base**. Variáveis específicas de uma funcionalidade (gateway de
 > pagamento, SMTP, prazos de regra de negócio) são adicionadas pela spec da
 > funcionalidade correspondente.

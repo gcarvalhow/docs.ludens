@@ -1,9 +1,9 @@
 # Design 001 — Padrão Outbox in-process para efeitos colaterais
 
 > **Status:** proposto · **Última revisão:** 2026-08-28
-> Adaptação do padrão Outbox do backend da DOM Med. **Diferença central:** o
-> Ludens não usa broker de mensagens (RabbitMQ) — o relay chama handlers Python
-> no próprio processo da API.
+> Adaptação do padrão Outbox usado num backend privado anterior do mesmo autor.
+> **Diferença central:** o Ludens não usa broker de mensagens (RabbitMQ) — o
+> relay chama handlers Python no próprio processo da API.
 
 ## Contexto
 

@@ -14,6 +14,6 @@ arquivo `NNN-slug.md` com uma linha de **Status**:
 | [001](001-outbox-in-process.md) | Padrão Outbox in-process para efeitos colaterais (sem broker) | proposto |
 | [002](002-monolito-modular.md) | Monólito modular com DDD; um módulo por área de negócio | proposto |
 
-Vários padrões vêm do backend da plataforma DOM Med (`api.hub.dommed`), que usa
+Vários padrões vêm de um backend privado anterior do mesmo autor, que usa
 monólito modular + DDD da mesma forma. A diferença assumida para o Ludens: **sem
 Event Sourcing e sem broker de mensagens** — ver [ADR 001](001-outbox-in-process.md).

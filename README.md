@@ -43,7 +43,7 @@ código têm READMEs curtos que apontam para cá.
 - [Decisões de design (ADRs)](backend/design/) — outbox in-process, monólito modular
 - [Segurança](backend/security/) — autenticação (JWT + refresh) e variáveis de ambiente
 - [Testes e CI](backend/testing.md) — estratégia de testes do domínio e pipeline de integração contínua
-- [Guia de estilo e código](backend/code-style.md) — PEP 8/Ruff, idioma do código, boas práticas de manutenibilidade
+- [Guia de estilo e código](backend/code-style.md) — PEP 8, idioma do código, boas práticas de manutenibilidade
 - [Template de contrato de integração](backend/integration/_template.md) — modelo backend → frontend
 
 ## Time

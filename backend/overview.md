@@ -7,7 +7,7 @@
 > por **spec, uma funcionalidade por vez**, conforme for implementada, e este
 > documento é atualizado junto.
 >
-> Os padrões vêm do backend da plataforma DOM Med (`api.hub.dommed`), que usa
+> Os padrões vêm de um backend privado anterior do mesmo autor, que usa
 > monólito modular + DDD da mesma forma. Diferenças assumidas para o Ludens:
 > **sem Event Sourcing** e **sem broker de mensagens** — ver
 > [ADR 001](design/001-outbox-in-process.md).
@@ -43,7 +43,8 @@ domínio; `events` é só a fila de saída de efeitos. Não há read model separ
 
 ## Core (`src/app/core/`)
 
-Base reutilizada por todos os módulos. Modelada como no backend da DOM Med.
+Base reutilizada por todos os módulos. Modelada como num backend privado
+anterior do mesmo autor.
 
 ### `Model` base
 

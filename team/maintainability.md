@@ -160,11 +160,13 @@ Commits seguem a especificação [Conventional Commits](https://www.conventional
 ### 6.3. Verificação automática, linters e contêineres
 
 - **Frontend (React):** ESLint e Prettier, na pipeline.
-- **Backend (Python):** Ruff.
+- **Backend (Python):** sem linter/formatter automatizado na pipeline — o
+  estilo existente do código é respeitado manualmente (ver
+  [`backend/code-style.md`](../backend/code-style.md)).
 - **Contêineres Docker:** a aplicação deve construir e subir via Docker sem
   erros; o ambiente conteinerizado é o padrão de execução e da pipeline.
-- **Regra de integração:** nenhum Pull Request é aprovado se o linter acusar
-  erros críticos ou se os testes automatizados falharem.
+- **Regra de integração:** nenhum Pull Request é aprovado se o lint do
+  frontend acusar erros críticos ou se os testes automatizados falharem.
 
 Versão viva: [`backend/testing.md`](../backend/testing.md).
 

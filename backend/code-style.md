@@ -10,13 +10,26 @@
 - `snake_case` para variáveis e funções.
 - `PascalCase` para classes.
 - `snake_case` para módulos/arquivos (ex.: `ticket_service.py`).
-- Lint e formatação: **Ruff** (`ruff check .`), obrigatório na pipeline.
+- **Sem formatador/linter automatizado.** Nenhuma ferramenta reformata o código
+  na pipeline — `pytest -q` é o único portão automatizado do backend hoje (ver
+  [testes e CI](../backend/testing.md)).
+
+## Estilo existente é absoluto
+
+Espaçamento, quebra de linha, separação entre blocos e organização de um
+arquivo já escrito devem ser respeitados **exatamente como estão**. Uma
+implementação nova nunca reformata, reordena import ou "limpa" código já
+existente por iniciativa própria — só toca o que a mudança pedida exige.
+Isso vale tanto para pessoas quanto para qualquer assistente de IA trabalhando
+no repo: nunca rodar um formatter/linter de forma automática sobre código já
+escrito, e nunca reescrever um arquivo inteiro a partir de uma versão em cache
+— sempre reler o arquivo atual antes de editar.
 
 ## Idioma do código
 
 - Identificadores (classes, métodos, variáveis, módulos) em **Inglês** — usar os
   termos do domínio: `Show`, `Session`, `Ticket`, `Reservation`, `Order`,
-  `Buyer`.
+  `User`.
 - Comentários em **Português**.
 
 ## Boas práticas de manutenibilidade

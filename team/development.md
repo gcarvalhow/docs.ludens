@@ -72,14 +72,13 @@ docker compose -f docker/docker-compose.Development.yml up -d
 docker compose -f docker/docker-compose.Development.yml exec api alembic upgrade head
 ```
 
-### Lint e testes
+### Testes
 
 ```bash
-ruff check .
 pytest -q
 ```
 
-Ambos rodam na pipeline e são portão de merge — ver
+Roda na pipeline e é portão de merge — ver
 [`backend/testing.md`](../backend/testing.md).
 
 ## Frontend (`web.ludens`)

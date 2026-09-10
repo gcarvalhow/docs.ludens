@@ -3,6 +3,7 @@ status: reviewed
 spec: catalog-admin-management
 created_at: 2026-09-01
 reviewed_at: 2026-09-01
+updated_at: 2026-09-10
 ---
 
 # Gestão de espetáculos e sessões — Lógica de Negócio
@@ -11,7 +12,8 @@ reviewed_at: 2026-09-01
 
 ### Admin
 
-**Espetáculo:** cria (título, sinopse, imagem URL, categoria) → edita → publica /
+**Espetáculo:** cria (título, sinopse, categoria — imagem atribuída
+automaticamente de um pool padrão, spec.md §6) → edita → publica /
 despublica → exclui (só se não tiver sessão com venda).
 
 **Sessão (dentro de um espetáculo):** cria (data/hora, local, capacidade, preço

@@ -3,7 +3,7 @@ status: draft
 spec: catalog-admin-management
 surface: quality
 created_at: 2026-09-03
-updated_at: 2026-09-04
+updated_at: 2026-09-10
 ---
 
 # Gestão de espetáculos e sessões (admin) — Quality
@@ -24,13 +24,13 @@ cria → aparece na vitrine; rota admin exige `ADMIN`) e o roteiro manual.
 
 Contra `docs.ludens/team/quality.md`.
 
-| Item DoR | Situação |
-| --- | --- |
-| História no formato "Como [papel], eu quero [func.] para [benefício]" | OK — RF08 + spec.md §1/§3 |
-| Critérios de aceite objetivos e verificáveis | OK — integration.md + logic.md §2/§3 |
-| Regras de negócio e exceções especificadas | OK — logic.md §3; valores RN02/RN04 aprovados (PO 2026-08-28) |
-| Dependências técnicas mapeadas | Parcial — ver bullets abaixo |
-| Layout/protótipo aprovado | N/A — área interna, sem protótipo; UI conforme `frontend.md` |
+| Item DoR                                                              | Situação                                                      |
+| --------------------------------------------------------------------- | ------------------------------------------------------------- |
+| História no formato "Como [papel], eu quero [func.] para [benefício]" | OK — RF08 + spec.md §1/§3                                     |
+| Critérios de aceite objetivos e verificáveis                          | OK — integration.md + logic.md §2/§3                          |
+| Regras de negócio e exceções especificadas                            | OK — logic.md §3; valores RN02/RN04 aprovados (PO 2026-08-28) |
+| Dependências técnicas mapeadas                                        | Parcial — ver bullets abaixo                                  |
+| Layout/protótipo aprovado                                             | N/A — área interna, sem protótipo; UI conforme `frontend.md`  |
 
 Detalhe do item "Regras de negócio": cancela ≠ exclui, capacidade nunca abaixo
 do comprometido, data futura na criação, meia derivada — todos em `logic.md` §3;
@@ -39,14 +39,15 @@ RN02 (política de reembolso) e RN04 (meia) com valores aprovados em
 
 Detalhe do item "Dependências técnicas" (parcial):
 
-- `identity-auth` (`require_admin`, `Role`) ainda não mergeado.
+- `identity-auth` já está mergeado — `require_admin` (baseado em
+  `user.is_admin: bool`, sem enum `Role`) já existe em `api.ludens`.
 - Tabelas de `booking` (`tickets` / `reservations`, lidas por
   `SeatCountsRepository`) ainda não existem.
 - O domínio e seus testes não dependem de nenhum dos dois; só a contagem real
   de vendas depende de `booking` (ver §5).
 
 Conclusão: **pronta para desenvolver** com a ressalva de dependência acima
-registrada — as fatias `identity-auth` e `booking` já estão no backlog.
+registrada — só `booking` segue no backlog.
 
 ---
 
@@ -64,7 +65,7 @@ eventos acumulados (`docs.ludens/backend/testing.md`).
 | `test_deactivate_show_marca_inativo`                    | `deactivate()` → `is_active=False`, evento `ShowDeactivated`                                        | RF08        |
 | `test_cria_sessao_futura_ok`                            | `Session.create(starts_at=amanhã)` → `ON_SALE`, evento `SessionCreated`, `full_price_cents` correto | RF08        |
 | `test_cria_sessao_no_passado_recusa`                    | `starts_at=ontem` → `DomainError`                                                                   | RF08        |
-| `test_meia_e_metade_da_inteira`                         | `full=R$120` → `half_price.reais == 60.0`; ímpar `1201c` → `600c` (trunca)                          | RN04        |
+| `test_meia_e_metade_da_inteira`                         | `full_price_cents=12_000` → `half_price_cents == 6_000`; ímpar `1201` → `600` (trunca)              | RN04        |
 | `test_reduzir_capacidade_abaixo_do_comprometido_recusa` | cap 100, `committed=8`, `update(capacity=5)` → `ConflictError`                                      | RF08        |
 | `test_atualizar_capacidade_acima_do_comprometido_ok`    | `committed=8`, `update(capacity=50)` → evento `SessionUpdated`                                      | RF08        |
 | `test_cancelar_sessao_emite_evento`                     | `cancel()` → `status=CANCELLED`, evento `SessionCancelled` com `show_id`/`starts_at`/`cancelled_at` | RF08 / RF07 |
@@ -72,31 +73,26 @@ eventos acumulados (`docs.ludens/backend/testing.md`).
 | `test_excluir_sessao_com_venda_recusa`                  | `deactivate(tickets_sold=1)` → `ConflictError("Cancele a sessão em vez de excluir.")`               | RF08        |
 | `test_excluir_sessao_sem_venda_ok`                      | `deactivate(tickets_sold=0)` → `is_active=False`, evento `SessionDeactivated`                       | RF08        |
 | `test_editar_sessao_cancelada_recusa`                   | `cancel()` → `update(...)` → `ConflictError`                                                        | RF08        |
-| `test_money_from_reais_e_negativo`                      | `from_reais("12.34")==1234c`; `Money(cents=-1)` → `DomainError`                                     | RN04        |
 
 ### `tests/modules/__init__.py`
 
 ```python
-# tests/modules/__init__.py  — novo
 # (arquivo vazio — marca o pacote de testes de módulo)
 ```
 
 ### `tests/modules/catalog/__init__.py`
 
 ```python
-# tests/modules/catalog/__init__.py  — novo
 # (arquivo vazio)
 ```
 
 ### `tests/modules/catalog/test_show.py`
 
 ```python
-# tests/modules/catalog/test_show.py  — novo
 """Domínio de catalog — aggregate Show. Sem DB, sem HTTP."""
 
 from app.modules.catalog.domain.aggregates.show import Show
 from app.modules.catalog.domain.enumerations.show_status import ShowStatus
-
 
 def _new_show() -> Show:
     return Show.create(
@@ -106,7 +102,6 @@ def _new_show() -> Show:
         genre="drama",
     )
 
-
 def test_cria_show_como_rascunho():
     show = _new_show()
 
@@ -114,7 +109,6 @@ def test_cria_show_como_rascunho():
     assert show.is_active is True
     assert show.version == 1
     assert [type(e).__name__ for e in show.dequeue_events()] == ["ShowCreated"]
-
 
 def test_publish_unpublish_alterna_status():
     show = _new_show()
@@ -128,7 +122,6 @@ def test_publish_unpublish_alterna_status():
     assert show.status is ShowStatus.DRAFT
     assert [type(e).__name__ for e in show.dequeue_events()] == ["ShowUnpublished"]
 
-
 def test_publish_e_idempotente():
     show = _new_show()
     show.publish()
@@ -138,7 +131,6 @@ def test_publish_e_idempotente():
 
     assert show.status is ShowStatus.PUBLISHED
     assert show.dequeue_events() == []
-
 
 def test_update_show_troca_campos():
     show = _new_show()
@@ -155,7 +147,6 @@ def test_update_show_troca_campos():
     assert show.genre == "tragédia"
     assert [type(e).__name__ for e in show.dequeue_events()] == ["ShowUpdated"]
 
-
 def test_deactivate_show_marca_inativo():
     show = _new_show()
     show.dequeue_events()
@@ -169,7 +160,6 @@ def test_deactivate_show_marca_inativo():
 ### `tests/modules/catalog/test_session.py`
 
 ```python
-# tests/modules/catalog/test_session.py  — novo
 """Domínio de catalog — aggregate Session. Sem DB, sem HTTP.
 
 Importa Show para o SQLAlchemy resolver a FK sessions.show_id -> shows.id ao
@@ -181,36 +171,32 @@ from uuid import uuid4
 
 import pytest
 
-from app.core.domain.errors import ConflictError, DomainError
+from app.core.domain import ConflictError, DomainError
 from app.modules.catalog.domain.aggregates.session import Session
 from app.modules.catalog.domain.aggregates.show import Show  # noqa: F401
 from app.modules.catalog.domain.enumerations.session_status import SessionStatus
-from app.modules.catalog.domain.value_objects.money import Money
 
 NOW = datetime.now(timezone.utc)
 TOMORROW = NOW + timedelta(days=1)
 YESTERDAY = NOW - timedelta(days=1)
 
-
-def _new_session(*, capacity: int = 100, price_reais: float = 120.0) -> Session:
+def _new_session(*, capacity: int = 100, price_cents: int = 12_000) -> Session:
     return Session.create(
         show_id=uuid4(),
         starts_at=TOMORROW,
         venue="Sala Principal",
         capacity=capacity,
-        full_price=Money.from_reais(price_reais),
+        full_price_cents=price_cents,
         now=NOW,
     )
 
-
 def test_cria_sessao_futura_ok():
-    session = _new_session(price_reais=120.0)
+    session = _new_session(price_cents=12_000)
 
     assert session.status is SessionStatus.ON_SALE
     assert session.full_price_cents == 12_000
     assert session.is_on_sale(NOW) is True
     assert [type(e).__name__ for e in session.dequeue_events()] == ["SessionCreated"]
-
 
 def test_cria_sessao_no_passado_recusa():
     with pytest.raises(DomainError):
@@ -219,18 +205,16 @@ def test_cria_sessao_no_passado_recusa():
             starts_at=YESTERDAY,
             venue="Sala Principal",
             capacity=50,
-            full_price=Money.from_reais(90.0),
+            full_price_cents=9_000,
             now=NOW,
         )
 
-
 def test_meia_e_metade_da_inteira():
-    session = _new_session(price_reais=120.0)
-    assert session.half_price.reais == 60.0
+    session = _new_session(price_cents=12_000)
+    assert session.half_price_cents == 6_000
 
-    impar = _new_session(price_reais=12.01)  # 1201 centavos
-    assert impar.half_price.cents == 600  # trunca ao centavo (RN04)
-
+    impar = _new_session(price_cents=1_201)
+    assert impar.half_price_cents == 600  # trunca ao centavo (RN04)
 
 def test_reduzir_capacidade_abaixo_do_comprometido_recusa():
     session = _new_session(capacity=100)
@@ -241,11 +225,10 @@ def test_reduzir_capacidade_abaixo_do_comprometido_recusa():
             starts_at=TOMORROW,
             venue="Sala Principal",
             capacity=5,
-            full_price=session.full_price,
+            full_price_cents=session.full_price_cents,
             committed=8,
             now=NOW,
         )
-
 
 def test_atualizar_capacidade_acima_do_comprometido_ok():
     session = _new_session(capacity=100)
@@ -255,7 +238,7 @@ def test_atualizar_capacidade_acima_do_comprometido_ok():
         starts_at=TOMORROW,
         venue="Sala Anexa",
         capacity=50,
-        full_price=session.full_price,
+        full_price_cents=session.full_price_cents,
         committed=8,
         now=NOW,
     )
@@ -263,7 +246,6 @@ def test_atualizar_capacidade_acima_do_comprometido_ok():
     assert session.capacity == 50
     assert session.venue == "Sala Anexa"
     assert [type(e).__name__ for e in session.dequeue_events()] == ["SessionUpdated"]
-
 
 def test_cancelar_sessao_emite_evento():
     session = _new_session()
@@ -280,7 +262,6 @@ def test_cancelar_sessao_emite_evento():
     assert cancelled.starts_at == session.starts_at
     assert cancelled.cancelled_at is not None
 
-
 def test_cancelar_sessao_ja_cancelada_recusa():
     session = _new_session()
     session.cancel()
@@ -289,14 +270,12 @@ def test_cancelar_sessao_ja_cancelada_recusa():
     with pytest.raises(ConflictError):
         session.cancel()
 
-
 def test_excluir_sessao_com_venda_recusa():
     session = _new_session()
     session.dequeue_events()
 
     with pytest.raises(ConflictError):
         session.deactivate(tickets_sold=1)
-
 
 def test_excluir_sessao_sem_venda_ok():
     session = _new_session()
@@ -306,7 +285,6 @@ def test_excluir_sessao_sem_venda_ok():
 
     assert session.is_active is False
     assert [type(e).__name__ for e in session.dequeue_events()] == ["SessionDeactivated"]
-
 
 def test_editar_sessao_cancelada_recusa():
     session = _new_session()
@@ -318,41 +296,10 @@ def test_editar_sessao_cancelada_recusa():
             starts_at=TOMORROW,
             venue="Sala Principal",
             capacity=100,
-            full_price=session.full_price,
+            full_price_cents=session.full_price_cents,
             committed=0,
             now=NOW,
         )
-```
-
-### `tests/modules/catalog/test_money.py`
-
-```python
-# tests/modules/catalog/test_money.py  — novo
-"""Value object Money — evita float em preço; meia = 50% (RN04)."""
-
-import pytest
-
-from app.core.domain.errors import DomainError
-from app.modules.catalog.domain.value_objects.money import Money
-
-
-def test_from_reais_converte_para_centavos():
-    assert Money.from_reais("12.34").cents == 1234
-    assert Money.from_reais(120).cents == 12_000
-
-
-def test_half_trunca_ao_centavo():
-    assert Money(cents=1201).half().cents == 600
-    assert Money(cents=12_000).half().cents == 6_000
-
-
-def test_zero():
-    assert Money.zero().cents == 0
-
-
-def test_valor_negativo_recusa():
-    with pytest.raises(DomainError):
-        Money(cents=-1)
 ```
 
 ---
@@ -360,21 +307,22 @@ def test_valor_negativo_recusa():
 ## 3. Testes de integração cross-surface
 
 Precisam do backend com Postgres em contêiner; alguns só ficam observáveis
-ponta a ponta quando `identity-auth` e `booking` entrarem (anotado).
+ponta a ponta quando `booking` entrar (anotado) — `identity-auth` já está
+mergeado.
 
-| Fluxo                                                                                                                                                                             | Verifica                                                                                                                                                                                                                                                                                            |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Admin: `POST /admin/shows` → `POST /admin/shows/{id}/sessions` (data futura) → `POST /admin/shows/{id}/publish` → `GET /sessions/{sessionId}` (contrato `catalog-session-detail`) | A sessão aparece no detalhe público com `status="on_sale"` e `availableCount = capacity` (0 vendas). Alimenta a vitrine.                                                                                                                                                                            |
-| Admin publica espetáculo **sem** sessão futura → `GET /shows` (contrato `catalog-show-search`)                                                                                    | O espetáculo **não** aparece na vitrine (regra "só com sessão futura à venda").                                                                                                                                                                                                                     |
-| Admin cria 2ª sessão futura no mesmo show → `GET /shows/{showId}`                                                                                                                 | Ambas as sessões futuras retornam em `sessions`; sessão no passado não.                                                                                                                                                                                                                             |
-| `POST /admin/sessions/{id}/cancel` numa sessão à venda → 202 + tabela `events`                                                                                                    | Uma linha `event_type="SessionCancelled"`, `dispatched_at` NULL → preenchido pelo relay (~2 s). Payload traz `id`, `show_id`, `starts_at`, `cancelled_at`. Quando `payment` existir: cada pedido confirmado da sessão entra na fila de estorno (RF07 / RN02 a partir do cancelamento), idempotente. |
-| `DELETE /admin/sessions/{id}` com `ticketsSold > 0` (após `booking` permitir vender)                                                                                              | 409, corpo `{ "detail": "Cancele a sessão em vez de excluir." }`. Nenhuma linha apagada.                                                                                                                                                                                                            |
-| `DELETE /admin/sessions/{id}` sem vendas                                                                                                                                          | 204; a sessão some das leituras (`is_active=False`), `events` intacta.                                                                                                                                                                                                                              |
-| `PATCH /admin/sessions/{id}` com `capacity` < `ticketsSold + reservedOpen`                                                                                                        | 409 `{ "detail": "Já há ingressos comprometidos nesta sessão." }`.                                                                                                                                                                                                                                  |
-| `PATCH /admin/sessions/{id}` com `startsAt` no passado                                                                                                                            | 422 `{ "detail": "A data da sessão deve ser futura." }`.                                                                                                                                                                                                                                            |
-| Qualquer rota `/admin/*` com token de `role=BUYER` (ou sem token)                                                                                                                 | 403 (`require_admin`). Depende de `identity-auth` mergeado; até lá, testar com um stub de `require_admin`.                                                                                                                                                                                          |
-| Frontend (Playwright, quando a suíte existir): `/admin/espetaculos` como não-admin                                                                                                | `RequireAuth` redireciona para `/` (vitrine); a tela de gestão não monta.                                                                                                                                                                                                                           |
-| Frontend: criar show + sessão → publicar → item some/aparece na lista; tentar "Excluir" numa sessão com `canDelete=false`                                                         | Botão "Excluir" desabilitado; "Cancelar sessão" abre o `ConfirmCancelSessionDialog` com aviso de reembolso; confirmar → toast e lista atualizada.                                                                                                                                                   |
+| Fluxo                                                                                                                                                                              | Verifica                                                                                                                                                                                                                                                                                            |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Admin: `POST /admin/shows` → `POST /admin/shows/{id}/sessions` (data futura) → `POST /admin/shows/{id}/publish` → `GET /sessions/{session_id}` (contrato `catalog-session-detail`) | A sessão aparece no detalhe público com `status="on_sale"` e `available_count = capacity` (0 vendas). Alimenta a vitrine.                                                                                                                                                                           |
+| Admin publica espetáculo **sem** sessão futura → `GET /shows` (contrato `catalog-show-search`)                                                                                     | O espetáculo **não** aparece na vitrine (regra "só com sessão futura à venda").                                                                                                                                                                                                                     |
+| Admin cria 2ª sessão futura no mesmo show → `GET /shows/{show_id}`                                                                                                                 | Ambas as sessões futuras retornam em `sessions`; sessão no passado não.                                                                                                                                                                                                                             |
+| `POST /admin/sessions/{id}/cancel` numa sessão à venda → 202 + tabela `events`                                                                                                     | Uma linha `event_type="SessionCancelled"`, `dispatched_at` NULL → preenchido pelo relay (~2 s). Payload traz `id`, `show_id`, `starts_at`, `cancelled_at`. Quando `payment` existir: cada pedido confirmado da sessão entra na fila de estorno (RF07 / RN02 a partir do cancelamento), idempotente. |
+| `DELETE /admin/sessions/{id}` com `tickets_sold > 0` (após `booking` permitir vender)                                                                                              | 409, corpo `{ "detail": "Cancele a sessão em vez de excluir." }`. Nenhuma linha apagada.                                                                                                                                                                                                            |
+| `DELETE /admin/sessions/{id}` sem vendas                                                                                                                                           | 204; a sessão some das leituras (`is_active=False`), `events` intacta.                                                                                                                                                                                                                              |
+| `PUT /admin/sessions/{id}` com `capacity` < `tickets_sold + reserved_open`                                                                                                         | 409 `{ "detail": "Já há ingressos comprometidos nesta sessão." }`.                                                                                                                                                                                                                                  |
+| `PUT /admin/sessions/{id}` com `starts_at` no passado                                                                                                                              | 422 `{ "detail": "A data da sessão deve ser futura." }`.                                                                                                                                                                                                                                            |
+| Qualquer rota `/admin/*` com token de comprador (`is_admin=false`), ou sem token                                                                                                   | 403 (`require_admin`, já disponível — `identity-auth` mergeado, sem precisar de stub).                                                                                                                                                                                                              |
+| Frontend (Playwright, quando a suíte existir): `/admin/espetaculos` como não-admin                                                                                                 | `RequireAuth` redireciona para `/` (vitrine); a tela de gestão não monta.                                                                                                                                                                                                                           |
+| Frontend: criar show + sessão → publicar → item some/aparece na lista; tentar "Excluir" numa sessão com `can_delete=false`                                                         | Botão "Excluir" desabilitado; "Cancelar sessão" abre o `ConfirmCancelSessionDialog` com aviso de reembolso; confirmar → toast e lista atualizada.                                                                                                                                                   |
 
 ---
 
@@ -386,9 +334,9 @@ Ambiente: API no contêiner, `alembic upgrade head`, admin semeado
 1. **Login admin.** Entrar em `/login` com a conta admin semeada. Ir a
    `/admin/espetaculos`. **Esperado:** a tela de gestão carrega; lista vazia
    mostra "Nenhum espetáculo cadastrado ainda.".
-2. **Criar espetáculo.** "Novo espetáculo" → preencher título, sinopse, URL de
-   imagem, gênero → Salvar. **Esperado:** toast "Espetáculo criado."; o card
-   aparece com selo "Rascunho".
+2. **Criar espetáculo.** "Novo espetáculo" → preencher título, sinopse, gênero
+   → Salvar. **Esperado:** toast "Espetáculo criado."; o card aparece com
+   selo "Rascunho" e uma imagem padrão (sorteada do pool, sem admin escolher).
 3. **Criar sessão futura.** No card, "Nova sessão" → data/hora amanhã, local,
    capacidade 50, inteira R$ 80 → Salvar. **Esperado:** toast "Sessão criada.";
    a linha mostra "À venda", "Vendidos: 0", "Inteira R$ 80,00 · Meia R$ 40,00".
@@ -432,20 +380,22 @@ Ambiente: API no contêiner, `alembic upgrade head`, admin semeado
 ## 5. Riscos e pontos de atenção
 
 - **`booking` não mergeado → contagem de vendas = 0.** `SeatCountsRepository` lê
-  `tickets`/`reservations` (tabelas de `booking`). Sem elas, `ticketsSold` e
-  `reservedOpen` vêm 0 e a regra "não exclui sessão vendida" fica permissiva em
+  `tickets`/`reservations` (tabelas de `booking`). Sem elas, `tickets_sold` e
+  `reserved_open` vêm 0 e a regra "não exclui sessão vendida" fica permissiva em
   runtime até `booking` entrar. Os testes de domínio (`test_session.py`) já
   fixam o invariante; o risco é só de integração. Ao mergear `booking`,
   revisar os literais de status no SQL (`status = 'valid'`, `status = 'open'`).
-- **Ordem de merge com `identity-auth`.** `require_admin`/`Role` e
-  `core/domain/errors.py` + `core/shared/schema.py` são compartilhados. Se
-  `catalog` entrar primeiro, ajustar `down_revision` da migration para `None` e
-  garantir que `identity-auth` reuse os arquivos de `core` em vez de recriar.
-- **Envelope de erro ainda "global a definir".** Este backend adota
-  `{ "detail": "<mensagem>" }` para erro de negócio (403/404/409/422-domínio) e
-  `{ "detail": [{ "field", "message" }] }` para 422 de forma. O frontend
-  (`apiErrorMessage`) já lê as duas formas. Registrado em `integration.md`.
-- **Fuso horário.** `startsAt` trafega em ISO 8601 com offset; o `<input
+- **`identity-auth` já está mergeado** (não é mais uma ordem em aberto) —
+  `require_admin` (checa `user.is_admin: bool`, sem enum `Role`) e
+  `core/domain/errors.py` já existem no repo real; este módulo só importa,
+  nunca recria. `down_revision = "0001_identity_auth"` já confere com o id
+  real da migration.
+- **Envelope de erro.** O backend real adota `{ "detail": "<mensagem>" }` para
+  erro de negócio (401/403/404/409/422-domínio, mapeado por subclasse de
+  `DomainError` em `main.py`) e `{ "detail": [{ "field", "message" }] }` para
+  422 de forma. O frontend (`apiErrorMessage`, via `ApiError` — ver
+  `frontend.md` §2) já lê as duas formas.
+- **Fuso horário.** `starts_at` trafega em ISO 8601 com offset; o `<input
   type="datetime-local">` é hora local — a conversão para UTC fica na service
   (`toISOString()`). Bug clássico: comparar naïve com aware. O domínio sempre
   usa `datetime.now(timezone.utc)` e o schema recusa `datetime` sem tzinfo.

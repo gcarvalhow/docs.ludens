@@ -39,15 +39,26 @@ Cada variável carrega uma classificação:
 ## Variáveis adicionadas por funcionalidade
 
 Cada spec que precisar de configuração externa registra as suas variáveis aqui.
-Previstas pelos requisitos já aprovados (a formalizar na spec correspondente):
+
+- **Notificação** (`notification-transactional-email`,
+  [RF05](../../requirements/functional.md#rf05--confirmar-compra-e-emitir-ingresso)/
+  RF09) — decidido em 2026-09-11: **AWS SES**, não SMTP. Ver código completo em
+  `specs/notification-transactional-email/backend.md`.
+
+  | Variável | Tipo | Classificação | Notas |
+  | --- | --- | --- | --- |
+  | `EMAIL_BACKEND` | `ses \| console` (default `console`) | `CONFIG` | `console` só loga (dev, sem conta AWS); trocar pra `ses` em produção. |
+  | `EMAIL_FROM_ADDRESS` | `str` | `CONFIG` | Precisa ser um endereço/domínio verificado na conta SES. |
+  | `EMAIL_FROM_NAME` | `str` (default `Ludens`) | `CONFIG` | Nome de exibição do remetente. |
+  | `AWS_REGION` | `str` (default `us-east-1`) | `CONFIG` | Região onde o domínio remetente foi verificado no SES. |
+  | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | `str` | `SECRET` | **Não** entram no `.env` da aplicação nem em `Settings` — o `boto3` resolve por IAM role em produção; só definir manualmente pra testar o adapter SES localmente, nunca commitar. |
+  | `FRONTEND_BASE_URL` | `str` (default `http://localhost:3000`) | `CONFIG` | Base pra montar links de e-mail (ex.: `/redefinir-senha?token=...`). |
 
 - **Pagamento** ([RF04](../../requirements/functional.md#rf04--efetuar-pagamento)) —
-  chave de API e URL base da AbacatePay, segredo de webhook.
-- **Notificação** ([RF05](../../requirements/functional.md#rf05--confirmar-compra-e-emitir-ingresso)) —
-  conexão SMTP e endereço remetente.
+  chave de API e URL base da AbacatePay, segredo de webhook. Pendente de spec.
 - **Reserva** ([RN01](../../requirements/business-rules.md#rn01--limite-de-ingressos-por-cpf),
   [RN03](../../requirements/business-rules.md#rn03--expiração-da-reserva)) —
-  limite de ingressos por CPF e tempo de expiração da reserva.
+  limite de ingressos por CPF e tempo de expiração da reserva. Pendente de spec.
 
 ## Docker Compose (produção)
 

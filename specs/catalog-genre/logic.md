@@ -1,7 +1,8 @@
 ---
-status: draft
+status: reviewed
 spec: catalog-genre
 created_at: 2026-09-11
+reviewed_at: 2026-09-11
 ---
 
 # Gêneros do catálogo — Lógica de Negócio

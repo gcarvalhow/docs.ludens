@@ -4,6 +4,9 @@
 > **Última revisão:** 2026-08-28 · **Status:** vigente
 > Versão operacional do [Acordo de Manutenibilidade §5](../team/maintainability.md).
 > O guia de estilo do frontend virá na pasta `frontend/`.
+> Ver também [`conventions.md`](conventions.md) para padrão de arquitetura e
+> de código (import, `__init__.py`, naming, contrato REST) — este documento
+> cobre só formatação e idioma.
 
 ## Convenções de código (Python / FastAPI) — PEP 8
 

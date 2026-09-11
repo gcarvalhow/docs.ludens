@@ -3,7 +3,7 @@ status: draft
 spec: catalog-show-search
 surface: backend
 created_at: 2026-09-10
-updated_at: 2026-09-10
+updated_at: 2026-09-11
 ---
 
 # Busca e filtro de espetáculos — Backend
@@ -14,7 +14,8 @@ aggregate novo, sem migration nova. Filtra por espetáculo publicado com ≥ 1
 sessão futura à venda, agrega faixa de preço e próximas datas, pagina.
 **RF:** RF01 · **RN:** — · **Módulo backend:** `catalog`
 **Contrato:** `docs.ludens/specs/catalog-show-search/integration.md`
-**Carregar antes:** skill `backend-architecture`, `docs.ludens/backend/overview.md`.
+**Carregar antes:** skill `backend-architecture`, `docs.ludens/backend/overview.md`,
+`docs.ludens/backend/conventions.md`.
 
 **Depende de:** `catalog-admin-management` mergeado — aggregates `Show`/
 `Session`, `ShowRepository`/`SessionRepository`, a migration `sessions`/`shows`
@@ -29,6 +30,13 @@ arquivos ao módulo `catalog` que ela cria — não redefine nada que já existe
 > base). Já foi corrigido — inclusive `SessionRepository.find_by_id_for_update`
 > passou a ser criado lá (este documento só reusa). Este documento sempre usou
 > as convenções reais (ver `core/` abaixo).
+>
+> **Auditado novamente em 2026-09-11** contra o código real de `identity` e
+> `catalog-admin-management` em `master`/PR #17 — sem `CamelModel`, sem VO
+> inventado, sem método de repositório inventado, sem `PATCH`. Único ajuste:
+> o passo a passo TBD (§6) ainda mandava rodar `ruff check .` "com fallback
+> silencioso" — o Ruff foi removido do projeto (ver revisão de
+> `catalog-admin-management/backend.md`), não faz sentido nem tentar.
 
 ---
 
@@ -381,13 +389,13 @@ git commit -m "feat(catalog): query de espetaculos com sessao futura e generos"
 git add src/app/modules/catalog/api/routers/show_router.py src/app/modules/catalog/router.py
 git commit -m "feat(catalog): expor GET /shows e GET /genres"
 
-ruff check . 2>/dev/null; pytest -q
+pytest -q
 ```
 
 Depois: `/team-ludens:tbd-pr` (senior-dev Modo 2 + `/code-review`) → push → PR
-`Closes #<NN>` → merge (1 aprovação + CI verde). (`ruff` foi removido do
-projeto — `pyproject.toml` não tem `[tool.ruff]`; rodar só se o lint local
-existir, sem bloquear no CI.)
+`Closes #<NN>` → merge (1 aprovação + CI verde). Sem lint automatizado — o
+projeto não usa Ruff nem outro formatter (ver
+[`backend/code-style.md`](../../backend/code-style.md)).
 
 ---
 

@@ -3,80 +3,110 @@ status: done
 spec: identity-auth
 surface: backend
 created_at: 2026-09-03
-updated_at: 2026-09-04
+updated_at: 2026-09-11
 ---
 
 # Cadastro e autenticação do comprador — Backend
 
 **Resumo:** módulo `identity` com o aggregate `User` (CPF validado, e-mail, hash
-bcrypt, `security_stamp`), dual-token JWT (access HS256 + refresh opaco SHA-256
-rotacionado a cada uso), recuperação de senha por token de uso único com validade
-de 1 hora e envio do link via handler de outbox. Duas usecases — `AuthUseCase`
-(sessão: login/refresh/logout/senha) e `UserUseCase` (cadastro, leitura e
-listagem paginada de usuário) — expostas em dois routers: 6 rotas em `/auth` e
-3 em `/users`. Dependências `get_current_user` / `require_admin` exportadas
-para os demais módulos.
+bcrypt, `is_admin: bool`, `security_stamp`), dual-token JWT (access HS256 +
+refresh opaco SHA-256 rotacionado a cada uso), recuperação de senha por token
+de uso único com validade de 1 hora. Duas usecases — `AuthUseCase` (sessão:
+login/refresh/logout/senha) e `UserUseCase` (cadastro e leitura) — expostas em
+dois routers: 6 rotas em `/auth` e 2 em `/users`. Dependências
+`get_current_user` / `require_admin` exportadas para os demais módulos.
 **RF:** RF09 · **RN:** — (reforça RNF01) · **Módulo backend:** `identity`
 **Contrato:** `docs.ludens/specs/identity-auth/integration.md`
 **Carregar antes:** skill `backend-architecture` (todos os `references/`),
-`docs.ludens/backend/overview.md`,
+`docs.ludens/backend/overview.md`, `docs.ludens/backend/conventions.md`,
 `docs.ludens/backend/security/authentication.md`,
 `docs.ludens/backend/security/configuration.md`.
 
-Este é o primeiro módulo de negócio do repositório. Ele traz também dois arquivos
-de infraestrutura compartilhada que ainda não existiam e que qualquer feature
-seguinte reaproveita: `core/domain/errors.py` (`DomainError` + tradução para
-HTTP) e `core/shared/schemas.py` (`CamelModel`), além da primeira migration do
-Alembic (tabela `events` do outbox).
+> **Revisão de 2026-09-11:** a versão anterior deste documento não batia com o
+> código real já mergeado (PR #8, `gcarvalhow/api.ludens`) — apesar de ser este
+> o primeiro módulo do repositório, o documento nunca foi atualizado depois da
+> própria implementação divergir dele. Corrigido nesta revisão: `role: enum
+> Role` → `is_admin: bool` (a classe `Role` não existe); schemas em camelCase
+> via `CamelModel` → `pydantic.BaseModel` puro, snake_case (`CamelModel` não
+> existe no projeto); `DomainError(message, *, status_code=, field=)` → classe
+> real só tem `message`, subclasses vazias (`ConflictError`, `AuthError` — não
+> `UnauthorizedError` —, `ForbiddenError`, `GoneError`, `NotFoundError`),
+> mapeamento por subclasse numa lista central em `main.py`; `find_by_id`/
+> `find_by_email`/`find_by_cpf`/`list_paginated` como métodos próprios de
+> `UserRepository` → o repositório real não tem **nenhum** método próprio, é
+> `AggregateRepository[User]` puro, tudo via `find_by(campo, valor)` genérico;
+> `_user_repo`/`_refresh_token_repo` → `_user_repository`/`_refresh_repository`
+> (nome real); `PasswordHasherService` → `PasswordService` (nome e arquivo
+> reais); `CurrentUser` (dataclass própria) → não existe, as dependencies
+> retornam o próprio aggregate `User`; import de erro por submódulo
+> (`app.core.domain.errors`) → sempre pelo pacote (`app.core.domain`).
+>
+> Duas seções inteiras foram **removidas** por não existirem no código real
+> nem terem RF que as sustente: a listagem paginada de usuários (`GET /users`,
+> `PagedUsersResponse`, `list_users` — não há requisito em
+> `requirements/functional.md` que peça isso, e o `UserRepository` real não
+> tem `list_paginated`) e o envio de e-mail de redefinição de senha via módulo
+> `notification` + `identity/handlers.py` (não existem no código real — o
+> evento `PasswordResetRequested` é levantado pelo aggregate, mas **nenhum
+> handler o consome ainda**; o outbox relay processa o evento e ele fica
+> `dispatched_at = NULL` para sempre). RF09 pede recuperação "por e-mail" —
+> isso está **pendente como débito técnico**, não implementado, apesar do
+> `status: done` deste documento referir-se ao fluxo de sessão/cadastro, que
+> está completo. Ver §7.
+
+Este é o primeiro módulo de negócio do repositório. Ele também introduz dois
+arquivos de infraestrutura compartilhada que qualquer feature seguinte
+reaproveita: `core/domain/errors.py` (`DomainError` + subclasses) e
+`core/shared/errors.py` (`format_validation_errors`, usado pelo handler de
+`RequestValidationError` do Pydantic em `main.py`).
 
 ---
 
 ## 1. Arquivos (ordem de dependência)
 
 `infrastructure/` (repositórios e services) vem antes de `application/` — o
-usecase depende dos dois, não o contrário. `repositories/__init__.py` e
-`services/__init__.py` reexportam as classes do pacote (um só import para as
-três repositórios, ou os dois services, em vez de um import por arquivo).
+usecase depende dos dois, não o contrário. Cada subpacote de domínio
+(`value_objects`, `events`, `aggregates`, `entities`) e de infraestrutura
+(`services`, `repositories`) tem seu próprio `__init__.py` agregador com
+`__all__` — ver [`backend/conventions.md`](../../backend/conventions.md).
 
 | # | Camada | Caminho | Novo/Editar |
 | --- | --- | --- | --- |
 | 1 | core | `src/app/core/domain/errors.py` | novo |
-| 2 | core | `src/app/core/shared/schemas.py` | novo |
-| 3 | pacotes | `src/app/modules/identity/**/__init__.py` e `src/app/modules/notification/**/__init__.py` | novo |
+| 2 | core | `src/app/core/shared/errors.py` | novo |
+| 3 | pacotes | `src/app/modules/identity/**/__init__.py` (vazios) | novo |
 | 4 | domain | `src/app/modules/identity/domain/value_objects/cpf.py` | novo |
 | 5 | domain | `src/app/modules/identity/domain/value_objects/email.py` | novo |
-| 6 | domain | `src/app/modules/identity/domain/enumerations/role.py` | novo |
-| 7 | domain | `src/app/modules/identity/domain/events/identity_events.py` | novo |
-| 8 | domain | `src/app/modules/identity/domain/aggregates/user.py` | novo |
-| 9 | domain | `src/app/modules/identity/domain/entities/refresh_token.py` | novo |
-| 10 | domain | `src/app/modules/identity/domain/entities/password_reset_token.py` | novo |
-| 11 | infrastructure | `src/app/modules/identity/infrastructure/services/password_hasher_service.py` | novo |
-| 12 | infrastructure | `src/app/modules/identity/infrastructure/services/token_service.py` | novo |
-| 13 | infrastructure | `src/app/modules/identity/infrastructure/services/__init__.py` | novo |
-| 14 | infrastructure | `src/app/modules/identity/infrastructure/repositories/user_repository.py` | novo |
-| 15 | infrastructure | `src/app/modules/identity/infrastructure/repositories/refresh_token_repository.py` | novo |
-| 16 | infrastructure | `src/app/modules/identity/infrastructure/repositories/password_reset_token_repository.py` | novo |
-| 17 | infrastructure | `src/app/modules/identity/infrastructure/repositories/__init__.py` | novo |
-| 18 | application | `src/app/modules/identity/application/schemas/request.py` | novo |
-| 19 | application | `src/app/modules/identity/application/schemas/response.py` | novo |
-| 20 | application | `src/app/modules/identity/application/usecases/auth_usecase.py` | novo |
-| 21 | application | `src/app/modules/identity/application/usecases/user_usecase.py` | novo |
-| 22 | infrastructure | `src/app/modules/notification/infrastructure/services/email_service.py` | novo |
-| 23 | dependências | `src/app/modules/notification/dependencies.py` | novo |
-| 24 | outbox | `src/app/modules/identity/handlers.py` | novo |
-| 25 | api | `src/app/modules/identity/api/routers/auth_router.py` | novo |
-| 26 | api | `src/app/modules/identity/api/routers/user_router.py` | novo |
-| 27 | api | `src/app/modules/identity/router.py` | novo |
-| 28 | api | `src/app/modules/identity/dependencies.py` | novo |
-| 29 | migration | `src/migrations/versions/0001_outbox_events.py` | novo |
-| 30 | migration | `src/migrations/versions/0002_identity_auth.py` | novo |
-| 31 | migration | `src/migrations/env.py` | editar |
-| 32 | api | `src/app/main.py` | editar |
-| 33 | config | `src/app/config.py` | editar |
-| 34 | config | `.env.example` | editar |
-| 35 | script | `scripts/seed_admin.py` | novo |
-| 36 | config | `pyproject.toml` | editar |
-| 37 | devops | `.github/workflows/ci.yml` | editar |
+| 6 | domain | `src/app/modules/identity/domain/value_objects/__init__.py` | novo |
+| 7 | domain | `src/app/modules/identity/domain/events/domain_events.py` | novo |
+| 8 | domain | `src/app/modules/identity/domain/events/__init__.py` | novo |
+| 9 | domain | `src/app/modules/identity/domain/aggregates/user.py` | novo |
+| 10 | domain | `src/app/modules/identity/domain/aggregates/__init__.py` | novo |
+| 11 | domain | `src/app/modules/identity/domain/entities/refresh_token.py` | novo |
+| 12 | domain | `src/app/modules/identity/domain/entities/password_reset_token.py` | novo |
+| 13 | domain | `src/app/modules/identity/domain/entities/__init__.py` | novo |
+| 14 | infrastructure | `src/app/modules/identity/infrastructure/services/password_service.py` | novo |
+| 15 | infrastructure | `src/app/modules/identity/infrastructure/services/token_service.py` | novo |
+| 16 | infrastructure | `src/app/modules/identity/infrastructure/services/__init__.py` | novo |
+| 17 | infrastructure | `src/app/modules/identity/infrastructure/repositories/user_repository.py` | novo |
+| 18 | infrastructure | `src/app/modules/identity/infrastructure/repositories/refresh_token_repository.py` | novo |
+| 19 | infrastructure | `src/app/modules/identity/infrastructure/repositories/password_reset_token_repository.py` | novo |
+| 20 | infrastructure | `src/app/modules/identity/infrastructure/repositories/__init__.py` | novo |
+| 21 | application | `src/app/modules/identity/application/schemas/request.py` | novo |
+| 22 | application | `src/app/modules/identity/application/schemas/response.py` | novo |
+| 23 | application | `src/app/modules/identity/application/usecases/utils/session.py` | novo |
+| 24 | application | `src/app/modules/identity/application/usecases/auth_usecase.py` | novo |
+| 25 | application | `src/app/modules/identity/application/usecases/user_usecase.py` | novo |
+| 26 | api | `src/app/modules/identity/api/routers/utils/cookies.py` | novo |
+| 27 | api | `src/app/modules/identity/api/routers/auth_router.py` | novo |
+| 28 | api | `src/app/modules/identity/api/routers/user_router.py` | novo |
+| 29 | api | `src/app/modules/identity/router.py` | novo |
+| 30 | api | `src/app/modules/identity/dependencies.py` | novo |
+| 31 | migration | `src/migrations/versions/0001_identity_auth.py` | novo |
+| 32 | migration | `src/migrations/env.py` | editar |
+| 33 | api | `src/app/main.py` | editar |
+| 34 | config | `src/app/config.py` | editar |
+| 35 | config | `.env.example` | editar |
 
 ---
 
@@ -85,118 +115,132 @@ três repositórios, ou os dois services, em vez de um import por arquivo).
 ### 1. `src/app/core/domain/errors.py` — novo
 
 ```python
-from __future__ import annotations
-
 class DomainError(Exception):
-    status_code: int = 422
-    field: str = "body"
-
-    def __init__(self, message: str, *, status_code: int | None = None, field: str | None = None) -> None:
+    def __init__(self, message: str) -> None:
         super().__init__(message)
         self.message = message
 
-        if status_code is not None:
-            self.status_code = status_code
-        if field is not None:
-            self.field = field
-
 class ConflictError(DomainError):
-    status_code = 409
+    pass
 
-class UnauthorizedError(DomainError):
-    status_code = 401
+class AuthError(DomainError):
+    pass
 
 class ForbiddenError(DomainError):
-    status_code = 403
+    pass
 
 class GoneError(DomainError):
-    status_code = 410
+    pass
+
+class NotFoundError(DomainError):
+    pass
 ```
 
-### 2. `src/app/core/shared/schemas.py` — novo
+Sem `status_code`/`field` na classe — o mapeamento pra HTTP é uma lista central
+em `main.py` (arquivo 33), por subclasse, com fallback `422` pra `DomainError`
+crua.
+
+### 2. `src/app/core/shared/errors.py` — novo
 
 ```python
-from __future__ import annotations
+from collections.abc import Sequence
 
-from pydantic import BaseModel, ConfigDict
-from pydantic.alias_generators import to_camel
+def format_validation_errors(errors: Sequence[dict]) -> list[dict]:
+    result = []
 
-class CamelModel(BaseModel):
-    model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
+    for error in errors:
+        loc = [str(part) for part in error.get("loc", []) if part != "body"]
+        field = ".".join(loc) if loc else "body"
+        error_type = error.get("type", "")
+        ctx = error.get("ctx", {})
+
+        if error_type == "missing":
+            message = "Campo obrigatório"
+        elif error_type == "string_too_short":
+            min_len = ctx.get("min_length", 1)
+            message = "Não pode ficar em branco" if min_len <= 1 else f"Mínimo de {min_len} caracteres"
+        elif error_type == "string_too_long":
+            message = f"Máximo de {ctx.get('max_length', '')} caracteres"
+        elif "email" in error_type or "email" in error.get("msg", "").lower():
+            message = "E-mail inválido"
+        elif "uuid" in error_type:
+            message = "ID inválido"
+        elif error_type == "enum":
+            message = f"Valor inválido. Opções: {ctx.get('expected', '')}"
+        elif "int" in error_type:
+            message = "Deve ser um número inteiro"
+        elif "float" in error_type or "decimal" in error_type:
+            message = "Deve ser um número"
+        elif "bool" in error_type:
+            message = "Deve ser verdadeiro ou falso"
+        else:
+            message = error.get("msg", "Valor inválido")
+
+        result.append({"field": field, "message": message})
+
+    return result
 ```
 
-### 3. Pacotes — `__init__.py` vazios
+Usado só pelo handler de `RequestValidationError` (validação Pydantic, 422) em
+`main.py` — **não** é usado pelo handler de `DomainError`, que tem envelope
+diferente (ver arquivo 33 e §8).
 
-`infrastructure/repositories/__init__.py` e `infrastructure/services/__init__.py`
-**não** entram aqui — têm conteúdo real (item 13 e 17).
+### 3. Pacotes — `__init__.py` vazios
 
 ```text
 # todos novos, conteúdo vazio
 src/app/modules/identity/__init__.py
 src/app/modules/identity/domain/__init__.py
-src/app/modules/identity/domain/aggregates/__init__.py
-src/app/modules/identity/domain/entities/__init__.py
-src/app/modules/identity/domain/value_objects/__init__.py
-src/app/modules/identity/domain/enumerations/__init__.py
-src/app/modules/identity/domain/events/__init__.py
 src/app/modules/identity/application/__init__.py
 src/app/modules/identity/application/schemas/__init__.py
 src/app/modules/identity/application/usecases/__init__.py
+src/app/modules/identity/application/usecases/utils/__init__.py
 src/app/modules/identity/infrastructure/__init__.py
 src/app/modules/identity/api/__init__.py
 src/app/modules/identity/api/routers/__init__.py
-src/app/modules/notification/__init__.py
-src/app/modules/notification/infrastructure/__init__.py
-src/app/modules/notification/infrastructure/services/__init__.py
+src/app/modules/identity/api/routers/utils/__init__.py
 ```
 
 ### 4. `src/app/modules/identity/domain/value_objects/cpf.py` — novo
 
 ```python
-from __future__ import annotations
-
-import re
 from dataclasses import dataclass
 
-from app.core.domain.errors import DomainError
-
-_NON_DIGITS = re.compile(r"\D")
-
-def _is_valid_cpf(digits: str) -> bool:
-    if len(digits) != 11 or digits == digits[0] * 11:
-        return False
-
-    for length in (9, 10):
-        total = sum(int(digits[i]) * (length + 1 - i) for i in range(length))
-        check = (total * 10) % 11
-        check = 0 if check == 10 else check
-
-        if check != int(digits[length]):
-            return False
-
-    return True
+from app.core.domain import DomainError
 
 @dataclass(frozen=True)
 class CPF:
     value: str
 
     def __post_init__(self) -> None:
-        digits = _NON_DIGITS.sub("", self.value)
-        if not _is_valid_cpf(digits):
-            raise DomainError("CPF inválido.", field="cpf")
+        if not _is_valid(self.value):
+            raise DomainError("CPF inválido.")
 
-        object.__setattr__(self, "value", digits)
+def _is_valid(cpf: str) -> bool:
+    if not cpf.isdigit() or len(cpf) != 11:
+        return False
+
+    if cpf == cpf[0] * 11:
+        return False
+
+    for length in (9, 10):
+        total = sum(int(cpf[i]) * ((length + 1) - i) for i in range(length))
+        check = (total * 10) % 11
+        check = 0 if check == 10 else check
+
+        if check != int(cpf[length]):
+            return False
+
+    return True
 ```
 
 ### 5. `src/app/modules/identity/domain/value_objects/email.py` — novo
 
 ```python
-from __future__ import annotations
-
 import re
 from dataclasses import dataclass
 
-from app.core.domain.errors import DomainError
+from app.core.domain import DomainError
 
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
@@ -205,35 +249,27 @@ class Email:
     value: str
 
     def __post_init__(self) -> None:
-        normalized = self.value.strip().lower()
-        if len(normalized) > 254 or _EMAIL_RE.match(normalized) is None:
-            raise DomainError("E-mail inválido.", field="email")
-
-        object.__setattr__(self, "value", normalized)
+        if not _EMAIL_RE.match(self.value):
+            raise DomainError("E-mail inválido.")
 ```
 
-### 6. `src/app/modules/identity/domain/enumerations/role.py` — novo
+### 6. `src/app/modules/identity/domain/value_objects/__init__.py` — novo
 
 ```python
-from __future__ import annotations
+from .cpf import CPF
+from .email import Email
 
-import enum
-
-class Role(str, enum.Enum):
-    BUYER = "BUYER"
-    ADMIN = "ADMIN"
+__all__ = ["CPF", "Email"]
 ```
 
-### 7. `src/app/modules/identity/domain/events/domain_event.py` — novo
+### 7. `src/app/modules/identity/domain/events/domain_events.py` — novo
 
 ```python
-from __future__ import annotations
-
 from uuid import UUID
 from datetime import datetime
 from dataclasses import dataclass, field
 
-from app.core.domain.events import DomainEvent
+from app.core.domain import DomainEvent
 
 @dataclass(frozen=True)
 class UserRegistered(DomainEvent):
@@ -242,7 +278,7 @@ class UserRegistered(DomainEvent):
     cpf: str = field(kw_only=True)
     email: str = field(kw_only=True)
     password_hash: str = field(kw_only=True)
-    role: str = field(kw_only=True)
+    is_admin: bool = field(kw_only=True)
     security_stamp: UUID = field(kw_only=True)
 
 @dataclass(frozen=True)
@@ -258,19 +294,34 @@ class UserSecurityStampRotated(DomainEvent):
 @dataclass(frozen=True)
 class PasswordResetRequested(DomainEvent):
     id: UUID = field(kw_only=True)
-    token_hash: str = field(kw_only=True)
-    expires_at: datetime = field(kw_only=True)
-
-    # Campos abaixo só alimentam o handler de outbox (envio do e-mail); não são
-    # persistidos em coluna do aggregate. `reset_token` é o token opaco em claro
-    # — vive apenas nesta linha de `events`, nunca numa tabela de domínio.
-
-    reset_token: str = field(kw_only=True)
     email: str = field(kw_only=True)
-    name: str = field(kw_only=True)
+    token: str = field(kw_only=True)
+    expires_at: datetime = field(kw_only=True)
 ```
 
-### 8. `src/app/modules/identity/domain/aggregates/user.py` — novo
+`PasswordResetRequested.token` é o token **em claro** — vive só nesta linha de
+`events`, nunca numa tabela de domínio (a tabela guarda o hash). Hoje nenhum
+handler consome este evento (§7).
+
+### 8. `src/app/modules/identity/domain/events/__init__.py` — novo
+
+```python
+from .domain_events import (
+    PasswordResetRequested,
+    UserPasswordChanged,
+    UserRegistered,
+    UserSecurityStampRotated,
+)
+
+__all__ = [
+    "PasswordResetRequested",
+    "UserPasswordChanged",
+    "UserRegistered",
+    "UserSecurityStampRotated",
+]
+```
+
+### 9. `src/app/modules/identity/domain/aggregates/user.py` — novo
 
 ```python
 from __future__ import annotations
@@ -278,23 +329,18 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import Enum as SAEnum, String
+from sqlalchemy import Boolean, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.core.domain.model import Model
-from app.core.domain.events import DomainEvent
-from app.core.domain.aggregate import AggregateRoot
-from app.modules.identity.domain.enumerations.role import Role
-
-from app.modules.identity.domain.value_objects.cpf import CPF
-from app.modules.identity.domain.value_objects.email import Email
-
-from app.modules.identity.domain.events.identity_events import (
+from app.core.domain import AggregateRoot, DomainEvent, Model
+from app.modules.identity.domain.events import (
     PasswordResetRequested,
     UserPasswordChanged,
     UserRegistered,
     UserSecurityStampRotated,
 )
+
+from app.modules.identity.domain.value_objects import CPF, Email
 
 class User(AggregateRoot, Model):
     __tablename__ = "users"
@@ -303,27 +349,22 @@ class User(AggregateRoot, Model):
     cpf: Mapped[str] = mapped_column(String(11), nullable=False)
     email: Mapped[str] = mapped_column(String(254), nullable=False)
     password_hash: Mapped[str] = mapped_column(String(60), nullable=False)
-    role: Mapped[Role] = mapped_column(
-        SAEnum(Role, native_enum=False, length=16),
-        default=Role.BUYER,
-        nullable=False,
-    )
+
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     security_stamp: Mapped[UUID] = mapped_column(default=uuid4, nullable=False)
 
     @classmethod
-    def register(cls, name: str, cpf: CPF, email: Email, password_hash: str, role: Role = Role.BUYER) -> "User":
+    def register(cls, name: str, cpf: CPF, email: Email, password_hash: str, is_admin: bool = False) -> User:
         user = cls()
-
-        user.id = uuid4()
         user.raise_event(
             lambda v: UserRegistered(
                 version=v,
-                id=user.id,
-                name=name.strip(),
+                id=uuid4(),
+                name=name,
                 cpf=cpf.value,
                 email=email.value,
                 password_hash=password_hash,
-                role=role.value,
+                is_admin=is_admin,
                 security_stamp=uuid4(),
             )
         )
@@ -347,30 +388,25 @@ class User(AggregateRoot, Model):
             lambda v: UserSecurityStampRotated(version=v, id=self.id, security_stamp=uuid4())
         )
 
-    def request_password_reset(self, *, token_hash: str, raw_token: str, expires_at: datetime) -> None:
+    def request_password_reset(self, token: str, expires_at: datetime) -> None:
         self.raise_event(
             lambda v: PasswordResetRequested(
-                version=v,
-                id=self.id,
-                token_hash=token_hash,
-                expires_at=expires_at,
-                reset_token=raw_token,
-                email=self.email,
-                name=self.name,
+                version=v, id=self.id, email=self.email, token=token, expires_at=expires_at
             )
         )
 
     def _apply(self, event: DomainEvent) -> None:
         handler = getattr(self, f"_when_{type(event).__name__}", None)
-        if handler is not None:
+        if handler:
             handler(event)
 
     def _when_UserRegistered(self, e: UserRegistered) -> None:
+        self.id = e.id
         self.name = e.name
         self.cpf = e.cpf
         self.email = e.email
         self.password_hash = e.password_hash
-        self.role = Role(e.role)
+        self.is_admin = e.is_admin
         self.security_stamp = e.security_stamp
 
     def _when_UserPasswordChanged(self, e: UserPasswordChanged) -> None:
@@ -380,686 +416,553 @@ class User(AggregateRoot, Model):
         self.security_stamp = e.security_stamp
 ```
 
-### 9. `src/app/modules/identity/domain/entities/refresh_token.py` — novo
+### 10. `src/app/modules/identity/domain/aggregates/__init__.py` — novo
 
 ```python
-from __future__ import annotations
+from .user import User
 
-from uuid import UUID, uuid4
-from datetime import datetime
+__all__ = ["User"]
+```
+
+### 11. `src/app/modules/identity/domain/entities/refresh_token.py` — novo
+
+```python
+from datetime import datetime, timezone
+from uuid import UUID
 
 from sqlalchemy import Boolean, DateTime, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.core.domain.model import Model
-from app.core.domain.errors import UnauthorizedError
+from app.core.domain import Model
 
 class RefreshToken(Model):
     __tablename__ = "refresh_tokens"
 
     user_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
-    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    rotated_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
     used: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    rotated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    @classmethod
-    def issue(cls, user_id: UUID, token_hash: str, expires_at: datetime) -> "RefreshToken":
-        token = cls()
-        token.id = uuid4()
-        token.user_id = user_id
-        token.token_hash = token_hash
-        token.expires_at = expires_at
-        token.used = False
-
-        return token
-
-    def is_expired(self, now: datetime) -> bool:
-        return now >= self.expires_at
-
-    def rotate(self, now: datetime) -> None:
-        if self.used:
-            raise UnauthorizedError("Sessão expirada.")
-
+    def mark_rotated(self) -> None:
         self.used = True
-        self.rotated_at = now
+        self.rotated_at = datetime.now(timezone.utc)
 ```
 
-### 10. `src/app/modules/identity/domain/entities/password_reset_token.py` — novo
+Entidade filha simples — sem evento próprio, sem `AggregateRepository`. É
+`Model` puro, persistida via `BaseRepository[RefreshToken]`.
+
+### 12. `src/app/modules/identity/domain/entities/password_reset_token.py` — novo
 
 ```python
-from __future__ import annotations
-
-from uuid import UUID, uuid4
 from datetime import datetime
+from uuid import UUID
 
 from sqlalchemy import DateTime, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.core.domain.model import Model
-from app.core.domain.errors import GoneError
-
-_INVALID_LINK = "Este link não é mais válido, solicite um novo."
+from app.core.domain import GoneError, Model
 
 class PasswordResetToken(Model):
     __tablename__ = "password_reset_tokens"
 
     user_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
-    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    used_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-
-    @classmethod
-    def issue(cls, user_id: UUID, token_hash: str, expires_at: datetime) -> "PasswordResetToken":
-        token = cls()
-        token.id = uuid4()
-        token.user_id = user_id
-        token.token_hash = token_hash
-        token.expires_at = expires_at
-
-        return token
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     def consume(self, now: datetime) -> None:
-        if self.used_at is not None:
-            raise GoneError(_INVALID_LINK)
-        if now >= self.expires_at:
-            raise GoneError(_INVALID_LINK)
+        if self.used_at is not None or self.expires_at <= now:
+            raise GoneError("Este link não é mais válido, solicite um novo.")
 
         self.used_at = now
-
-    def invalidate(self, now: datetime) -> None:
-        if self.used_at is None:
-            self.used_at = now
 ```
 
-### 11. `src/app/modules/identity/infrastructure/services/password_hasher_service.py` — novo
+### 13. `src/app/modules/identity/domain/entities/__init__.py` — novo
 
 ```python
-from __future__ import annotations
+from .password_reset_token import PasswordResetToken
+from .refresh_token import RefreshToken
 
+__all__ = ["PasswordResetToken", "RefreshToken"]
+```
+
+### 14. `src/app/modules/identity/infrastructure/services/password_service.py` — novo
+
+```python
 import bcrypt
 
-_MAX_BYTES = 72
-
-class PasswordHasherService:
+class PasswordService:
     def hash(self, plain: str) -> str:
-        digest = bcrypt.hashpw(self._encode(plain), bcrypt.gensalt())
-        return digest.decode("utf-8")
+        return bcrypt.hashpw(plain.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
     def verify(self, plain: str, hashed: str) -> bool:
         try:
-            return bcrypt.checkpw(self._encode(plain), hashed.encode("utf-8"))
+            return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
         except ValueError:
             return False
-
-    @staticmethod
-    def _encode(plain: str) -> bytes:
-        return plain.encode("utf-8")[:_MAX_BYTES]
 ```
 
-### 12. `src/app/modules/identity/infrastructure/services/token_service.py` — novo
+### 15. `src/app/modules/identity/infrastructure/services/token_service.py` — novo
 
 ```python
-from __future__ import annotations
-
 import jwt
 import hashlib
 import secrets
-
-from typing import Any
 from datetime import datetime, timedelta, timezone
 
 from app.config import settings
+from app.core.domain import AuthError
+from app.modules.identity.domain.aggregates import User
 
-class TokenError(Exception):
-    """Access token ausente, malformado, expirado ou de tipo errado."""
+_ALGORITHM = "HS256"
 
 class TokenService:
-    _ALGORITHM = "HS256"
-
-    def issue_access(self, user: Any) -> str:
+    def issue_access(self, user: User) -> tuple[str, int]:
+        expires_in = settings.access_token_expire_minutes * 60
         now = datetime.now(timezone.utc)
+
         payload = {
             "sub": str(user.id),
-            "role": user.role.value,
+            "is_admin": user.is_admin,
             "security_stamp": str(user.security_stamp),
             "type": "access",
             "iat": int(now.timestamp()),
-            "exp": int(
-                (now + timedelta(minutes=settings.access_token_expire_minutes)).timestamp()
-            ),
+            "exp": int((now + timedelta(seconds=expires_in)).timestamp()),
         }
 
-        return jwt.encode(payload, settings.jwt_secret_key, algorithm=self._ALGORITHM)
+        return jwt.encode(payload, settings.jwt_secret_key, algorithm=_ALGORITHM), expires_in
 
-    def decode_access(self, token: str) -> dict[str, Any]:
+    def decode_access(self, token: str) -> dict:
         try:
-            payload = jwt.decode(
-                token, settings.jwt_secret_key, algorithms=[self._ALGORITHM]
-            )
+            payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[_ALGORITHM])
         except jwt.PyJWTError as exc:
-            raise TokenError("token inválido") from exc
+            raise AuthError("Sessão inválida ou expirada.") from exc
 
         if payload.get("type") != "access":
-            raise TokenError("tipo de token inválido")
+            raise AuthError("Sessão inválida ou expirada.")
 
         return payload
 
     def new_opaque_token(self) -> str:
-        return secrets.token_urlsafe(48)
+        return secrets.token_urlsafe(32)
 
     def hash_opaque(self, token: str) -> str:
         return hashlib.sha256(token.encode("utf-8")).hexdigest()
 ```
 
-### 13. `src/app/modules/identity/infrastructure/services/__init__.py` — novo
+Note que `is_admin` **vai no claim do JWT** (diferente do que a checagem de
+autorização usa em runtime): `get_current_user` sempre rebusca o `User` no
+banco por `sub` e decide por `user.is_admin` real, não pelo claim — o claim é
+só um dado a mais no token, não a fonte de verdade da autorização.
+
+### 16. `src/app/modules/identity/infrastructure/services/__init__.py` — novo
 
 ```python
-from __future__ import annotations
+from .password_service import PasswordService
+from .token_service import TokenService
 
-from app.modules.identity.infrastructure.services.password_hasher_service import (
-    PasswordHasherService,
-)
-from app.modules.identity.infrastructure.services.token_service import (
-    TokenError,
-    TokenService,
-)
-
-__all__ = ["PasswordHasherService", "TokenError", "TokenService"]
+__all__ = ["PasswordService", "TokenService"]
 ```
 
-### 14. `src/app/modules/identity/infrastructure/repositories/user_repository.py` — novo
+### 17. `src/app/modules/identity/infrastructure/repositories/user_repository.py` — novo
 
 ```python
-from __future__ import annotations
-
-from sqlalchemy import func, select
-
-from app.modules.identity.domain.aggregates.user import User
-from app.core.infrastructure.repositories.repository import AggregateRepository
+from app.core.infrastructure.repositories import AggregateRepository
+from app.modules.identity.domain.aggregates import User
 
 class UserRepository(AggregateRepository[User]):
     model = User
-
-    async def find_by_email(self, email: str) -> User | None:
-        return await self.find_by("email", email)
-
-    async def find_by_cpf(self, cpf: str) -> User | None:
-        return await self.find_by("cpf", cpf)
-
-    async def list_paginated(self, *, limit: int, offset: int) -> tuple[list[User], int]:
-        rows = await self._session.execute(
-            select(User)
-            .where(User.is_active == True)  # noqa: E712
-            .order_by(User.created_at.desc())
-            .limit(limit)
-            .offset(offset)
-        )
-
-        total = await self._session.execute(
-            select(func.count()).select_from(User).where(User.is_active == True)  # noqa: E712
-        )
-
-        return list(rows.scalars().all()), total.scalar_one()
 ```
 
-### 15. `src/app/modules/identity/infrastructure/repositories/refresh_token_repository.py` — novo
+Sem método próprio — `find_by("email"|"cpf"|"id", valor)` genérico cobre tudo
+(o repositório base não ganha `find_by_id`; ver
+[`backend/conventions.md`](../../backend/conventions.md)).
+
+### 18. `src/app/modules/identity/infrastructure/repositories/refresh_token_repository.py` — novo
 
 ```python
-from __future__ import annotations
+from uuid import UUID
 
-from app.core.infrastructure.repositories.repository import BaseRepository
+from app.core.infrastructure.repositories import BaseRepository
 from app.modules.identity.domain.entities.refresh_token import RefreshToken
 
 class RefreshTokenRepository(BaseRepository[RefreshToken]):
     model = RefreshToken
 
-    async def find_by_token_hash(self, token_hash: str) -> RefreshToken | None:
-        return await self.find_by("token_hash", token_hash)
+    async def deactivate_all_for_user(self, user_id: UUID) -> None:
+        for token in await self.find_all_by(user_id=user_id):
+            token.is_active = False
 ```
 
-### 16. `src/app/modules/identity/infrastructure/repositories/password_reset_token_repository.py` — novo
+`deactivate_all_for_user` é uma consulta multi-linha que o `find_by` genérico
+não cobre (não é um lookup de campo único) — por isso vira método próprio,
+igual ao racional de `SessionRepository.find_by_id_for_update` em
+`catalog-admin-management`.
+
+### 19. `src/app/modules/identity/infrastructure/repositories/password_reset_token_repository.py` — novo
 
 ```python
-from __future__ import annotations
-
-from uuid import UUID
 from datetime import datetime
+from uuid import UUID
 
-from sqlalchemy import select
-
-from app.core.infrastructure.repositories.repository import BaseRepository
+from app.core.infrastructure.repositories import BaseRepository
 from app.modules.identity.domain.entities.password_reset_token import PasswordResetToken
 
 class PasswordResetTokenRepository(BaseRepository[PasswordResetToken]):
     model = PasswordResetToken
 
-    async def find_by_token_hash(self, token_hash: str) -> PasswordResetToken | None:
-        return await self.find_by("token_hash", token_hash)
-
-    async def find_active_for_user(
-        self, user_id: UUID, now: datetime
-    ) -> list[PasswordResetToken]:
-        result = await self._session.execute(
-            select(PasswordResetToken).where(
-                PasswordResetToken.user_id == user_id,
-                PasswordResetToken.used_at.is_(None),
-                PasswordResetToken.expires_at > now,
-                PasswordResetToken.is_active == True,  # noqa: E712
-            )
-        )
-
-        return list(result.scalars().all())
+    async def invalidate_all_for_user(self, user_id: UUID, now: datetime) -> None:
+        for token in await self.find_all_by(user_id=user_id):
+            if token.used_at is None:
+                token.used_at = now
 ```
 
-### 17. `src/app/modules/identity/infrastructure/repositories/__init__.py` — novo
+### 20. `src/app/modules/identity/infrastructure/repositories/__init__.py` — novo
 
 ```python
-from __future__ import annotations
+from .password_reset_token_repository import PasswordResetTokenRepository
+from .refresh_token_repository import RefreshTokenRepository
+from .user_repository import UserRepository
 
-from app.modules.identity.infrastructure.repositories.password_reset_token_repository import (
-    PasswordResetTokenRepository,
-)
-from app.modules.identity.infrastructure.repositories.refresh_token_repository import (
-    RefreshTokenRepository,
-)
-from app.modules.identity.infrastructure.repositories.user_repository import UserRepository
-
-__all__ = ["PasswordResetTokenRepository", "RefreshTokenRepository", "UserRepository"]
+__all__ = [
+    "UserRepository",
+    "PasswordResetTokenRepository",
+    "RefreshTokenRepository",
+]
 ```
 
-### 18. `src/app/modules/identity/application/schemas/request.py` — novo
+### 21. `src/app/modules/identity/application/schemas/request.py` — novo
 
 ```python
-from __future__ import annotations
+from pydantic import BaseModel, Field
 
-from pydantic import Field
-
-from app.core.shared.schemas import CamelModel
-
-_EMAIL_PATTERN = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
-
-class RegisterRequest(CamelModel):
+class RegisterRequest(BaseModel):
     name: str = Field(min_length=1, max_length=120)
-    cpf: str = Field(pattern=r"^\d{11}$", description="Só dígitos, sem máscara.")
-    email: str = Field(pattern=_EMAIL_PATTERN, max_length=254)
-    password: str = Field(min_length=8, max_length=128)
+    cpf: str = Field(min_length=11, max_length=11)
+    email: str = Field(max_length=254)
+    password: str = Field(min_length=8)
 
-class LoginRequest(CamelModel):
-    email: str = Field(min_length=3, max_length=254)
-    password: str = Field(min_length=1, max_length=128)
+class LoginRequest(BaseModel):
+    email: str
+    password: str
 
-class ChangePasswordRequest(CamelModel):
-    current_password: str = Field(min_length=1, max_length=128)
-    new_password: str = Field(min_length=8, max_length=128)
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=8)
 
-class ForgotPasswordRequest(CamelModel):
-    email: str = Field(min_length=3, max_length=254)
+class ForgotPasswordRequest(BaseModel):
+    email: str
 
-class ResetPasswordRequest(CamelModel):
-    token: str = Field(min_length=1, max_length=512)
-    password: str = Field(min_length=8, max_length=128)
+class ResetPasswordRequest(BaseModel):
+    token: str
+    password: str = Field(min_length=8)
 ```
 
-### 19. `src/app/modules/identity/application/schemas/response.py` — novo
+`pydantic.BaseModel` puro — sem `CamelModel`, sem alias generator. O contrato
+inteiro é snake_case (ver §8).
+
+### 22. `src/app/modules/identity/application/schemas/response.py` — novo
 
 ```python
-from __future__ import annotations
-
 from uuid import UUID
-from pydantic import Field
+from pydantic import BaseModel
 
-from app.core.shared.schemas import CamelModel
-from app.modules.identity.domain.enumerations.role import Role
-
-class TokenResponse(CamelModel):
+class TokenResponse(BaseModel):
     access_token: str
-    expires_in: int = Field(description="Segundos até o access token expirar.")
+    expires_in: int
 
-class UserDetailResponse(CamelModel):
+class UserResponse(BaseModel):
     id: UUID
     name: str
     email: str
     cpf: str
-    role: Role
-
-class UserSummaryResponse(CamelModel):
-    id: UUID
-    name: str
-    email: str
-    role: Role
-
-class PagedUsersResponse(CamelModel):
-    items: list[UserSummaryResponse]
-    page: int
-    size: int
-    total: int
-
-class MessageResponse(CamelModel):
-    message: str
+    is_admin: bool
 ```
 
-### 20. `src/app/modules/identity/application/usecases/auth_usecase.py` — novo
+Só estes dois — não existe `UserDetailResponse`/`UserSummaryResponse`/
+`PagedUsersResponse`/`MessageResponse`. A resposta de `forgot_password` é um
+`dict[str, str]` cru, montada direto no usecase (arquivo 24).
+
+### 23. `src/app/modules/identity/application/usecases/utils/session.py` — novo
 
 ```python
-from __future__ import annotations
+from datetime import datetime, timedelta, timezone
 
+from app.config import settings
+from app.modules.identity.application.schemas.response import TokenResponse
+from app.modules.identity.domain.aggregates import User
+from app.modules.identity.domain.entities.refresh_token import RefreshToken
+from app.modules.identity.infrastructure.repositories.refresh_token_repository import RefreshTokenRepository
+from app.modules.identity.infrastructure.services.token_service import TokenService
+
+async def issue_session(
+    user: User, token_service: TokenService, refresh_repository: RefreshTokenRepository
+) -> tuple[TokenResponse, str]:
+    access, expires_in = token_service.issue_access(user)
+    raw_refresh = token_service.new_opaque_token()
+
+    expires_at = datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_expire_days)
+
+    await refresh_repository.save(
+        RefreshToken(
+            user_id=user.id,
+            token_hash=token_service.hash_opaque(raw_refresh),
+            expires_at=expires_at,
+        )
+    )
+
+    return TokenResponse(access_token=access, expires_in=expires_in), raw_refresh
+```
+
+Extraído pra `utils/` porque **dois** usecases emitem sessão: `AuthUseCase`
+(login/refresh) e `UserUseCase` (registro loga o usuário direto).
+
+### 24. `src/app/modules/identity/application/usecases/auth_usecase.py` — novo
+
+```python
 from uuid import UUID
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
-from app.core.domain.errors import DomainError, GoneError, UnauthorizedError
+from app.database import AsyncSessionLocal
+from app.core.domain import AuthError, DomainError, GoneError
+
+from app.modules.identity.domain.aggregates import User
+from app.modules.identity.domain.entities.password_reset_token import PasswordResetToken
+from app.modules.identity.application.schemas.response import TokenResponse
+from app.modules.identity.application.usecases.utils.session import issue_session
+
+from app.modules.identity.infrastructure.services import PasswordService, TokenService
 
 from app.modules.identity.application.schemas.request import (
-    ChangePasswordRequest,
-    ForgotPasswordRequest,
     LoginRequest,
     ResetPasswordRequest,
+    ChangePasswordRequest,
+    ForgotPasswordRequest
 )
-
-from app.modules.identity.domain.aggregates.user import User
-from app.modules.identity.domain.entities.refresh_token import RefreshToken
-from app.modules.identity.domain.entities.password_reset_token import PasswordResetToken
-
-from app.modules.identity.application.schemas.response import TokenResponse
 
 from app.modules.identity.infrastructure.repositories import (
     PasswordResetTokenRepository,
     RefreshTokenRepository,
-    UserRepository,
+    UserRepository
 )
-from app.modules.identity.infrastructure.services import PasswordHasherService, TokenService
-
-PASSWORD_RESET_TOKEN_TTL_HOURS = 1
-_GENERIC_LOGIN_ERROR = "E-mail ou senha inválidos."
-_GENERIC_SESSION_ERROR = "Sessão expirada."
-
-def _now() -> datetime:
-    return datetime.now(timezone.utc)
 
 class AuthUseCase:
     def __init__(self, session: AsyncSession) -> None:
-        self._user_repo = UserRepository(session)
-        self._refresh_token_repo = RefreshTokenRepository(session)
-        self._reset_password_repo = PasswordResetTokenRepository(session)
-        self._password_hasher_service = PasswordHasherService()
+        self._session = session
+
+        self._user_repository = UserRepository(session)
+        self._refresh_repository = RefreshTokenRepository(session)
+        self._password_reset_repository = PasswordResetTokenRepository(session)
+
         self._token_service = TokenService()
+        self._password_service = PasswordService()
 
-    async def login(self, request: LoginRequest) -> tuple[TokenResponse, str]:
-        user = await self._user_repo.find_by_email(request.email.strip().lower())
-        if user is None or not self._password_hasher_service.verify(
-            request.password, user.password_hash
-        ):
-            raise UnauthorizedError(_GENERIC_LOGIN_ERROR)
+    async def login(self, req: LoginRequest) -> tuple[TokenResponse, str]:
+        user = await self._user_repository.find_by("email", req.email.strip().lower())
+        if user is None or not self._password_service.verify(req.password, user.password_hash):
+            raise AuthError("E-mail ou senha inválidos.")
 
-        return await self.issue_session(user)
+        return await issue_session(user, self._token_service, self._refresh_repository)
+
+    async def logout(self, user: User) -> None:
+        user.rotate_security_stamp()
+
+        await self._user_repository.save(user)
+        await self._refresh_repository.deactivate_all_for_user(user.id)
 
     async def refresh(self, raw_refresh: str | None) -> tuple[TokenResponse, str]:
-        if not raw_refresh:
-            raise UnauthorizedError(_GENERIC_SESSION_ERROR)
+        record = None
 
-        token = await self._refresh_token_repo.find_by_token_hash(
-            self._token_service.hash_opaque(raw_refresh)
-        )
+        if raw_refresh:
+            token_hash = self._token_service.hash_opaque(raw_refresh)
+            record = await self._refresh_repository.find_by("token_hash", token_hash)
 
-        if token is None:
-            raise UnauthorizedError(_GENERIC_SESSION_ERROR)
+        now = datetime.now(timezone.utc)
+        if record is None or record.expires_at <= now:
+            raise AuthError("Sessão expirada.")
 
-        user = await self._user_repo.find_by_id(token.user_id)
-        if token.used:
+        if record.used:
+            await self._revoke_all_sessions(record.user_id)
+            raise AuthError("Sessão expirada.")
+
+        user = await self._user_repository.find_by("id", record.user_id)
+        if user is None:
+            raise AuthError("Sessão expirada.")
+
+        record.mark_rotated()
+        return await issue_session(user, self._token_service, self._refresh_repository)
+
+    async def change_password(self, user: User, req: ChangePasswordRequest) -> None:
+        if not self._password_service.verify(req.current_password, user.password_hash):
+            raise DomainError("A senha atual não confere.")
+
+        user.change_password(self._password_service.hash(req.new_password))
+
+        await self._user_repository.save(user)
+        await self._refresh_repository.deactivate_all_for_user(user.id)
+
+    async def forgot_password(self, req: ForgotPasswordRequest) -> dict[str, str]:
+        user = await self._user_repository.find_by("email", req.email.strip().lower())
+        if user is not None:
+            now = datetime.now(timezone.utc)
+            await self._password_reset_repository.invalidate_all_for_user(user.id, now)
+
+            raw = self._token_service.new_opaque_token()
+            expires_at = now + timedelta(hours=1)
+
+            await self._password_reset_repository.save(
+                PasswordResetToken(
+                    user_id=user.id,
+                    token_hash=self._token_service.hash_opaque(raw),
+                    expires_at=expires_at,
+                )
+            )
+
+            user.request_password_reset(raw, expires_at)
+            await self._user_repository.save(user)
+
+        return {"message": "Se houver uma conta com esse e-mail, enviamos um link."}
+
+    async def reset_password(self, req: ResetPasswordRequest) -> None:
+        token_hash = self._token_service.hash_opaque(req.token)
+        record = await self._password_reset_repository.find_by("token_hash", token_hash)
+
+        if record is None:
+            raise GoneError("Este link não é mais válido, solicite um novo.")
+
+        record.consume(datetime.now(timezone.utc))
+        user = await self._user_repository.find_by("id", record.user_id)
+
+        if user is None:
+            raise GoneError("Este link não é mais válido, solicite um novo.")
+
+        user.reset_password(self._password_service.hash(req.password))
+
+        await self._user_repository.save(user)
+        await self._refresh_repository.deactivate_all_for_user(user.id)
+
+    async def _revoke_all_sessions(self, user_id: UUID) -> None:
+        async with AsyncSessionLocal() as session, session.begin():
+            users = UserRepository(session)
+            user = await users.find_by("id", user_id)
+
             if user is not None:
                 user.rotate_security_stamp()
-                await self._user_repo.save(user)
 
-            raise UnauthorizedError(_GENERIC_SESSION_ERROR)
-
-        if user is None or token.is_expired(_now()):
-            raise UnauthorizedError(_GENERIC_SESSION_ERROR)
-
-        token.rotate(_now())
-
-        await self._refresh_token_repo.save(token)
-        return await self.issue_session(user)
-
-    async def logout(self, user_id: UUID) -> None:
-        user = await self._user_repo.find_by_id(user_id)
-        if user is None:
-            return
-
-        user.rotate_security_stamp()
-        await self._user_repo.save(user)
-
-    async def change_password(self, user_id: UUID, request: ChangePasswordRequest) -> None:
-        user = await self._user_repo.find_by_id(user_id)
-        if user is None:
-            raise UnauthorizedError(_GENERIC_SESSION_ERROR)
-
-        if not self._password_hasher_service.verify(request.current_password, user.password_hash):
-            raise DomainError("A senha atual não confere.", field="currentPassword")
-
-        user.change_password(self._password_hasher_service.hash(request.new_password))
-        await self._user_repo.save(user)
-
-    async def forgot_password(self, request: ForgotPasswordRequest) -> None:
-        user = await self._user_repo.find_by_email(request.email.strip().lower())
-        if user is None:
-            return
-
-        now = _now()
-        for previous in await self._reset_password_repo.find_active_for_user(user.id, now):
-            previous.invalidate(now)
-            await self._reset_password_repo.save(previous)
-
-        raw_token = self._token_service.new_opaque_token()
-        token_hash = self._token_service.hash_opaque(raw_token)
-        expires_at = now + timedelta(hours=PASSWORD_RESET_TOKEN_TTL_HOURS)
-
-        reset_token = PasswordResetToken.issue(
-            user_id=user.id, token_hash=token_hash, expires_at=expires_at
-        )
-
-        await self._reset_password_repo.save(reset_token)
-
-        user.request_password_reset(
-            token_hash=token_hash, raw_token=raw_token, expires_at=expires_at
-        )
-
-        await self._user_repo.save(user)
-
-    async def reset_password(self, request: ResetPasswordRequest) -> None:
-        token = await self._reset_password_repo.find_by_token_hash(
-            self._token_service.hash_opaque(request.token)
-        )
-
-        if token is None:
-            raise GoneError("Este link não é mais válido, solicite um novo.")
-
-        token.consume(_now())
-        await self._reset_password_repo.save(token)
-
-        user = await self._user_repo.find_by_id(token.user_id)
-        if user is None:
-            raise GoneError("Este link não é mais válido, solicite um novo.")
-
-        user.reset_password(self._password_hasher_service.hash(request.password))
-        await self._user_repo.save(user)
-
-    async def issue_session(self, user: User) -> tuple[TokenResponse, str]:
-        # Público — o `UserUseCase.register` chama isto pra logar o usuário
-        # recém-criado; o resto das chamadas é interno a este usecase.
-        access = self._token_service.issue_access(user)
-        raw_refresh = self._token_service.new_opaque_token()
-        refresh = RefreshToken.issue(
-            user_id=user.id,
-            token_hash=self._token_service.hash_opaque(raw_refresh),
-            expires_at=_now() + timedelta(days=settings.refresh_token_expire_days),
-        )
-
-        await self._refresh_token_repo.save(refresh)
-        response = TokenResponse(
-            access_token=access,
-            expires_in=settings.access_token_expire_minutes * 60,
-        )
-
-        return response, raw_refresh
+                await users.save(user)
+                await RefreshTokenRepository(session).deactivate_all_for_user(user_id)
 ```
 
-### 21. `src/app/modules/identity/application/usecases/user_usecase.py` — novo
+Diferença de comportamento relevante em relação a uma versão anterior deste
+documento: `logout`/`change_password`/`reset_password` não só rotacionam o
+`security_stamp` — também **desativam todos os refresh tokens do usuário**
+(`deactivate_all_for_user`), derrubando qualquer sessão paralela de fato, não
+só invalidando o access token corrente. `refresh` sobre um token já usado
+detecta reuso e revoga tudo numa sessão de banco própria
+(`_revoke_all_sessions`), porque nesse ponto o `AsyncSession` da requisição
+pode já estar num estado que não convém reaproveitar para uma revogação em
+massa.
+
+### 25. `src/app/modules/identity/application/usecases/user_usecase.py` — novo
 
 ```python
-from __future__ import annotations
-
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.domain.errors import ConflictError, DomainError, ForbiddenError
+from app.core.domain import ConflictError, NotFoundError
 
+from app.modules.identity.domain.aggregates import User
+from app.modules.identity.domain.value_objects import CPF, Email
 from app.modules.identity.application.schemas.request import RegisterRequest
-from app.modules.identity.domain.aggregates.user import User
-from app.modules.identity.domain.enumerations.role import Role
-from app.modules.identity.domain.value_objects.cpf import CPF
-from app.modules.identity.domain.value_objects.email import Email
-from app.modules.identity.infrastructure.repositories import UserRepository
-from app.modules.identity.infrastructure.services import PasswordHasherService
+from app.modules.identity.application.schemas.response import TokenResponse, UserResponse
+from app.modules.identity.application.usecases.utils.session import issue_session
+
+from app.modules.identity.infrastructure.services import PasswordService, TokenService
+
+from app.modules.identity.infrastructure.repositories import (
+    RefreshTokenRepository,
+    UserRepository
+)
 
 class UserUseCase:
     def __init__(self, session: AsyncSession) -> None:
-        self._user_repo = UserRepository(session)
-        self._password_hasher_service = PasswordHasherService()
+        self._session = session
 
-    async def register(self, request: RegisterRequest) -> User:
-        cpf = CPF(request.cpf)
-        email = Email(request.email)
+        self._user_repository = UserRepository(session)
+        self._refresh_repository = RefreshTokenRepository(session)
 
-        if await self._user_repo.find_by_cpf(cpf.value) is not None:
-            raise ConflictError("Este CPF já possui cadastro.", field="cpf")
+        self._token_service = TokenService()
+        self._password_service = PasswordService()
 
-        if await self._user_repo.find_by_email(email.value) is not None:
-            raise ConflictError("Este e-mail já está em uso.", field="email")
+    async def register(self, req: RegisterRequest) -> tuple[TokenResponse, str]:
+        cpf = CPF(req.cpf)
+        email = Email(req.email.strip().lower())
 
-        user = User.register(
-            request.name, cpf, email, self._password_hasher_service.hash(request.password)
-        )
+        if await self._user_repository.exists_by("cpf", cpf.value):
+            raise ConflictError("Este CPF já possui cadastro.")
 
-        await self._user_repo.save(user)
-        return user
+        if await self._user_repository.exists_by("email", email.value):
+            raise ConflictError("Este e-mail já está em uso.")
 
-    async def get_user(self, *, requester_id: UUID, requester_role: Role, target_id: UUID) -> User:
-        if requester_role is not Role.ADMIN and requester_id != target_id:
-            raise ForbiddenError("Você só pode ver os próprios dados.")
+        user = User.register(req.name, cpf, email, self._password_service.hash(req.password))
 
-        user = await self._user_repo.find_by_id(target_id)
+        await self._user_repository.save(user)
+        return await issue_session(user, self._token_service, self._refresh_repository)
+
+    async def get_by_id(self, user_id: UUID) -> UserResponse:
+        user = await self._user_repository.find_by("id", user_id)
+
         if user is None:
-            raise DomainError("Usuário não encontrado.", status_code=404)
+            raise NotFoundError("Usuário não encontrado.")
 
-        return user
-
-    async def list_users(self, *, page: int, size: int) -> tuple[list[User], int]:
-        offset = (page - 1) * size
-        return await self._user_repo.list_paginated(limit=size, offset=offset)
+        return UserResponse(
+            id=user.id, name=user.name, email=user.email, cpf=user.cpf, is_admin=user.is_admin
+        )
 ```
 
-### 22. `src/app/modules/notification/infrastructure/services/email_service.py` — novo
+Sem mensagem por campo (`field=`) nos `ConflictError` — a classe real não tem
+esse conceito. `get_by_id` não checa quem está pedindo — a checagem "próprio
+usuário ou admin" fica no **router** (arquivo 28), não aqui: o usecase não
+conhece papel/autorização, só busca e traduz `None` → `NotFoundError`.
+
+### 26. `src/app/modules/identity/api/routers/utils/cookies.py` — novo
 
 ```python
-from __future__ import annotations
-
-import aiosmtplib
-from email.message import EmailMessage
+from fastapi import Response
 
 from app.config import settings
 
-class EmailServiceError(Exception):
-    """Falha de transporte no envio de e-mail. Nunca sobe crua ao handler."""
+REFRESH_COOKIE = "refresh_token"
+REFRESH_PATH = "/auth"
 
-class EmailService:
-    async def send(self, *, to: str, subject: str, body: str) -> None:
-        message = EmailMessage()
-        message["From"] = settings.email_sender
-        message["To"] = to
-        message["Subject"] = subject
-        message.set_content(body)
-
-        try:
-            await aiosmtplib.send(
-                message,
-                hostname=settings.smtp_host,
-                port=settings.smtp_port,
-                username=settings.smtp_username or None,
-                password=settings.smtp_password or None,
-                start_tls=settings.smtp_port == 587,
-                timeout=10,
-            )
-        except (aiosmtplib.SMTPException, OSError) as exc:
-            raise EmailServiceError("falha ao enviar e-mail") from exc
-```
-
-### 23. `src/app/modules/notification/dependencies.py` — novo
-
-```python
-from __future__ import annotations
-
-from app.modules.notification.infrastructure.services.email_service import EmailService
-
-async def send_transactional_email(*, to: str, subject: str, body: str) -> None:
-    await EmailService().send(to=to, subject=subject, body=body)
-```
-
-### 24. `src/app/modules/identity/handlers.py` — novo
-
-```python
-from __future__ import annotations
-
-import logging
-
-from app.config import settings
-from app.outbox.registry import register
-from app.modules.notification.dependencies import send_transactional_email
-
-logger = logging.getLogger(__name__)
-
-_SUBJECT = "Redefinição de senha — Ludens"
-
-@register("PasswordResetRequested")
-async def send_password_reset_email(payload: dict) -> None:
-
-    email = payload.get("email")
-    reset_token = payload.get("reset_token")
-    name = payload.get("name") or ""
-
-    if not email or not reset_token:
-        logger.error("PasswordResetRequested sem email/token no payload; ignorado")
-        return
-
-    link = f"{settings.web_app_url}/redefinir-senha?token={reset_token}"
-    body = (
-        f"Olá, {name}.\n\n"
-        "Recebemos um pedido para redefinir a sua senha na Ludens. Abra o link "
-        "abaixo para escolher uma nova senha (o link expira em 1 hora e só pode "
-        f"ser usado uma vez):\n\n{link}\n\n"
-        "Se não foi você, ignore este e-mail — nada muda na sua conta."
+def set_refresh_cookie(response: Response, raw_refresh: str) -> None:
+    response.set_cookie(
+        key=REFRESH_COOKIE,
+        value=raw_refresh,
+        httponly=True,
+        secure=settings.environment != "development",
+        samesite="strict",
+        path=REFRESH_PATH,
+        max_age=settings.refresh_token_expire_days * 24 * 3600,
     )
-
-    await send_transactional_email(to=email, subject=_SUBJECT, body=body)
 ```
 
-### 25. `src/app/modules/identity/api/routers/auth_router.py` — novo
+### 27. `src/app/modules/identity/api/routers/auth_router.py` — novo
 
 ```python
-from __future__ import annotations
-
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, Request, Response, status
 
-from app.config import settings
 from app.dependencies import get_db
+
+from app.modules.identity.dependencies import get_current_user
+
+from app.modules.identity.domain.aggregates import User
+from app.modules.identity.application.usecases.auth_usecase import AuthUseCase
 
 from app.modules.identity.application.schemas.request import (
     ChangePasswordRequest,
@@ -1067,162 +970,90 @@ from app.modules.identity.application.schemas.request import (
     LoginRequest,
     ResetPasswordRequest,
 )
-from app.modules.identity.application.schemas.response import MessageResponse, TokenResponse
-from app.modules.identity.application.usecases.auth_usecase import AuthUseCase
-from app.modules.identity.dependencies import CurrentUser, get_current_user
+
+from app.modules.identity.application.schemas.response import TokenResponse
+from app.modules.identity.api.routers.utils.cookies import REFRESH_COOKIE, set_refresh_cookie
 
 router = APIRouter(prefix="/auth", tags=["Identity"])
 
-REFRESH_COOKIE_NAME = "refresh_token"
-REFRESH_COOKIE_PATH = "/auth"
-_NEUTRAL_FORGOT_MESSAGE = "Se houver uma conta com esse e-mail, enviamos um link."
-
-def set_refresh_cookie(response: Response, raw_refresh: str) -> None:
-    response.set_cookie(
-        key=REFRESH_COOKIE_NAME,
-        value=raw_refresh,
-        max_age=settings.refresh_token_expire_days * 24 * 3600,
-        httponly=True,
-        secure=settings.environment != "development",
-        samesite="strict",
-        path=REFRESH_COOKIE_PATH,
-    )
-
 @router.post("/login", response_model=TokenResponse)
-async def login(
-    body: LoginRequest,
-    response: Response,
-    session: AsyncSession = Depends(get_db),
-) -> TokenResponse:
+async def login(body: LoginRequest, response: Response, session: AsyncSession = Depends(get_db)) -> TokenResponse:
     token, raw_refresh = await AuthUseCase(session).login(body)
     set_refresh_cookie(response, raw_refresh)
+
     return token
 
-@router.post("/logout", status_code=204)
-async def logout(
-    response: Response,
-    session: AsyncSession = Depends(get_db),
-    user: CurrentUser = Depends(get_current_user),
-) -> None:
-    await AuthUseCase(session).logout(user.id)
-    response.delete_cookie(REFRESH_COOKIE_NAME, path=REFRESH_COOKIE_PATH)
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+async def logout(response: Response, session: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)) -> None:
+    await AuthUseCase(session).logout(user)
+    response.delete_cookie(REFRESH_COOKIE, path="/auth")
 
 @router.post("/refresh", response_model=TokenResponse)
-async def refresh(
-    request: Request,
-    response: Response,
-    session: AsyncSession = Depends(get_db),
-) -> TokenResponse:
-    token, raw_refresh = await AuthUseCase(session).refresh(
-        request.cookies.get(REFRESH_COOKIE_NAME)
-    )
+async def refresh(request: Request, response: Response, session: AsyncSession = Depends(get_db)) -> TokenResponse:
+    token, raw_refresh = await AuthUseCase(session).refresh(request.cookies.get(REFRESH_COOKIE))
     set_refresh_cookie(response, raw_refresh)
+
     return token
 
-@router.post("/password/change", status_code=204)
-async def change_password(
-    body: ChangePasswordRequest,
-    session: AsyncSession = Depends(get_db),
-    user: CurrentUser = Depends(get_current_user),
-) -> None:
-    await AuthUseCase(session).change_password(user.id, body)
+@router.post("/password/change", status_code=status.HTTP_204_NO_CONTENT)
+async def change_password(body: ChangePasswordRequest, session: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)) -> None:
+    await AuthUseCase(session).change_password(user, body)
 
-@router.post("/password/forgot", response_model=MessageResponse, status_code=202)
-async def forgot_password(
-    body: ForgotPasswordRequest,
-    session: AsyncSession = Depends(get_db),
-) -> MessageResponse:
-    await AuthUseCase(session).forgot_password(body)
-    return MessageResponse(message=_NEUTRAL_FORGOT_MESSAGE)
+@router.post("/password/forgot", response_model=dict[str, str], status_code=status.HTTP_202_ACCEPTED)
+async def forgot_password(body: ForgotPasswordRequest, session: AsyncSession = Depends(get_db)) -> dict[str, str]:
+    return await AuthUseCase(session).forgot_password(body)
 
-@router.post("/password/reset", status_code=204)
-async def reset_password(
-    body: ResetPasswordRequest,
-    session: AsyncSession = Depends(get_db),
-) -> None:
+@router.post("/password/reset", status_code=status.HTTP_204_NO_CONTENT)
+async def reset_password(body: ResetPasswordRequest, session: AsyncSession = Depends(get_db)) -> None:
     await AuthUseCase(session).reset_password(body)
 ```
 
-### 26. `src/app/modules/identity/api/routers/user_router.py` — novo
+### 28. `src/app/modules/identity/api/routers/user_router.py` — novo
 
 ```python
-from __future__ import annotations
-
 from uuid import UUID
 
+from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import APIRouter, Depends, Query, Response
+
+from app.core.domain import ForbiddenError
 
 from app.dependencies import get_db
+from app.modules.identity.dependencies import get_current_user
 
-from app.modules.identity.api.routers.auth_router import set_refresh_cookie
+from app.modules.identity.domain.aggregates import User
 from app.modules.identity.application.schemas.request import RegisterRequest
-from app.modules.identity.application.schemas.response import (
-    PagedUsersResponse,
-    TokenResponse,
-    UserDetailResponse,
-    UserSummaryResponse,
-)
-from app.modules.identity.application.usecases.auth_usecase import AuthUseCase
+from app.modules.identity.application.schemas.response import TokenResponse, UserResponse
+
+from app.modules.identity.api.routers.utils.cookies import set_refresh_cookie
 from app.modules.identity.application.usecases.user_usecase import UserUseCase
-from app.modules.identity.dependencies import CurrentUser, get_current_user, require_admin
 
 router = APIRouter(prefix="/users", tags=["Identity"])
 
-@router.post("", response_model=TokenResponse, status_code=201)
-async def register(
-    body: RegisterRequest,
-    response: Response,
-    session: AsyncSession = Depends(get_db),
-) -> TokenResponse:
-    user = await UserUseCase(session).register(body)
-    token, raw_refresh = await AuthUseCase(session).issue_session(user)
+@router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+async def register(body: RegisterRequest, response: Response, session: AsyncSession = Depends(get_db)) -> TokenResponse:
+    token, raw_refresh = await UserUseCase(session).register(body)
     set_refresh_cookie(response, raw_refresh)
+
     return token
 
-@router.get("", response_model=PagedUsersResponse)
-async def list_users(
-    page: int = Query(default=1, ge=1),
-    size: int = Query(default=20, ge=1, le=100),
-    session: AsyncSession = Depends(get_db),
-    _admin: CurrentUser = Depends(require_admin),
-) -> PagedUsersResponse:
-    users, total = await UserUseCase(session).list_users(page=page, size=size)
-    return PagedUsersResponse(
-        items=[
-            UserSummaryResponse(id=u.id, name=u.name, email=u.email, role=u.role)
-            for u in users
-        ],
-        page=page,
-        size=size,
-        total=total,
-    )
+@router.get("/{user_id}", response_model=UserResponse)
+async def get(user_id: UUID, session: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)) -> UserResponse:
+    if not current_user.is_admin and current_user.id != user_id:
+        raise ForbiddenError("Acesso restrito ao próprio usuário.")
 
-@router.get("/{user_id}", response_model=UserDetailResponse)
-async def get_user(
-    user_id: UUID,
-    session: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = Depends(get_current_user),
-) -> UserDetailResponse:
-    user = await UserUseCase(session).get_user(
-        requester_id=current_user.id,
-        requester_role=current_user.role,
-        target_id=user_id,
-    )
-    return UserDetailResponse(
-        id=user.id,
-        name=user.name,
-        email=user.email,
-        cpf=user.cpf,
-        role=user.role,
-    )
+    return await UserUseCase(session).get_by_id(user_id)
 ```
 
-### 27. `src/app/modules/identity/router.py` — novo
+Cadastro é `POST /users/register` (não `POST /users` puro) — libera `POST
+/users` pra uma eventual listagem futura, se algum dia houver RF pra isso. A
+checagem "próprio usuário ou admin" mora aqui, no router — nunca dentro do
+usecase (mesmo racional de `require_admin` em `catalog-admin-management`:
+usecase não tem sufixo nem lógica de papel).
+
+### 29. `src/app/modules/identity/router.py` — novo
 
 ```python
-from __future__ import annotations
-
 from fastapi import APIRouter
 
 from app.modules.identity.api.routers.auth_router import router as auth_router
@@ -1233,190 +1064,107 @@ router.include_router(auth_router)
 router.include_router(user_router)
 ```
 
-### 28. `src/app/modules/identity/dependencies.py` — novo
+### 30. `src/app/modules/identity/dependencies.py` — novo
 
 ```python
-from __future__ import annotations
-
-from dataclasses import dataclass
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db
-from app.modules.identity.domain.enumerations.role import Role
+from app.core.domain import AuthError, ForbiddenError
+from app.modules.identity.domain.aggregates import User
+
+from app.modules.identity.infrastructure.services import TokenService
 from app.modules.identity.infrastructure.repositories import UserRepository
-from app.modules.identity.infrastructure.services import TokenError, TokenService
 
 _bearer = HTTPBearer(auto_error=False)
 
-@dataclass(frozen=True)
-class CurrentUser:
-    id: UUID
-    role: Role
-    name: str
-    email: str
-    cpf: str
-
-def _unauthorized(message: str) -> HTTPException:
-    return HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail=[{"field": "authorization", "message": message}],
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-
-async def get_current_user(
-    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
-    session: AsyncSession = Depends(get_db),
-) -> CurrentUser:
+async def get_current_user(credentials: HTTPAuthorizationCredentials | None = Depends(_bearer), session: AsyncSession = Depends(get_db)) -> User:
     if credentials is None or not credentials.credentials:
-        raise _unauthorized("Sessão expirada.")
+        raise AuthError("Não autenticado.")
 
-    try:
-        payload = TokenService().decode_access(credentials.credentials)
-    except TokenError as exc:
-        raise _unauthorized("Sessão expirada.") from exc
+    payload = TokenService().decode_access(credentials.credentials)
+    user = await UserRepository(session).find_by("id", UUID(payload["sub"]))
 
-    try:
-        user_id = UUID(str(payload.get("sub")))
-    except (ValueError, TypeError) as exc:
-        raise _unauthorized("Sessão expirada.") from exc
-
-    user = await UserRepository(session).find_by_id(user_id)
     if user is None or str(user.security_stamp) != payload.get("security_stamp"):
-        raise _unauthorized("Sessão expirada.")
+        raise AuthError("Sessão inválida ou expirada.")
 
-    return CurrentUser(
-        id=user.id,
-        role=user.role,
-        name=user.name,
-        email=user.email,
-        cpf=user.cpf,
-    )
+    return user
 
-async def require_admin(
-    user: CurrentUser = Depends(get_current_user),
-) -> CurrentUser:
-    if user.role is not Role.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=[
-                {"field": "authorization", "message": "Acesso restrito a administradores."}
-            ],
-        )
+async def require_admin(user: User = Depends(get_current_user)) -> User:
+    if not user.is_admin:
+        raise ForbiddenError("Acesso restrito a administradores.")
+
     return user
 ```
 
-### 29. `src/migrations/versions/0001_outbox_events.py` — novo
+Sem `CurrentUser` (dataclass própria) — as duas dependencies retornam o
+próprio aggregate `User`, buscado de novo a cada request. `require_admin` é o
+que `catalog-admin-management` importa daqui (`Depends(require_admin)` nas
+rotas de admin).
+
+### 31. `src/migrations/versions/0001_identity_auth.py` — novo
 
 ```python
-"""outbox: tabela events
+"""identity-auth: events (outbox) + users, refresh_tokens, password_reset_tokens
 
-Revision ID: 0001_outbox_events
+Revision ID: 0001_identity_auth
 Revises:
-Create Date: 2026-09-03
+Create Date: 2026-09-04
 
+Primeira migration do repo. Alem das tabelas do modulo identity, cria a tabela
+`events` do outbox (core), que passa a existir com a primeira feature — o
+env.py ja mapeia app.outbox.models no metadata. Os indices unicos parciais
+(email/cpf onde is_active) sao escritos a mao: o autogenerate do Alembic nao os
+gera corretamente.
 """
+
 from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-revision: str = "0001_outbox_events"
+revision: str = "0001_identity_auth"
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
-def upgrade() -> None:
-    op.create_table(
-        "events",
-        sa.Column("id", sa.Uuid(), nullable=False),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), nullable=False,
-            server_default=sa.func.now(),
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(timezone=True), nullable=False,
-            server_default=sa.func.now(),
-        ),
-        sa.Column(
-            "is_active", sa.Boolean(), nullable=False, server_default=sa.true()
-        ),
-        sa.Column("aggregate_id", postgresql.UUID(as_uuid=False), nullable=False),
-        sa.Column("event_type", sa.String(length=128), nullable=False),
-        sa.Column("payload", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
-        sa.Column("dispatched_at", sa.DateTime(timezone=True), nullable=True),
-        sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_index("ix_events_aggregate_id", "events", ["aggregate_id"])
-    op.create_index("ix_events_event_type", "events", ["event_type"])
-    op.create_index("ix_events_dispatched_at", "events", ["dispatched_at"])
-
-def downgrade() -> None:
-    op.drop_index("ix_events_dispatched_at", table_name="events")
-    op.drop_index("ix_events_event_type", table_name="events")
-    op.drop_index("ix_events_aggregate_id", table_name="events")
-    op.drop_table("events")
-```
-
-### 30. `src/migrations/versions/0002_identity_auth.py` — novo
-
-```python
-# src/migrations/versions/0002_identity_auth.py — novo
-"""identity-auth: users, refresh_tokens, password_reset_tokens
-
-Revision ID: 0002_identity_auth
-Revises: 0001_outbox_events
-Create Date: 2026-09-03
-
-"""
-from typing import Sequence, Union
-
-import sqlalchemy as sa
-from alembic import op
-
-revision: str = "0002_identity_auth"
-down_revision: Union[str, None] = "0001_outbox_events"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
-
-def _base_columns() -> list[sa.Column]:
-    # Novas instâncias de Column a cada chamada — não reutilizar entre tabelas.
+def _model_columns() -> list[sa.Column]:
+    # Colunas herdadas de core Model, iguais em toda tabela.
     return [
-        sa.Column("id", sa.Uuid(), nullable=False),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), nullable=False,
-            server_default=sa.func.now(),
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(timezone=True), nullable=False,
-            server_default=sa.func.now(),
-        ),
-        sa.Column(
-            "is_active", sa.Boolean(), nullable=False, server_default=sa.true()
-        ),
+        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("is_active", sa.Boolean(), nullable=False),
     ]
 
 def upgrade() -> None:
     op.create_table(
+        "events",
+        *_model_columns(),
+        sa.Column("aggregate_id", postgresql.UUID(as_uuid=False), nullable=False),
+        sa.Column("event_type", sa.String(length=128), nullable=False),
+        sa.Column("payload", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+        sa.Column("dispatched_at", sa.DateTime(timezone=True), nullable=True),
+    )
+    op.create_index("ix_events_aggregate_id", "events", ["aggregate_id"])
+    op.create_index("ix_events_event_type", "events", ["event_type"])
+
+    op.create_table(
         "users",
-        *_base_columns(),
+        *_model_columns(),
         sa.Column("name", sa.String(length=120), nullable=False),
         sa.Column("cpf", sa.String(length=11), nullable=False),
         sa.Column("email", sa.String(length=254), nullable=False),
         sa.Column("password_hash", sa.String(length=60), nullable=False),
-        sa.Column(
-            "role", sa.String(length=16), nullable=False, server_default="BUYER"
-        ),
-        sa.Column("security_stamp", sa.Uuid(), nullable=False),
-        sa.PrimaryKeyConstraint("id"),
+        sa.Column("is_admin", sa.Boolean(), nullable=False),
+        sa.Column("security_stamp", postgresql.UUID(as_uuid=True), nullable=False),
     )
-    # Unicidade só entre contas ativas (soft delete não colide com um novo
-    # cadastro do mesmo CPF/e-mail).
     op.create_index(
         "uq_users_email_active", "users", ["email"], unique=True,
         postgresql_where=sa.text("is_active"),
@@ -1428,58 +1176,38 @@ def upgrade() -> None:
 
     op.create_table(
         "refresh_tokens",
-        *_base_columns(),
-        sa.Column("user_id", sa.Uuid(), nullable=False),
+        *_model_columns(),
+        sa.Column("user_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("token_hash", sa.String(length=64), nullable=False),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("used", sa.Boolean(), nullable=False),
         sa.Column("rotated_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("used", sa.Boolean(), nullable=False, server_default=sa.false()),
-        sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_index(
-        "uq_refresh_tokens_token_hash", "refresh_tokens", ["token_hash"], unique=True
     )
     op.create_index("ix_refresh_tokens_user_id", "refresh_tokens", ["user_id"])
+    op.create_index("ix_refresh_tokens_token_hash", "refresh_tokens", ["token_hash"])
 
     op.create_table(
         "password_reset_tokens",
-        *_base_columns(),
-        sa.Column("user_id", sa.Uuid(), nullable=False),
+        *_model_columns(),
+        sa.Column("user_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("token_hash", sa.String(length=64), nullable=False),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("used_at", sa.DateTime(timezone=True), nullable=True),
-        sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index(
-        "uq_password_reset_tokens_token_hash",
-        "password_reset_tokens",
-        ["token_hash"],
-        unique=True,
-    )
-    op.create_index(
-        "ix_password_reset_tokens_user_id", "password_reset_tokens", ["user_id"]
-    )
+    op.create_index("ix_password_reset_tokens_user_id", "password_reset_tokens", ["user_id"])
+    op.create_index("ix_password_reset_tokens_token_hash", "password_reset_tokens", ["token_hash"])
 
 def downgrade() -> None:
-    op.drop_index(
-        "ix_password_reset_tokens_user_id", table_name="password_reset_tokens"
-    )
-    op.drop_index(
-        "uq_password_reset_tokens_token_hash", table_name="password_reset_tokens"
-    )
     op.drop_table("password_reset_tokens")
-    op.drop_index("ix_refresh_tokens_user_id", table_name="refresh_tokens")
-    op.drop_index("uq_refresh_tokens_token_hash", table_name="refresh_tokens")
     op.drop_table("refresh_tokens")
-    op.drop_index("uq_users_cpf_active", table_name="users")
-    op.drop_index("uq_users_email_active", table_name="users")
     op.drop_table("users")
+    op.drop_table("events")
 ```
 
-### 31. `src/migrations/env.py` — editar
+Uma única migration — não duas (`events` e `identity` saem juntas, não em
+`0001_outbox_events.py` + `0002_identity_auth.py` separados).
 
-Trocar o comentário-guia (linhas 15–16) pelos imports reais dos aggregates do
-módulo, para o `Model.metadata` conhecer as tabelas em `--autogenerate`:
+### 32. `src/migrations/env.py` — editar
 
 ```python
 # src/migrations/env.py — editar (após "import app.outbox.models")
@@ -1487,178 +1215,68 @@ import app.outbox.models  # noqa: F401,E402
 
 # Cada feature acrescenta o import do próprio módulo aqui.
 import app.modules.identity.domain.aggregates.user  # noqa: F401,E402
-import app.modules.identity.domain.entities.refresh_token  # noqa: F401,E402
 import app.modules.identity.domain.entities.password_reset_token  # noqa: F401,E402
+import app.modules.identity.domain.entities.refresh_token  # noqa: F401,E402
 ```
 
-### 32. `src/app/main.py` — editar
-
-Adicionar o handler de `DomainError`, incluir o router de `identity` e importar
-os handlers de outbox do módulo no boot:
+### 33. `src/app/main.py` — editar
 
 ```python
-# src/app/main.py — editar
-
 # 1) novos imports (junto aos demais do topo)
-from app.core.domain.errors import DomainError
-from app.modules.identity import handlers as _identity_handlers  # noqa: F401
+from app.core.shared import format_validation_errors
 from app.modules.identity.router import router as identity_router
+from app.core.domain import AuthError, ConflictError, DomainError, ForbiddenError, GoneError, NotFoundError
 
-# 2) logo após "app = FastAPI(...)" e o handler de RequestValidationError:
-@app.exception_handler(DomainError)
-async def domain_error_handler(request: Request, exc: DomainError):
-    # Envelope único de erro 4xx: {"detail": [{"field", "message"}]}
+# 2) handler de RequestValidationError (422 de validação Pydantic)
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
     return JSONResponse(
-        status_code=exc.status_code,
-        content={"detail": [{"field": exc.field, "message": exc.message}]},
+        status_code=422,
+        content={"detail": format_validation_errors(exc.errors())},
     )
 
-# 3) após o add_middleware(CORSMiddleware, ...):
+# 3) mapeamento de erro de domínio por subclasse + handler único
+_DOMAIN_ERROR_STATUS = [
+    (ConflictError, 409),
+    (AuthError, 401),
+    (ForbiddenError, 403),
+    (NotFoundError, 404),
+    (GoneError, 410),
+]
+
+@app.exception_handler(DomainError)
+async def domain_exception_handler(request: Request, exc: DomainError):
+    status_code = next((s for t, s in _DOMAIN_ERROR_STATUS if isinstance(exc, t)), 422)
+    return JSONResponse(status_code=status_code, content={"detail": exc.message})
+
+# 4) após o add_middleware(CORSMiddleware, ...):
 app.include_router(identity_router)
 ```
 
-`_identity_handlers` é importado só pelo efeito colateral de `@register(...)`
-rodar no boot — o relay já existente em `lifespan` passa a encontrar o handler de
-`PasswordResetRequested`.
+Envelope de `DomainError` é **`{"detail": "mensagem em string"}`** — diferente
+do envelope de validação Pydantic (`{"detail": [{"field", "message"}]}`, via
+`format_validation_errors`). São dois formatos distintos pro frontend tratar
+(ver §8).
 
-### 33. `src/app/config.py` — editar
+### 34. `src/app/config.py` — editar
 
-Adicionar ao corpo de `Settings` (a URL do frontend para montar o link de
-redefinição e a conexão SMTP que o e-mail de recuperação usa):
+Adicionar ao corpo de `Settings` (JWT e duração das sessões):
 
 ```python
-
-    web_app_url: str = "http://localhost:3000"
-
-    smtp_host: str = "localhost"
-    smtp_port: int = 1025
-    smtp_username: str = ""          # SENSITIVE
-    smtp_password: str = ""          # SECRET
-    email_sender: str = "no-reply@ludens.local"
+    jwt_secret_key: str
+    access_token_expire_minutes: int = 30
+    refresh_token_expire_days: int = 7
 ```
 
-### 34. `.env.example` — editar
-
-Preencher as variáveis novas na seção da feature (substitui as linhas comentadas
-de `identity-auth` e a de `notification-transactional-email` no bloco final):
+### 35. `.env.example` — editar
 
 ```bash
-# .env.example — editar
-
 # --- JWT (identity-auth) ---
 # SECRET — gere com: openssl rand -hex 32
 JWT_SECRET_KEY=
 # CONFIG
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 REFRESH_TOKEN_EXPIRE_DAYS=7
-# CONFIG — base pública do web.ludens (link do e-mail de redefinição)
-WEB_APP_URL=http://localhost:3000
-
-# --- E-mail transacional (identity-auth usa; notification-transactional-email amplia) ---
-# CONFIG (dev: container MailHog/Mailpit em smtp:1025)
-SMTP_HOST=localhost
-SMTP_PORT=1025
-SMTP_USERNAME=            # SENSITIVE
-SMTP_PASSWORD=            # SECRET
-EMAIL_SENDER=no-reply@ludens.local
-```
-
-### 35. `scripts/seed_admin.py` — novo
-
-```python
-"""Cria a conta ADMIN fora do fluxo público (RF08/RF09).
-
-Uso:
-    ADMIN_CPF=52998224725 ADMIN_EMAIL=admin@ludens.local \\
-    ADMIN_PASSWORD='troque-esta-senha' python scripts/seed_admin.py
-"""
-from __future__ import annotations
-
-import os
-import asyncio
-
-from app.database import AsyncSessionLocal
-from app.modules.identity.domain.aggregates.user import User
-from app.modules.identity.domain.enumerations.role import Role
-from app.modules.identity.domain.value_objects.cpf import CPF
-from app.modules.identity.domain.value_objects.email import Email
-from app.modules.identity.infrastructure.repositories import UserRepository
-from app.modules.identity.infrastructure.services import PasswordHasherService
-
-async def seed_admin() -> None:
-    name = os.environ.get("ADMIN_NAME", "Administrador Ludens")
-    cpf = os.environ.get("ADMIN_CPF", "")
-    email = os.environ.get("ADMIN_EMAIL", "")
-    password = os.environ.get("ADMIN_PASSWORD", "")
-
-    if not (cpf and email and password):
-        raise SystemExit("Defina ADMIN_CPF, ADMIN_EMAIL e ADMIN_PASSWORD no ambiente.")
-
-    async with AsyncSessionLocal() as session:
-        async with session.begin():
-            user_repo = UserRepository(session)
-            if await user_repo.find_by_email(email.strip().lower()) is not None:
-                print(f"Admin {email} já existe; nada a fazer.")
-                return
-
-            admin = User.register(
-                name=name,
-                cpf=CPF(cpf),
-                email=Email(email),
-                password_hash=PasswordHasherService().hash(password),
-                role=Role.ADMIN,
-            )
-            
-            await user_repo.save(admin)
-            print(f"Admin criado: {email}")
-
-if __name__ == "__main__":
-    asyncio.run(seed_admin())
-```
-
-### 36. `pyproject.toml` — editar
-
-Primeiro módulo com rotas FastAPI: `Depends(...)`/`Security(...)` no default de
-parâmetro dispara `B008` do bugbear. Adicionar a seção (o resto do arquivo fica
-igual):
-
-```toml
-# pyproject.toml — editar (nova seção, após [tool.ruff.lint.per-file-ignores])
-
-[tool.ruff.lint.flake8-bugbear]
-extend-immutable-calls = [
-    "fastapi.Depends",
-    "fastapi.Query",
-    "fastapi.Path",
-    "fastapi.Header",
-    "fastapi.Cookie",
-    "fastapi.Security",
-]
-```
-
-### 37. `.github/workflows/ci.yml` — editar
-
-Injetar o segredo no job de lint/testes (o `config.py` tem default de dev, mas o
-CI roda com o segredo real para exercitar a assinatura JWT de ponta a ponta):
-
-```yaml
-# .github/workflows/ci.yml — editar (job lint-and-test)
-jobs:
-  lint-and-test:
-    runs-on: ubuntu-latest
-    env:
-      JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Install
-        run: pip install -e ".[dev]"
-      - name: Lint (ruff)
-        run: ruff check .
-      - name: Tests (pytest)
-        run: pytest -q
 ```
 
 ---
@@ -1667,50 +1285,38 @@ jobs:
 
 | Regra | Arquivo · função | Como |
 | --- | --- | --- |
-| RF09 — CPF com dígitos verificadores | `domain/value_objects/cpf.py` · `__post_init__` / `_is_valid_cpf` | módulo 11 nos dois DV; `DomainError("CPF inválido.", field="cpf")` → 422 |
-| RF09 — unicidade de CPF e e-mail | `application/usecases/user_usecase.py` · `register` + `migrations/0002` índices parciais `uq_users_*_active` | `find_by_cpf` / `find_by_email` antes de criar → `ConflictError` (409); o índice parcial é a rede de segurança sob concorrência |
-| RF09 — mensagem específica por campo no cadastro | `user_usecase.py` · `register` | "Este CPF já possui cadastro." (`field="cpf"`) / "Este e-mail já está em uso." (`field="email"`) |
-| RF09 — login genérico | `auth_usecase.py` · `login` | e-mail inexistente e senha errada → o mesmo `UnauthorizedError("E-mail ou senha inválidos.")` |
-| RF09 — resposta neutra em "esqueci a senha" | `api/routers/auth_router.py` · `forgot_password` + `auth_usecase.py` · `forgot_password` | rota sempre 202 com a mesma mensagem; o usecase retorna em silêncio quando o e-mail não existe |
-| RF09 — token de redefinição uso único / 1 h | `domain/entities/password_reset_token.py` · `consume` + `auth_usecase.py` · `PASSWORD_RESET_TOKEN_TTL_HOURS` | `consume` recusa (`GoneError` 410) se `used_at` ou expirado; `issue` grava `expires_at = now + 1h` |
-| RF09 — nova solicitação invalida as anteriores | `auth_usecase.py` · `forgot_password` + `password_reset_token.py` · `invalidate` | varre `find_active_for_user` e marca `used_at` em cada um antes de emitir o novo |
-| RF09 — link enviado sem bloquear a resposta | `domain/aggregates/user.py` · `request_password_reset` (evento `PasswordResetRequested`) + `modules/identity/handlers.py` | `PasswordResetToken` (entidade filha, sem evento) só guarda o estado; quem publica é o `User`; efeito externo só no handler de outbox, o relay (~2 s) chama `send_transactional_email` |
-| RF09 — logout / troca / redefinição derrubam todas as sessões | `domain/aggregates/user.py` · `rotate_security_stamp` (chamado por `logout` no usecase, e por `change_password`/`reset_password` no aggregate) | novo `security_stamp` (UUID) → todo access token anterior falha na checagem de stamp |
-| RF09 — reuso de refresh token detectado | `auth_usecase.py` · `refresh` + `domain/entities/refresh_token.py` · `rotate` | `rotate` a cada uso marca `used=True`; um segundo uso do mesmo token → `user.rotate_security_stamp()` + 401 (derruba tudo) |
-| RF09 — `GET /users/{id}` restrito por papel | `user_usecase.py` · `get_user` | `BUYER` só vê `target_id == requester_id` (senão `ForbiddenError` 403); `ADMIN` vê qualquer um, inclusive o próprio — sem exceção na regra |
-| RF09 — `GET /users` paginado e restrito a `ADMIN` | `api/routers/user_router.py` · `list_users` (`Depends(require_admin)`) + `user_usecase.py` · `list_users` + `user_repository.py` · `list_paginated` | `BUYER`/`ADMIN` sem token → 401/403 antes do usecase; resposta traz `UserSummaryResponse` (sem CPF) + `page`/`size`/`total` |
-| RNF01 — hash de senha | `infrastructure/services/password_hasher_service.py` | bcrypt com salt automático; `password_hash` nunca aparece em nenhum schema de response nem em log |
-| RNF01 — `security_stamp` no claim e verificado a cada request | `token_service.py` · `issue_access` (claim) + `dependencies.py` · `get_current_user` | stamp do token comparado ao do `User`; divergência → 401 mesmo com JWT válido |
-| RNF01 — nada sensível em log / erro / URL | `handlers.py` (log genérico), `token_service.py` (não loga token), `errors.py` (`DomainError` sem CPF/e-mail na mensagem), CPF guardado só em dígitos | mensagens de erro em linguagem de negócio; o token opaco vai em cookie `HttpOnly`, nunca em query string de rota da API |
+| RF09 — CPF com dígitos verificadores | `domain/value_objects/cpf.py` · `__post_init__` / `_is_valid` | módulo 11 nos dois DV; `DomainError("CPF inválido.")` → 422 |
+| RF09 — unicidade de CPF e e-mail | `application/usecases/user_usecase.py` · `register` + `migrations/0001` índices parciais `uq_users_*_active` | `exists_by("cpf"/"email", ...)` antes de criar → `ConflictError` (409); o índice parcial é a rede de segurança sob concorrência |
+| RF09 — login genérico | `auth_usecase.py` · `login` | e-mail inexistente e senha errada → o mesmo `AuthError("E-mail ou senha inválidos.")` |
+| RF09 — resposta neutra em "esqueci a senha" | `api/routers/auth_router.py` · `forgot_password` + `auth_usecase.py` · `forgot_password` | rota sempre 202 com a mesma mensagem; o usecase retorna a mesma mensagem mesmo quando o e-mail não existe |
+| RF09 — token de redefinição uso único / 1 h | `domain/entities/password_reset_token.py` · `consume` + `auth_usecase.py` · `forgot_password` | `consume` recusa (`GoneError` 410) se `used_at` ou expirado; `forgot_password` grava `expires_at = now + 1h` |
+| RF09 — nova solicitação invalida as anteriores | `auth_usecase.py` · `forgot_password` + `password_reset_token_repository.py` · `invalidate_all_for_user` | invalida tudo que ainda não foi usado antes de emitir o novo token |
+| RF09 — logout / troca / redefinição derrubam todas as sessões | `domain/aggregates/user.py` · `rotate_security_stamp` + `infrastructure/repositories/refresh_token_repository.py` · `deactivate_all_for_user` | novo `security_stamp` invalida qualquer access token anterior; `deactivate_all_for_user` também desativa todo refresh token do usuário |
+| RF09 — reuso de refresh token detectado | `auth_usecase.py` · `refresh` / `_revoke_all_sessions` + `domain/entities/refresh_token.py` · `mark_rotated` | `mark_rotated` marca `used=True` a cada uso; reuso do mesmo token → revoga tudo numa sessão de banco própria + 401 |
+| RF09 — `GET /users/{id}` restrito a si mesmo ou admin | `api/routers/user_router.py` · `get` | `current_user.is_admin` ou `current_user.id == user_id`, senão `ForbiddenError` 403 — checagem no router, não no usecase |
+| RNF01 — hash de senha | `infrastructure/services/password_service.py` | bcrypt com salt automático; `password_hash` nunca aparece em nenhum schema de response nem em log |
+| RNF01 — `security_stamp` no claim e verificado a cada request | `token_service.py` · `issue_access` (claim) + `dependencies.py` · `get_current_user` | stamp do token comparado ao do `User` buscado de novo no banco; divergência → 401 mesmo com JWT válido |
+| RNF01 — nada sensível em log / erro / URL | `errors.py` (`DomainError` sem CPF/e-mail na mensagem), CPF guardado só em dígitos | mensagens de erro em linguagem de negócio; o refresh token opaco vai em cookie `HttpOnly`, nunca em query string de rota da API |
 
 ---
 
 ## 4. DevOps
 
 **Variável nova `JWT_SECRET_KEY`** (classificação `SECRET`): já listada em
-`.env.example` sem valor. Gerar e configurar:
+`.env.example` sem valor. Gerar e configurar localmente:
 
 ```bash
-# local — grave em .env.local (fora do VCS)
 echo "JWT_SECRET_KEY=$(openssl rand -hex 32)" >> .env.local
-
-# CI — segredo do repositório
-openssl rand -hex 32 | gh secret set JWT_SECRET_KEY --repo gcarvalhow/api.ludens
 ```
 
-- **`ci.yml`**: adicionar o bloco `env:` com
-  `JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}` ao job `lint-and-test` (arquivo
-  35 acima).
-- **Outras variáveis novas** (`WEB_APP_URL`, `SMTP_*`, `EMAIL_SENDER`): têm
-  default de desenvolvimento em `config.py` e entram em `.env.example` como
-  `CONFIG`/`SENSITIVE`/`SECRET` conforme a tabela. `SMTP_PASSWORD` só é
-  necessária quando o SMTP de produção exigir auth — em dev, MailHog/Mailpit sem
-  credencial. Registrar as três em
-  `docs.ludens/backend/security/configuration.md` na seção "adicionadas por
-  funcionalidade".
-- **Migração**: `alembic upgrade head` aplica `0001_outbox_events` e
-  `0002_identity_auth` (repositório ainda sem histórico de migration). Rodar
-  contra um banco limpo antes de subir a app.
+No CI, o job de testes usa um valor fixo de desenvolvimento direto no
+workflow (`JWT_SECRET_KEY: ci-only-not-a-real-secret`) — não é secret de
+repositório, porque não assina nada fora do próprio pipeline.
+
+- **Migração**: `alembic upgrade head` aplica `0001_identity_auth` (primeira
+  migration do repositório — cria `events`, `users`, `refresh_tokens`,
+  `password_reset_tokens` numa tacada só). Rodar contra um banco limpo antes
+  de subir a app.
 
 ---
 
@@ -1720,34 +1326,30 @@ openssl rand -hex 32 | gh secret set JWT_SECRET_KEY --repo gcarvalhow/api.ludens
 git checkout master && git pull && git checkout -b feat/09-identity-auth
 
 # commit 1 — infra compartilhada + domínio
-git add src/app/core/domain/errors.py src/app/core/shared/schemas.py \
-        src/app/modules/identity/__init__.py src/app/modules/identity/domain \
-        src/app/modules/notification/__init__.py
+git add src/app/core/domain/errors.py src/app/core/shared/errors.py \
+        src/app/modules/identity/__init__.py src/app/modules/identity/domain
 git commit -m "feat(identity): modelar User, tokens e eventos de domínio"
 
-# commit 2 — infrastructure (services + repositórios) + outbox
-git add src/app/modules/identity/infrastructure \
-        src/app/modules/notification/infrastructure \
-        src/app/modules/notification/dependencies.py \
-        src/app/modules/identity/handlers.py
-git commit -m "feat(identity): hasher bcrypt, token service, repositórios e handler de e-mail"
+# commit 2 — infrastructure (services + repositórios)
+git add src/app/modules/identity/infrastructure
+git commit -m "feat(identity): hasher bcrypt, token service e repositórios"
 
 # commit 3 — application (AuthUseCase + UserUseCase + schemas)
 git add src/app/modules/identity/application
 git commit -m "feat(identity): usecases de auth e user, schemas de request/response"
 
-# commit 4 — api (auth_router + user_router) + migration + config + script
+# commit 4 — api (auth_router + user_router) + migration + config
 git add src/app/modules/identity/api src/app/modules/identity/router.py \
         src/app/modules/identity/dependencies.py src/migrations \
-        src/app/main.py src/app/config.py .env.example pyproject.toml \
-        scripts/seed_admin.py .github/workflows/ci.yml
-git commit -m "feat(identity): expor rotas de /auth e /users, dependencies, migration e seed do admin"
+        src/app/main.py src/app/config.py .env.example
+git commit -m "feat(identity): expor rotas de /auth e /users, dependencies e migration"
 ```
 
 Depois: `/team-ludens:tbd-pr` (senior-dev Modo 2 + `/code-review`) → push → PR
 `Closes #<NN>` → merge (1 aprovação + CI verde). Antes do PR, localmente:
-`ruff check .` · `alembic upgrade head` · `pytest -q` (inclui os casos de
-`quality.md`).
+`alembic upgrade head` · `pytest -q` (inclui os casos de `quality.md`) — sem
+lint automatizado (o projeto não usa Ruff nem outro formatter, ver
+[`code-style.md`](../../backend/code-style.md)).
 
 ---
 
@@ -1761,37 +1363,59 @@ merge do backend.
 
 ---
 
-## 7. Bloqueios em aberto
+## 7. Débitos técnicos registrados
 
-Nenhum. Todas as decisões de produto estão fechadas no `spec.md` (§8) e no
-`logic.md` (§5).
+O fluxo de sessão/cadastro (login, refresh, logout, troca de senha, cadastro,
+leitura de usuário) está **completo e mergeado**. Dois pedaços do RF09 ficaram
+para trás e não têm código correspondente hoje:
+
+- **Envio do e-mail de redefinição de senha.** O aggregate `User` levanta
+  `PasswordResetRequested` (arquivo 7) e o outbox relay processa a fila de
+  `events`, mas **nenhum handler está registrado** pra esse tipo de evento —
+  não existe módulo `notification`, nem `identity/handlers.py`, nem envio de
+  e-mail real (SMTP) em nenhum lugar do código. O evento fica em
+  `dispatched_at = NULL` indefinidamente. Reconstruir isso quando o e-mail
+  transacional entrar em escopo: criar o handler consumindo
+  `PasswordResetRequested` (usa `payload["token"]`/`payload["email"]` já
+  gravados no evento — não precisa mudar nada no `identity`).
+- **Criação de conta admin.** Não existe `scripts/seed_admin.py` nem qualquer
+  outro mecanismo de bootstrap — a primeira conta `is_admin=True` precisa ser
+  promovida manualmente no banco. Sem isso, `catalog-admin-management` (e
+  qualquer outra rota atrás de `require_admin`) fica inacessível num ambiente
+  novo sem uma intervenção manual.
+
+Nenhum dos dois bloqueia o que já está mergeado — são lacunas a fechar antes
+de depender deles em produção.
 
 ---
 
 ## 8. Ajustes feitos no `integration.md`
 
 Ao fechar este documento, o `integration.md` (mantido `status: alvo`) foi
-precisado nos pontos que estavam `<a definir globalmente>`:
+precisado nos pontos que estavam `<a definir globalmente>` — **os pontos
+abaixo precisam ser conferidos contra o `integration.md` real**, porque esta
+revisão só corrigiu o `backend.md`:
 
-- **Envelope de erro 4xx**: `{"detail": [{"field": string, "message": string}]}`
-  — vale para 422 de validação (handler de `RequestValidationError` já
-  existente) e para os erros de domínio (novo handler de `DomainError`).
+- **Envelope de erro**: são **dois formatos diferentes**, não um só. Erro de
+  validação Pydantic (422): `{"detail": [{"field": string, "message":
+  string}]}`. Erro de domínio (409/401/403/404/410): `{"detail": "mensagem em
+  string"}` — sem lista, sem campo. O frontend precisa tratar os dois formatos
+  separadamente.
 - **Prefixo / versionamento**: sem prefixo e sem versionamento no N1 — as rotas
   são montadas em `/auth/...` e `/users/...`; base = `NEXT_PUBLIC_API_URL`.
-- **`expiresIn`**: em segundos (`ACCESS_TOKEN_EXPIRE_MINUTES * 60`).
-- **`POST /auth/password/change`**: corpo `{ currentPassword, newPassword }`
-  (camelCase, como todo o resto do contrato).
-- **`role`** no `/users/{id}` e no claim do JWT: `"BUYER"` | `"ADMIN"` (maiúsculas).
+- **`expires_in`**: em segundos (`ACCESS_TOKEN_EXPIRE_MINUTES * 60`), campo
+  snake_case (não `expiresIn`) — contrato inteiro é snake_case, sem exceção.
+- **`is_admin`** no `/users/{id}` e no claim do JWT: `true`/`false` — não há
+  `role`/`Role` em nenhum lugar do contrato.
 - **`POST /auth/logout`**: além de 204, envia `Set-Cookie` apagando
   `refresh_token` (`Path=/auth`).
 - **`register` e a leitura de usuário saem de `/auth`**: `AuthUseCase` fica só
   com sessão (login/refresh/logout/senha); `UserUseCase` cobre cadastro e
-  leitura. `POST /auth/register` → `POST /users`; sem `GET /auth/me` — vira
-  `GET /users/{id}` (`BUYER` só o próprio, 403 em qualquer outro; `ADMIN`
-  qualquer um). O frontend descobre o próprio `id` decodificando o claim `sub`
-  do access token (payload do JWT, sem verificar assinatura — a verificação é
-  sempre do backend).
-- **`GET /users` paginado, `ADMIN`-only**: `?page=1&size=20` (default),
-  `size` até 100. Resposta `{ items, page, size, total }` com
-  `UserSummaryResponse` (sem CPF) — mesmo padrão de paginação de
-  `identity-order-history` (`PagedOrders`).
+  leitura. `POST /auth/register` → `POST /users/register`; sem `GET
+  /auth/me` — vira `GET /users/{id}` (usuário comum só o próprio, 403 em
+  qualquer outro; admin qualquer um). O frontend descobre o próprio `id`
+  decodificando o claim `sub` do access token (payload do JWT, sem verificar
+  assinatura — a verificação é sempre do backend).
+- **Sem listagem de usuários no contrato** — não existe `GET /users` (nem
+  paginado, nem de outra forma). Se isso virar um requisito real no futuro,
+  entra como uma spec nova, com RF próprio.

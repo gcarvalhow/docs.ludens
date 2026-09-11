@@ -3,7 +3,7 @@ status: draft
 spec: catalog-session-detail
 surface: backend
 created_at: 2026-09-10
-updated_at: 2026-09-10
+updated_at: 2026-09-11
 ---
 
 # Detalhe da sessão — Backend
@@ -15,7 +15,8 @@ que o módulo `booking` vai consumir (RN05): `lock_session_for_update` e
 `count_confirmed_tickets_for_session`. Sem aggregate novo, sem migration nova.
 **RF:** RF02 · **RN:** RN05 (leitura) · **Módulo backend:** `catalog`
 **Contrato:** `docs.ludens/specs/catalog-session-detail/integration.md`
-**Carregar antes:** skill `backend-architecture`, `docs.ludens/backend/overview.md`.
+**Carregar antes:** skill `backend-architecture`, `docs.ludens/backend/overview.md`,
+`docs.ludens/backend/conventions.md`.
 
 **Depende de:** `catalog-admin-management` mergeado (`Show`/`Session`,
 `ShowRepository`/`SessionRepository`/`SeatCountsRepository`) e, de
@@ -31,6 +32,14 @@ merge).
 > `session_usecase.py::_lock`). Este documento só **reusa** — não
 > redefinir. Ver também a nota geral de convenções (snake_case, `DomainError`
 > sem `status_code`) em `catalog-show-search/backend.md` §2 — vale igual aqui.
+>
+> **Auditado novamente em 2026-09-11** contra o código real de `identity` e
+> `catalog-admin-management` em `master`/PR #17 — sem `CamelModel`, sem VO
+> inventado, sem método de repositório inventado, sem `PATCH`. Corrigida uma
+> referência residual: a tabela de regras de negócio ainda citava
+> `Session.half_price` (nome de antes da remoção do VO `Money`) enquanto o
+> código já usava `half_price_cents` corretamente — ver linha "RF02 — meia =
+> 50% da inteira" abaixo.
 
 ---
 
@@ -307,7 +316,7 @@ async def count_confirmed_tickets_for_session(session: AsyncSession, session_id:
 | RN05 (leitura) — disponível = capacidade − confirmados − reservas abertas | `session_query_usecase.py` · `get_session_detail` | `available = capacity - counts.tickets_sold - counts.reserved_open`, via `SeatCountsRepository` (reuso, não recálculo) |
 | RF02 — esgotado quando disponível ≤ 0 | `session_query_usecase.py` · `_public_status` | `available <= 0` → `"sold_out"`, antes de checar `on_sale` |
 | RF02 — sessão encerrada/cancelada bloqueia | `session_query_usecase.py` · `_public_status` | `status is CANCELLED` → `"cancelled"`; `starts_at <= now` → `"closed"` (checados antes de `sold_out`) |
-| RF02 — meia = 50% da inteira | `domain/aggregates/session.py` · `Session.half_price` (já existe) | `ticket_types` usa `session.full_price`/`session.half_price` direto, nunca recalcula |
+| RF02 — meia = 50% da inteira | `domain/aggregates/session.py` · `Session.half_price_cents` (já existe) | `ticket_types` usa `session.full_price_cents`/`session.half_price_cents` direto, nunca recalcula |
 | RN05 — trava de linha para `booking` | `session_repository.py` · `find_by_id_for_update` + `dependencies.py` · `lock_session_for_update` | `SELECT ... FOR UPDATE`; exportado, nunca chamado pelo próprio `catalog` fora de `catalog-admin-management` |
 | logic.md §5 — espetáculo despublicado não é navegável | `session_query_usecase.py` · `get_show_detail`/`get_session_detail` | `show.status is not PUBLISHED` → `NotFoundError` (decisão de implementação, mesma inferência de `catalog-show-search`) |
 

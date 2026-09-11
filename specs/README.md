@@ -51,7 +51,9 @@ checklist de arquivos copiada do documento da superfície.
 
 | Pasta de spec | RF | Regras |
 | --- | --- | --- |
-| `identity-auth` | RF09 | — |
+| `identity-auth` | RF09 (parte: sessão, senha, e-mail) | — |
+| `identity-user-management` | RF09 (parte: cadastro, perfil), RF08 (listagem/remoção) | — |
+| `identity-admin-invite` | — (escopo novo, fora do RF01–09 aprovado em 2026-08-28) | — |
 | `identity-order-history` | RF06 | — |
 | `catalog-show-search` | RF01 | — |
 | `catalog-session-detail` | RF02 | RN05 (leitura) |

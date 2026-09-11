@@ -8,6 +8,16 @@ updated_at: 2026-09-11
 
 # Cadastro e autenticação do comprador — Backend
 
+> **Nota de reescopo (2026-09-11):** `spec.md`/`logic.md` de `identity-auth`
+> foram trimmados — cadastro e leitura de usuário saíram para
+> `identity-user-management`. O código abaixo (ainda em produção, ainda
+> correto) reflete o escopo **antigo**: note que já existe uma separação
+> `AuthUseCase` (sessão) × `UserUseCase` (cadastro/leitura) nos arquivos #24 e
+> #25 — a divisão de spec só está formalizando uma fronteira que o código já
+> tinha. Pendente: mover os arquivos de `UserUseCase`/`user_router.py` (#25,
+> #28) pro `backend.md` de `identity-user-management`, e adicionar aqui o
+> fluxo de alteração de e-mail (novo). Ver `feature-implementation-spec`.
+
 **Resumo:** módulo `identity` com o aggregate `User` (CPF validado, e-mail, hash
 bcrypt, `is_admin: bool`, `security_stamp`), dual-token JWT (access HS256 +
 refresh opaco SHA-256 rotacionado a cada uso), recuperação de senha por token

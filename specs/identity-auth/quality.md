@@ -8,6 +8,10 @@ updated_at: 2026-09-04
 
 # Cadastro e autenticação do comprador — Quality
 
+> **Nota de reescopo (2026-09-11):** ver mesma nota em `backend.md`. Casos de
+> cadastro saem pra `identity-user-management`; falta cobertura de alteração
+> de e-mail (nova). Conteúdo abaixo ainda reflete o escopo antigo.
+
 **Resumo:** cobertura de domínio (pytest, sem DB/HTTP) dos invariantes do módulo
 `identity` — validação de CPF, evento e papel no registro, rotação de
 `security_stamp` na troca/redefinição de senha, uso único e expiração do token de

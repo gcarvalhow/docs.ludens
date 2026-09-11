@@ -7,6 +7,11 @@ responsavel: Igor (Backend)
 
 # Integration Contract — Cadastro e autenticação do comprador
 
+> **Nota de reescopo (2026-09-11):** rotas de cadastro/leitura de usuário saem
+> pra `identity-user-management/integration.md`; falta adicionar aqui a rota
+> de alteração de e-mail (nova). Conteúdo abaixo ainda reflete o escopo
+> antigo.
+
 **Status:** alvo (contrato para o frontend construir; vira `canônico` quando o
 backend implementar). **Módulo backend:** `identity`.
 

@@ -8,6 +8,10 @@ updated_at: 2026-09-04
 
 # Cadastro e autenticação do comprador — Frontend
 
+> **Nota de reescopo (2026-09-11):** ver mesma nota em `backend.md`. Telas de
+> cadastro saem pra `identity-user-management`; falta adicionar aqui a tela de
+> alteração de e-mail (nova). Conteúdo abaixo ainda reflete o escopo antigo.
+
 **Resumo:** feature `account` com registro, login, "esqueci a senha", redefinição
 por link e sessão que se mantém entre visitas. O access token vive só em memória
 (nunca `localStorage`); o refresh acontece via cookie `HttpOnly` — o `fetcher`

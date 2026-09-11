@@ -1064,28 +1064,25 @@ import app.modules.catalog.domain.aggregates.genre  # noqa: F401,E402
 
 ### `src/migrations/versions/0003_catalog_genre.py` — novo
 
+Sem migração de dados: não há espetáculo com `genre` em texto livre para
+migrar em nenhum ambiente real do projeto (confirmado — não existe seed nem
+dado de produção usando o schema antigo). A migration troca o schema
+diretamente: cria `genres`, adiciona `shows.genre_id` já `NOT NULL`, remove
+`shows.genre`. Isso elimina o bloqueio de "ícone de gênero migrado" — não
+existe gênero migrado.
+
 ```python
-"""catalog genre: tabela genres + migra shows.genre (texto livre) para shows.genre_id (FK)
+"""catalog genre: tabela genres + shows.genre (texto livre) vira shows.genre_id (FK)
 
 Revision ID: 0003_catalog_genre
 Revises: 0002_catalog_admin
 Create Date: 2026-09-11
 
-Cria a tabela `genres` e migra os valores hoje em `shows.genre` (texto livre)
-para registros de `Genre`, agrupando variações de grafia (acento/maiúscula)
-sob a mesma forma normalizada — a normalizada É o `Genre.name` final.
-
-[bloqueio: decidir antes de rodar contra dado real] Não há decisão de produto
-sobre qual ícone um gênero migrado automaticamente recebe (spec/logic só
-cobrem criação manual pelo admin, onde o ícone é sempre escolhido). Usa um
-placeholder fixo (`_MIGRATED_GENRE_ICON`) só para a coluna NOT NULL não
-travar a migration. Ver quality.md / bloqueios.
+Cria a tabela `genres` e substitui `shows.genre` (texto livre) por
+`shows.genre_id` (FK). Sem migração de dados — não há espetáculo cadastrado
+usando o schema antigo em nenhum ambiente real do projeto.
 """
 
-import re
-import unicodedata
-import uuid
-from datetime import datetime, timezone
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -1097,80 +1094,14 @@ down_revision: Union[str, None] = "0002_catalog_admin"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
-_MIGRATED_GENRE_ICON = "drama-masks"  # [bloqueio: confirmar com o PO]
-
-
-def _model_columns() -> list[sa.Column]:
-    return [
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("is_active", sa.Boolean(), nullable=False),
-    ]
-
-
-def _normalize_genre_name(raw: str) -> str:
-    # Duplicada de propósito: a migration não importa app.domain (precisa
-    # ficar estável mesmo se Genre.normalize_genre_name mudar no futuro).
-    text = unicodedata.normalize("NFKD", (raw or "").strip()).encode("ascii", "ignore").decode("ascii")
-    return re.sub(r"\s+", " ", text).lower()
-
-
-genres_table = sa.table(
-    "genres",
-    sa.column("id", postgresql.UUID(as_uuid=True)),
-    sa.column("name", sa.String),
-    sa.column("icon", sa.String),
-    sa.column("created_at", sa.DateTime(timezone=True)),
-    sa.column("updated_at", sa.DateTime(timezone=True)),
-    sa.column("is_active", sa.Boolean),
-)
-
-shows_table = sa.table(
-    "shows",
-    sa.column("id", postgresql.UUID(as_uuid=True)),
-    sa.column("genre", sa.String),
-    sa.column("genre_id", postgresql.UUID(as_uuid=True)),
-)
-
-
-def _migrate_existing_genres() -> None:
-    bind = op.get_bind()
-    now = datetime.now(timezone.utc)
-
-    rows = bind.execute(sa.select(shows_table.c.id, shows_table.c.genre)).fetchall()
-
-    normalized_to_id: dict[str, uuid.UUID] = {}
-
-    for show_id, raw_genre in rows:
-        normalized = _normalize_genre_name(raw_genre)
-        genre_id = normalized_to_id.get(normalized)
-
-        if genre_id is None:
-            genre_id = uuid.uuid4()
-            normalized_to_id[normalized] = genre_id
-            bind.execute(
-                genres_table.insert().values(
-                    id=genre_id,
-                    name=normalized,
-                    icon=_MIGRATED_GENRE_ICON,
-                    created_at=now,
-                    updated_at=now,
-                    is_active=True,
-                )
-            )
-
-        bind.execute(
-            shows_table.update()
-            .where(shows_table.c.id == show_id)
-            .values(genre_id=genre_id)
-        )
-
 
 def upgrade() -> None:
     op.create_table(
         "genres",
-        *_model_columns(),
+        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("is_active", sa.Boolean(), nullable=False),
         sa.Column("name", sa.String(length=80), nullable=False),
         sa.Column("icon", sa.String(length=80), nullable=False),
     )
@@ -1182,39 +1113,27 @@ def upgrade() -> None:
         postgresql_where=sa.text("is_active"),
     )
 
-    op.add_column("shows", sa.Column("genre_id", postgresql.UUID(as_uuid=True), nullable=True))
-
-    _migrate_existing_genres()
-
-    op.alter_column("shows", "genre_id", nullable=False)
+    op.drop_column("shows", "genre")
+    op.add_column("shows", sa.Column("genre_id", postgresql.UUID(as_uuid=True), nullable=False))
     op.create_foreign_key("fk_shows_genre_id_genres", "shows", "genres", ["genre_id"], ["id"])
     op.create_index("ix_shows_genre_id", "shows", ["genre_id"])
-    op.drop_column("shows", "genre")
 
 
 def downgrade() -> None:
-    op.add_column("shows", sa.Column("genre", sa.String(length=80), nullable=True))
-
-    bind = op.get_bind()
-    genre_names = dict(bind.execute(sa.select(genres_table.c.id, genres_table.c.name)).fetchall())
-    rows = bind.execute(sa.select(shows_table.c.id, shows_table.c.genre_id)).fetchall()
-
-    for show_id, genre_id in rows:
-        bind.execute(
-            shows_table.update()
-            .where(shows_table.c.id == show_id)
-            .values(genre=genre_names.get(genre_id, ""))
-        )
-
-    op.alter_column("shows", "genre", nullable=False)
-
     op.drop_index("ix_shows_genre_id", table_name="shows")
     op.drop_constraint("fk_shows_genre_id_genres", "shows", type_="foreignkey")
     op.drop_column("shows", "genre_id")
+    op.add_column("shows", sa.Column("genre", sa.String(length=80), nullable=False))
 
     op.drop_index("uq_genres_name_active", table_name="genres")
     op.drop_table("genres")
 ```
+
+> Se ao rodar isso existir qualquer linha em `shows` (dado de dev manual,
+> por exemplo), `add_column("genre_id", nullable=False)` falha — o ambiente
+> precisa estar com a tabela `shows` vazia (banco de dev recriado do zero,
+> `docker compose down -v && up` + `alembic upgrade head`), não uma
+> atualização in-place de um banco com espetáculos já cadastrados.
 
 ## 3. Onde cada regra de negócio entra
 
@@ -1226,7 +1145,6 @@ def downgrade() -> None:
 | Espetáculo sempre referencia gênero já cadastrado | `show.py` (`genre_id` FK `NOT NULL`) + `show_usecase.py` · `_require_genre` | garantia estrutural + garantia de existência antes de `Show.create`/`update` |
 | Filtro público só com gênero de espetáculo publicado + sessão futura à venda | `show_repository.py` · `list_genres_in_catalog` | join `Genre`+`Show`+`Session`, mesmos filtros de sempre |
 | Lista completa (form do espetáculo) ≠ lista do filtro público | `genre_usecase.py` · `list_all` vs. `show_usecase.py` · `list_genres` | duas queries diferentes, ver §6 |
-| Migração automática agrupando variações de grafia | `0003_catalog_genre.py` · `_migrate_existing_genres` | normalização determinística, sem "grafia vencedora" |
 | Sem edição/exclusão nesta entrega | Ausência deliberada | `Genre` só tem `create()`; nenhuma rota `PUT`/`DELETE` de gênero |
 
 ## 4. DevOps
@@ -1259,10 +1177,6 @@ estável depois que este documento for revisado (não é mudança pequena: troca
 
 ## 7. Bloqueios em aberto
 
-- **Ícone padrão de gênero migrado** — não há decisão de produto sobre qual
-  ícone os gêneros migrados automaticamente (`0003_catalog_genre.py`) recebem.
-  Não rodar `alembic upgrade head` contra dado real antes de confirmar com o
-  PO.
 - **Reconciliação com `api.ludens` PR #23** (`refactor/21-show-list-detail`,
   separa `GET /admin/shows` resumo de `GET /admin/shows/{id}` detalhe) — este
   documento já assume o resultado de #23 composto com a mudança de gênero.

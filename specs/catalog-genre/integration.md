@@ -159,11 +159,15 @@ Nada específico desta feature — mesmo padrão do resto do módulo `catalog`
 }
 ```
 
+## 13.1 Sem migração de dados
+
+Não existe espetáculo cadastrado usando o schema antigo (`genre` texto
+livre) em nenhum ambiente real do projeto — a migration (`backend.md`)
+troca o schema diretamente, sem etapa de migração de dados. Exige banco
+`shows` vazio no momento de rodar `alembic upgrade head`.
+
 ## 16. Lacunas e decisões em aberto
 
-- **[bloqueio] Ícone de gênero migrado automaticamente** — sem decisão de
-  produto (ver `backend.md`/`quality.md` §7). Não rodar a migration contra
-  dado real sem isso.
 - **[bloqueio, fora desta pasta] `docs.ludens/specs/catalog-show-search/integration.md`
   fica desatualizado por esta feature** — `GET /shows?genre=<slug>` vira
   `?genre_id=<uuid>`, `ShowCardResponse.genre` deixa de ser `string`. Alguém

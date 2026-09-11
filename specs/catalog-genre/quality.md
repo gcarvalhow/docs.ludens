@@ -17,7 +17,7 @@ created_at: 2026-09-11
 
 | Item DoR | Situação |
 |---|---|
-| Critérios de aceite testáveis | ✅ — `spec.md` §8 + `logic.md` §3 dão regras verificáveis (duplicidade, ícone obrigatório, migração, alcance do filtro) |
+| Critérios de aceite testáveis | ✅ — `spec.md` §8 + `logic.md` §3 dão regras verificáveis (duplicidade, ícone obrigatório, alcance do filtro) |
 | Contrato (`integration.md`) definido | ✅ — reconciliado entre `backend.md`/`frontend.md` desta pasta (rotas `/admin/genres`, shape `{id,name,icon}` único) |
 | RN citadas com valores aprovados | N/A — feature não introduz nem depende de RN01–RN05 numeradas; a regra própria ("nome normalizado é identidade única") está fechada em `logic.md` §3 |
 | Dependências de outras features resolvidas | ⚠️ parcial — depende de RF08 (`catalog-admin-management`) já implementado (está); mas **quebra o contrato de `catalog-show-search`** (RF01) sem esse documento estar atualizado ainda — ver bloqueio |
@@ -145,7 +145,6 @@ infra existir.
 |---|---|
 | `POST /admin/genres` duplo concorrente com nomes que normalizam igual | exatamente um 201, o outro 409 — prova que a constraint `uq_genres_name_active` (não um `exists_by` isolado) sustenta a atomicidade |
 | `GET /admin/genres` (lista completa) vs. `GET /genres` (filtro público) | gênero recém-criado sem espetáculo publicado aparece na primeira, não na segunda |
-| Migração `0003_catalog_genre` | espetáculos com grafias variantes ("Comédia"/"comedia"/"COMÉDIA ") terminam todos com o **mesmo** `genre_id`; nenhum fica com `genre_id` nulo |
 | `create_show`/`update_show` com `genre_id` inexistente | recusado (404 — `NotFoundError` via `_require_genre`), nunca aceito silenciosamente |
 | Frontend: `GET /admin/genres` retornando `[]` | `ShowForm` orienta "cadastre um gênero primeiro", não renderiza `<Select>` vazio sem explicação |
 
@@ -174,7 +173,7 @@ admin cadastra gênero (nome + ícone da paleta)
 5. **Ícone repetido entre gêneros.** Dois gêneros, nomes diferentes, mesmo ícone → ambos aceitos.
 6. **Espetáculo despublicado some do filtro.** Publicar → gênero aparece no filtro. Despublicar → some do filtro público, continua na lista completa do admin. Publicar de novo → reaparece.
 7. **Ícone ausente no formulário de criação de gênero.** Submeter sem escolher ícone → recusado, campo aponta o erro.
-8. **Migração de dados (ambiente com espetáculos pré-existentes).** Rodar contra cópia de dados com gêneros em texto livre variados — nenhum espetáculo fica sem gênero reconhecido; grafias equivalentes viram um único gênero.
+8. **Ambiente com `shows` não vazio ao rodar a migration.** `alembic upgrade head` falha de propósito se já existir espetáculo cadastrado (não há migração de dados — `backend.md` §2). Confirmar que o roteiro de deploy/dev recria o banco do zero antes desta migration, não faz upgrade in-place.
 
 **Teste de resiliência:** derrubar/simular erro no endpoint de listagem de gêneros durante o preenchimento do form de espetáculo → resto do catálogo (busca, detalhe, compra) continua no ar; form mostra erro claro, sem travar a tela de gestão inteira.
 
@@ -184,11 +183,10 @@ admin cadastra gênero (nome + ícone da paleta)
 
 - **Risco maior: duplicidade sob concorrência real não tem teste automatizado hoje.** A RN exige bloqueio atômico mesmo sob criação simultânea (`logic.md` §3/§4) — só se garante de verdade com constraint `UNIQUE` no Postgres (já prevista em `backend.md`, `uq_genres_name_active`) e só se **verifica** com Postgres real sob concorrência, não com mock. Sem a infra do débito #22, essa garantia fica sem rede de segurança automatizada — o usecase precisa capturar `IntegrityError` e traduzir para `ConflictError` (já especificado em `backend.md`), não confiar só no `exists_by` prévio (que tem janela de corrida).
 - **`AggregateRepository` é concreto sobre SQLAlchemy** — não há porta/interface que permita um fake em memória para testar o usecase de criação sem tocar banco; não dá pra contornar o débito #22 com um teste "fake" equivalente ao real.
-- **Nota de arquitetura:** a normalização de nome (`normalize_genre_name`) precisa existir num único lugar (domínio) e a migration/aplicação reaproveitarem dali — `backend.md` já isola isso em `domain/aggregates/genre.py`, mas a migration (`0003_catalog_genre.py`) **duplica** a função de propósito (migrations não importam `app.domain`, precisam ficar estáveis). Se a regra de normalização mudar no futuro, a migration antiga não deve ser alterada retroativamente — só o código novo.
+- **Migration exige banco vazio.** `0003_catalog_genre.py` adiciona `shows.genre_id` como `NOT NULL` sem valor de migração — falha se `shows` já tiver linha. Isso é intencional (não há dado real pra migrar), mas quebra qualquer ambiente de dev com espetáculo criado manualmente antes desta feature; roteiro de teste manual precisa recriar o banco do zero antes de testar esta fatia.
 - **Estado intermediário sem feedback claro no frontend.** Entre "gênero criado" e "lista do form de espetáculo atualizada" pode haver defasagem de cache se o admin tiver duas abas abertas — vale roteiro manual explícito (não está no `logic.md`, mas é o tipo de coisa que passa batido).
 - **Mensagem de erro de duplicidade vazando detalhe técnico (RNF01).** Checar explicitamente no caso de borda 4 que a mensagem exibida é "Esse gênero já existe" — nunca nome de constraint/índice do Postgres.
 - **Ícone da paleta sem fonte única de verdade compartilhada.** A paleta (`GENRE_ICON_OPTIONS`) vive só no frontend; o backend valida só forma (`^[a-z][a-z0-9-]*$`). Um ícone inventado/typo passa despercebido — não é bloqueio desta entrega, mas é uma lacuna de validação cross-surface a ter em mente.
-- **Ícone de gênero migrado automaticamente** — ver bloqueio abaixo; sem essa decisão, a migration usa um placeholder que pode não fazer sentido visualmente pro catálogo real.
 
 ## 6. Passo a passo TBD (QA)
 
@@ -199,5 +197,4 @@ git add tests/test_catalog_genre.py && git commit -m "test(catalog): cobrir norm
 
 ## 7. Bloqueios em aberto
 
-- **Ícone padrão de gênero migrado automaticamente** — mesmo bloqueio de `backend.md` §7: precisa de decisão do PO antes de rodar a migration `0003_catalog_genre.py` contra dado real.
 - **`catalog-show-search/integration.md` fica desatualizado** por esta feature (mesmo bloqueio de `backend.md` §7) — os testes de integração cross-surface do item 3 acima que tocam o filtro público (`GET /shows?genre_id=`) dependem dessa spec ser atualizada para não ficar testando contra um contrato documentado que diverge do real.

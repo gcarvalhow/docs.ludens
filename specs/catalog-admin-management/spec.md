@@ -3,6 +3,7 @@ status: approved
 domain: catalog
 created_at: 2026-09-01
 approved_at: 2026-09-01
+updated_at: 2026-09-10
 ---
 
 # Gestão de espetáculos e sessões (admin)
@@ -10,7 +11,8 @@ approved_at: 2026-09-01
 ## 1. Visão da feature
 
 O administrador do teatro cadastra e edita os espetáculos (título, sinopse,
-imagem, categoria) e, dentro de cada um, as sessões (data, horário, capacidade,
+categoria — a imagem é atribuída automaticamente, ver §6) e, dentro de cada
+um, as sessões (data, horário, capacidade,
 tipos e valores de ingresso). É o que alimenta toda a vitrine e todo o fluxo de
 compra. Uma sessão que já vendeu ingressos não pode ser apagada — só cancelada,
 o que dispara reembolso para quem comprou.
@@ -49,8 +51,11 @@ o cancelamento de sessão dispara `payment-cancellation-refund` (RF07).
 
 ## 6. O que não é (escopo negativo)
 
-- **Não inclui** upload/otimização de imagem — a imagem é uma URL informada pelo
-  admin.
+- **Não inclui** upload de imagem pelo admin — sem tempo para construir isso
+  nesta entrega. Cada espetáculo recebe automaticamente uma imagem de um
+  pool padrão (alinhado ao visual da plataforma) na criação; o admin não
+  escolhe nem edita. Upload real fica como **débito técnico registrado**
+  (issue "Débito Técnico" no Project, por `team/tech-debt.md`).
 - **Não inclui** setores com layout visual — o "mapa" do N1 é a capacidade
   numérica (setores A/B/C são rótulos, não geometria).
 - **Não inclui** múltiplos administradores com permissões diferentes — papel
@@ -61,14 +66,14 @@ o cancelamento de sessão dispara `payment-cancellation-refund` (RF07).
 
 ## 7. Custos adicionais
 
-Nenhum custo externo identificado. A hospedagem da imagem é externa ao sistema
-(URL informada), sem custo assumido pela plataforma.
+Nenhum custo externo identificado. As imagens padrão são arquivos estáticos
+do próprio `web.ludens` — sem hospedagem externa, sem custo.
 
 ## 8. Decisões tomadas
 
 | Ponto | Decisão |
 | --- | --- |
-| Imagem do espetáculo | URL informada pelo admin (sem upload no N1). |
+| Imagem do espetáculo | Atribuída automaticamente, sorteada de um pool padrão fixo, na criação. Sem upload nem URL informada pelo admin nesta entrega — débito técnico registrado. |
 | Publicar / despublicar espetáculo | Ação manual do admin. Só espetáculo publicado com sessão futura à venda aparece na vitrine. |
 | Editar sessão com ingressos vendidos | Permitido para campos que não quebram compras (ex.: local, horário com aviso). **Reduzir capacidade abaixo do já vendido é bloqueado.** |
 | Excluir sessão com ingressos vendidos | **Proibido.** Só cancelar, disparando o fluxo de reembolso (RF07). |

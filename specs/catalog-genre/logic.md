@@ -61,9 +61,11 @@ aplicado sobre a lista curada.
 
 ## 3. Regras de negócio
 
-- Nome de gênero repetido (ignorando maiúscula e acento) → recusado na
-  criação, mesmo sob duas criações simultâneas com o mesmo nome (nunca duas
-  ficam com o mesmo nome).
+- Nome de gênero é sempre normalizado antes de virar a identidade do gênero
+  (sem acento, sem diferenciar maiúscula/minúscula) → "Comédia", "comedia" e
+  "COMÉDIA" são a mesma coisa para o sistema; a normalização é o que garante
+  que nunca existam dois gêneros repetidos, mesmo sob duas criações
+  simultâneas com o mesmo nome.
 - Todo gênero precisa de um ícone escolhido no momento da criação → sem ícone,
   a criação é recusada.
 - Só o admin cria gênero → qualquer tentativa sem essa permissão é recusada,
@@ -126,12 +128,10 @@ vez de mostrar um formulário vazio sem explicação.
 
 **Grafias diferentes do mesmo gênero migrando ao mesmo tempo.** Se hoje
 existem espetáculos com "Comédia" e outros com "comedia" (mesma palavra,
-grafias diferentes), a migração precisa decidir qual grafia vira o nome
-oficial do gênero resultante. `[pergunta aberta]` — decisão de forma
-(qual grafia prevalece: a mais usada entre os espetáculos existentes, a mais
-recente, ou outro critério) fica para quem conduzir a migração de dados;
-não muda o comportamento do produto depois de feita, só o texto exato que
-fica registrado.
+grafias diferentes), a normalização (regra §3) já resolve isso sozinha: as
+duas colapsam no mesmo gênero migrado, sem precisar escolher entre uma
+grafia e outra. `[fechada]` — decorre direto da regra de normalização, não é
+uma decisão à parte.
 
 **Ícone repetido entre gêneros diferentes.** Nada nesta feature impede dois
 gêneros diferentes ("Comédia" e "Comédia Musical", por exemplo) de usar o

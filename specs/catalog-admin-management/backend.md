@@ -17,7 +17,7 @@ de domínio `SessionCancelled` que, pelo Outbox, aciona o reembolso em massa
 **Módulo backend:** `catalog`
 **Contrato:** `docs.ludens/specs/catalog-admin-management/integration.md`
 **Carregar antes:** skill `backend-architecture` (todos os `references/`),
-`docs.ludens/backend/overview.md`.
+`docs.ludens/backend/overview.md`, `docs.ludens/backend/conventions.md`.
 
 **Depende de:** `identity-auth` mergeado — expõe `require_admin` em
 `app.modules.identity.dependencies` (403 quando `user.is_admin` é `False`;

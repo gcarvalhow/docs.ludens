@@ -1,7 +1,7 @@
 ---
 status: alvo
 spec: catalog-admin-management
-updated_at: 2026-09-10
+updated_at: 2026-09-11
 responsavel: Igor (Backend)
 ---
 
@@ -15,7 +15,8 @@ quando `user.is_admin` é `False`), aplicado no `APIRouter` de `/admin`.
 
 | Método | Caminho                       | Sucesso | Corpo de sucesso | Descrição                                                                               |
 | ------ | ----------------------------- | ------- | ---------------- | --------------------------------------------------------------------------------------- |
-| GET    | `/admin/shows`                | 200     | `AdminShow[]`    | Lista (inclui rascunhos), com `tickets_sold`, `reserved_open` e `can_delete` por sessão |
+| GET    | `/admin/shows`                | 200     | `AdminShowSummary[]` | Lista resumida (inclui rascunhos), sem sessões — ver §Semântica de leitura |
+| GET    | `/admin/shows/{id}`           | 200     | `AdminShow`      | Detalhe de um espetáculo, com `sessions: AdminSession[]`, `tickets_sold`, `reserved_open` e `can_delete` por sessão |
 | POST   | `/admin/shows`                | 201     | `AdminShow`      | Cria espetáculo (nasce `draft`)                                                         |
 | PUT    | `/admin/shows/{id}`           | 200     | `AdminShow`      | Edita — corpo completo, sem `PATCH` (padronização)                                      |
 | POST   | `/admin/shows/{id}/publish`   | 204     | —                | Publica                                                                                 |
@@ -36,10 +37,17 @@ Todos os campos em **snake_case** na entrada e na saída — mesma convenção d
 contrato real de `identity-auth` (`UserResponse`, `RegisterRequest`). Não há
 `CamelModel`/alias camelCase no backend real.
 
-- **AdminShow:** `{ id, title, synopsis, image_url, genre,
-  status: "draft" | "published", sessions: AdminSession[] }`. `image_url` é
-  sempre atribuída pelo servidor (pool padrão) — nunca vem do request de
-  criação/edição (débito técnico: sem upload real nesta entrega).
+- **AdminShowSummary** (`GET /admin/shows`, lista): `{ id, title, synopsis,
+  image_url, genre, status: "draft" | "published" }` — sem `sessions`. Pensada
+  pra tela de listagem, onde o admin ainda não entrou num espetáculo
+  específico (revisão 2026-09-11, ver notas abaixo).
+- **AdminShow** (`GET /admin/shows/{id}`, `POST /admin/shows`,
+  `PUT /admin/shows/{id}`): `{ id, title, synopsis, image_url, genre,
+  status: "draft" | "published", sessions: AdminSession[] }` — mesmos campos
+  de `AdminShowSummary` mais `sessions`. Em `POST`, `sessions` sempre vem
+  vazio (o espetáculo acabou de nascer); em `PUT`, vem com as sessões atuais.
+  `image_url` é sempre atribuída pelo servidor (pool padrão) — nunca vem do
+  request de criação/edição (débito técnico: sem upload real nesta entrega).
 - **AdminSession:** `{ id, show_id, starts_at, venue, capacity, full_price,
   half_price, status: "on_sale" | "closed" | "cancelled", tickets_sold,
   reserved_open, can_delete }`.
@@ -71,7 +79,7 @@ para 422 de forma (validação de schema). O frontend (`apiErrorMessage`, via
 | Status | Quando                                                                      | Mensagem (`detail`)                                                           |
 | ------ | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
 | 403    | usuário autenticado não é admin (`is_admin=false`), ou sem token            | (produzida por `require_admin` de `identity-auth`)                            |
-| 404    | `show_id` / `session_id` inexistente ou inativo                             | "Espetáculo não encontrado." / "Sessão não encontrada."                       |
+| 404    | `show_id` / `session_id` inexistente ou inativo (inclui `GET /admin/shows/{id}`) | "Espetáculo não encontrado." / "Sessão não encontrada."           |
 | 409    | `DELETE /admin/sessions/{id}` com `tickets_sold > 0`                        | "Cancele a sessão em vez de excluir."                                         |
 | 409    | `DELETE /admin/shows/{id}` com sessão vendida                               | "Cancele as sessões com ingressos vendidos antes de excluir o espetáculo."    |
 | 409    | `PUT` de sessão com `capacity < tickets_sold + reserved_open`               | "Já há ingressos comprometidos nesta sessão."                                 |
@@ -94,8 +102,16 @@ e-mail de aviso fica em `notification-transactional-email`.
 
 ## Semântica de leitura
 
-- `GET /admin/shows` devolve **array** (não paginado nesta fatia), ordenado por
-  `created_at` desc, incluindo rascunhos e sessões futuras e passadas.
+- `GET /admin/shows` devolve **array de resumo** (`AdminShowSummary`, sem
+  `sessions`), não paginado nesta fatia, ordenado por `created_at` desc,
+  incluindo rascunhos. Pra ver ou gerenciar as sessões de um espetáculo
+  específico, o frontend busca `GET /admin/shows/{id}` — mesmo padrão de
+  navegação lista→detalhe do catálogo público (RF01→RF02), aplicado aqui à
+  área do admin (revisão 2026-09-11).
+- `GET /admin/shows/{id}` devolve o espetáculo com `sessions` — futuras e
+  passadas, sem filtro (diferente da vitrine pública, que só mostra sessões
+  futuras à venda; aqui o admin precisa ver o histórico completo pra
+  gerenciar).
 - `is_on_sale` (usado pela vitrine, não exposto aqui): espetáculo `published` E
   sessão `on_sale` E `starts_at` futura.
 
@@ -120,6 +136,28 @@ projeto:
 - **`is_admin`, não `Role` (mesma data):** o `User` real de `identity-auth`
   guarda `is_admin: bool` — não existe enum `Role` no código. Trocado
   `role != ADMIN` por `is_admin=false` em toda menção a 403.
+
+## Notas desta revisão (2026-09-11)
+
+`GET /admin/shows` deixava de ser uma listagem e virava um dump de todo o
+catálogo com todas as sessões embutidas — sem paginação, sem filtro, tudo de
+uma vez. Além do custo de payload crescendo sem controle conforme o catálogo
+acumula sessões passadas e canceladas, quebrava o modelo mental que o admin já
+aprende no resto do produto (lista resumida → entra no item específico pra ver
+detalhe), o mesmo que o RF01→RF02 já estabelece pro visitante.
+
+- **Rota nova:** `GET /admin/shows/{id}`, mesmo formato de erro (404) das
+  demais rotas por id deste módulo.
+- **`AdminShow` dividido em dois shapes:** `AdminShowSummary` (lista, sem
+  `sessions`) e `AdminShow` (detalhe — `GET /admin/shows/{id}`, `POST`, `PUT`
+  — com `sessions`). Nenhum campo mudou de nome ou de tipo, só a presença de
+  `sessions` na lista.
+- **Não afeta:** as rotas de sessão (`/admin/shows/{id}/sessions`,
+  `/admin/sessions/{id}`, `.../cancel`) continuam iguais — o corpo delas
+  sempre foi por sessão individual, nunca por lista.
+- Esta revisão acontece com o PR de frontend desta feature ainda em revisão
+  (não mergeado) — a tela de listagem do admin (que hoje já busca sessões
+  embutidas) precisa ser ajustada pra esse novo shape antes do merge.
 
 ## Lacunas / decisões em aberto
 

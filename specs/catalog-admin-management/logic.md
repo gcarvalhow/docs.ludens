@@ -3,7 +3,7 @@ status: reviewed
 spec: catalog-admin-management
 created_at: 2026-09-01
 reviewed_at: 2026-09-01
-updated_at: 2026-09-10
+updated_at: 2026-09-11
 ---
 
 # Gestão de espetáculos e sessões — Lógica de Negócio
@@ -73,6 +73,11 @@ Frontend precisa saber:
   - Que ações de sessão são "cancel" e "delete" e quando cada uma está
     disponível (a resposta traz canDelete: bool, ticketsSold: int)
   - As mensagens de recusa (excluir com venda / reduzir capacidade / data passada)
+  - A listagem de espetáculos mostra só os dados principais do espetáculo
+    (resumo) — as sessões daquele espetáculo só aparecem ao entrar no
+    espetáculo específico. Mesmo padrão de navegação lista→detalhe já usado
+    no catálogo público (RF01 lista resumo → RF02 detalhe com sessões);
+    aplicado aqui também à área do admin (revisão 2026-09-11, ver §5).
 
 Backend precisa garantir:
   - require_admin em todas as rotas
@@ -98,4 +103,14 @@ notificados da mudança (via `notification`). `[fechada]`
 **Despublicar espetáculo com sessão à venda e reservas abertas.** As reservas
 abertas continuam válidas até expirar ou serem pagas; o espetáculo só some da
 vitrine. Novas reservas ficam bloqueadas (sessão deixa de estar `on_sale`).
+`[fechada]`
+
+**Listar espetáculos na área do admin com muitas sessões acumuladas
+(revisão 2026-09-11).** A primeira versão desta feature trazia todas as
+sessões de todos os espetáculos já na listagem — o que cresce sem controle
+conforme o catálogo acumula sessões passadas e canceladas, e não segue o
+mesmo modelo mental que o admin já aprendeu no catálogo público (RF01→RF02).
+Decisão: a listagem do admin passa a mostrar só os dados principais de cada
+espetáculo; para ver ou gerenciar as sessões, o admin entra no espetáculo
+específico, igual ao que o visitante já faz para ver o detalhe de uma sessão.
 `[fechada]`

@@ -55,8 +55,8 @@ não exige o número do documento.
 meia-entrada exigindo o número do documento de estudante. O PO decidiu **alinhar
 à ERS acima**: a emissão do ingresso **não** exige o documento. Como o backend
 ainda não tem código, isso não é débito técnico — é **critério de aceite** da
-spec [`booking-ticket-issuance`](../specs/): a emissão de meia-entrada e seus
-testes de domínio não podem exigir o número do documento.
+spec [`booking-ticket-issuance`](../specs/): a emissão de meia-entrada não pode
+exigir o número do documento.
 
 **Status:** aprovada pelo PO em 2026-08-28. Ajuste no backend pendente.
 

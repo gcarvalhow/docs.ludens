@@ -356,9 +356,9 @@ FRONTEND_BASE_URL=http://localhost:3000
   Para o volume esperado de um teatro comunitário (dezenas a poucas centenas
   de e-mails/mês), isso fica na casa de centavos de dólar por mês — não é
   zero, mas é desprezível. Não anunciar como "grátis" sem essa ressalva.
-- Nenhum segredo novo de CI (`.github/workflows/ci.yml`) — os testes de
-  `quality.md` rodam contra `ConsoleEmailService`, sem precisar de conta AWS
-  nem de credencial no pipeline.
+- Nenhum segredo novo de CI (`.github/workflows/ci.yml`) — o adapter padrão de
+  desenvolvimento é o `ConsoleEmailService`, sem precisar de conta AWS nem de
+  credencial no pipeline.
 
 ---
 

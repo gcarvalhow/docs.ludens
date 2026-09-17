@@ -33,7 +33,9 @@ planejamento) os débitos que afetam:
 
 ## Débitos conhecidos hoje
 
-Nenhum débito técnico em aberto — não há código implementado ainda.
+| Item | Origem | Impacto | Proposta |
+| --- | --- | --- | --- |
+| `web.ludens` desalinhado com o contrato de `identity-auth` | Correções de 2026-09-17 no `api.ludens`: rotas do módulo `identity` migradas de `/auth/...` e `/users/...` para `/identity/...` e `/identity/users/...` (ver [`identity-auth/integration.md`](../specs/identity-auth/integration.md) e [`identity-auth/backend.md`](../specs/identity-auth/backend.md)) | Alto — login, cadastro, refresh e demais chamadas de auth do frontend quebram contra o backend atual, pois `web.ludens` ainda chama os caminhos antigos | Revisar `web.ludens` contra o contrato canônico atualizado e ajustar `src/routes/endpoints.ts` (e o cookie `Path` do refresh token) para os novos caminhos antes do próximo deploy conjunto |
 
 Itens já resolvidos nesta preparação:
 

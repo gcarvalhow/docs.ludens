@@ -14,8 +14,7 @@
 - `PascalCase` para classes.
 - `snake_case` para módulos/arquivos (ex.: `ticket_service.py`).
 - **Sem formatador/linter automatizado.** Nenhuma ferramenta reformata o código
-  na pipeline — `pytest -q` é o único portão automatizado do backend hoje (ver
-  [testes e CI](../backend/testing.md)).
+  na pipeline — hoje não há portão automatizado de estilo no backend.
 
 ## Estilo existente é absoluto
 
@@ -33,7 +32,9 @@ escrito, e nunca reescrever um arquivo inteiro a partir de uma versão em cache
 - Identificadores (classes, métodos, variáveis, módulos) em **Inglês** — usar os
   termos do domínio: `Show`, `Session`, `Ticket`, `Reservation`, `Order`,
   `User`.
-- Comentários em **Português**.
+- Comentários em **Inglês** (revisado em 2026-09-17 — antes desta data o
+  código trazia comentários em português; corrigidos para manter o idioma
+  único entre identificadores e comentários).
 
 ## Boas práticas de manutenibilidade
 

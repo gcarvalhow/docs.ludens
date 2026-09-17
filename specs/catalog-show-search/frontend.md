@@ -70,8 +70,8 @@ Editar o arquivo real (grupos `auth`/`users` já existem — ver
 
 ```ts
 // src/routes/endpoints.ts  — editar
-const AUTH_BASE = '/auth';
-const USERS_BASE = '/users';
+const AUTH_BASE = '/identity';
+const USERS_BASE = '/identity/users';
 
 export const endpoints = {
   auth: {
@@ -84,7 +84,6 @@ export const endpoints = {
   },
   users: {
     register: `${USERS_BASE}/register`,
-    list: USERS_BASE,
     byId: (id: string) => `${USERS_BASE}/${id}`,
   },
   catalog: {
@@ -707,8 +706,3 @@ Nenhum bloqueio de decisão de produto (spec §9 fechada). Pontos de atenção:
   faz isso; primeira vez que `HydrationBoundary` aparece no `web.ludens`.
   Validar no code review que `Providers.tsx` (o `QueryClient` de sessão) não é
   reaproveitado no servidor.
-- **Sem runner de teste de frontend** (mesma lacuna registrada em
-  `catalog-admin-management/quality.md`) — o portão hoje é `npm run lint` +
-  `npm run build`; os casos de `quality.md` desta fatia usam Jest (unit, já
-  configurado no repo) e ficam marcados como Playwright quando a suíte E2E
-  existir.

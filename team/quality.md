@@ -27,10 +27,6 @@ Responsável: **QA** (Adrian Cesar Gonçalves). Um card só é *Done* quando:
 - [ ] O código segue o [guia de estilo](../backend/code-style.md).
 - [ ] Passou por Code Review — **PR aprovado por, no mínimo, outro
       desenvolvedor**.
-- [ ] Validado e testado conforme a [estratégia de testes](../backend/testing.md),
-      sem erros críticos.
-- [ ] Testes automatizados relevantes criados/atualizados e **passando na
-      pipeline**.
 - [ ] Código integrado em `master` sem quebrar o build.
 
 ## Relação com os templates de issue

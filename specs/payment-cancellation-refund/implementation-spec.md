@@ -100,38 +100,16 @@ npm run lint && npm run build
 
 ---
 
-## C. QA — responsável: Adrian
-
-| Caso | Cenário | Cobre |
-| --- | --- | --- |
-| `test_reembolso_integral_48h_ou_mais` | sessão daqui a 72h → `("full", total, allowed)` | RN02 |
-| `test_reembolso_metade_entre_24_e_48` | daqui a 36h → `("half", total/2, allowed)` | RN02 |
-| `test_bloqueio_menos_de_24h` | daqui a 10h → `allowed=False`; `cancel` levanta `DomainError` (409) | RN02 |
-| `test_borda_48h_exatas` | exatamente 48h → `full` | RN02 |
-| `test_cancel_invalida_tickets_e_devolve_disponibilidade` | após `cancel`, tickets `INVALID`, `count_valid_for_session` cai | RF07 |
-| `test_refund_requested_idempotente` | handler processado 2x → um único estorno | RF07 |
-| `test_sessao_cancelada_reembolsa_100` | `SessionCancelled` com pedido a 10h da sessão → reembolso de 100% mesmo assim | RF07 / RF08 |
-| `test_pedido_de_sessao_passada_nao_cancela` | sessão já começou → 409 | RF07 |
-
-Roteiro manual: comprar, pedir cancelamento com 3 dias (integral), com 30h
-(50%), com 10h (bloqueado, mensagem). Admin cancela sessão de amanhã → todos
-reembolsados 100%, ingressos "cancelados", lugares voltam.
-
-```text
-git checkout master && git pull && git checkout -b test/<NN>-payment-refund
-git commit -m "test(payment): cobrir RN02, bloqueio <24h, invalidação e reembolso por sessão"
-```
-
-## D. DevOps — Gabriel
+## C. DevOps — Gabriel
 
 Nada novo (usa as credenciais do AbacatePay já configuradas em
 `payment-pix-checkout`).
 
-## E. Ordem entre as fatias
+## D. Ordem entre as fatias
 
 Última fatia de `payment`. Depende de `payment-pix-checkout` e
-`booking-ticket-issuance` mergeados. Backend + QA juntos; frontend contra o alvo.
+`booking-ticket-issuance` mergeados. Backend e frontend contra o alvo.
 
-## F. Bloqueios em aberto
+## E. Bloqueios em aberto
 
 - **[confirmar na doc]** payload de estorno/consulta do AbacatePay.

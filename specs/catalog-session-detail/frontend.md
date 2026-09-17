@@ -562,5 +562,3 @@ Nenhum bloqueio de decisão de produto (spec §9 fechada). Pontos de atenção:
   aberta** — aceitável para N1 (decisão fechada em spec.md §8); se
   `RNF02`/custo de infra virar problema, é ajuste de configuração, não de
   produto.
-- Mesma lacuna de teste de frontend registrada em `catalog-show-search/
-  frontend.md` — sem runner, portão é `npm run lint` + `npm run build`.

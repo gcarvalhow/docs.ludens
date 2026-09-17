@@ -1331,7 +1331,11 @@ REFRESH_TOKEN_EXPIRE_DAYS=7
 echo "JWT_SECRET_KEY=$(openssl rand -hex 32)" >> .env.local
 ```
 
-No CI, o pipeline usa um valor fixo de desenvolvimento direto no
+**Revisão de 2026-09-17:** o job de testes do CI (`.github/workflows/ci.yml`)
+foi removido junto com `tests/` — a pipeline hoje só builda a imagem Docker,
+sem consumir `JWT_SECRET_KEY`. O valor continua necessário só em
+`.env.local` para rodar localmente; quando a suite for reconstruída, o job de
+testes volta a precisar de um valor fixo de desenvolvimento direto no
 workflow (`JWT_SECRET_KEY: ci-only-not-a-real-secret`) — não é secret de
 repositório, porque não assina nada fora do próprio pipeline.
 

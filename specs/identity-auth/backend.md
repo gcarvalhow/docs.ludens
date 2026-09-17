@@ -1066,10 +1066,15 @@ async def get(user_id: UUID, session: AsyncSession = Depends(get_db), current_us
     return await UserUseCase(session).get_by_id(user_id)
 ```
 
-Cadastro é `POST /identity/users/register` (não `POST /identity/users` puro) —
-libera `POST /identity/users` pra uma eventual listagem futura, se algum dia
-houver RF pra isso. A
-checagem "próprio usuário ou admin" mora aqui, no router — nunca dentro do
+> **Nota de revisão (2026-09-17):** o trecho acima (`@router.post("/register", ...)`)
+> é um snapshot histórico da primeira versão do router. A razão original para o
+> sufixo `/register` — reservar `POST /identity/users` pra uma eventual listagem
+> futura — deixou de valer quando a listagem paginada de usuários virou `GET
+> /identity/users` (feature `identity-user-management`). Cadastro hoje é
+> `POST /identity/users` puro, sem sufixo; ver `specs/identity-user-management/`
+> e `user_router.py` real para o contrato atual.
+
+A checagem "próprio usuário ou admin" mora no router — nunca dentro do
 usecase (mesmo racional de `require_admin` em `catalog-admin-management`:
 usecase não tem sufixo nem lógica de papel).
 

@@ -1443,11 +1443,15 @@ real, que agora está `status: canônico`** — incluindo a troca de prefixo par
   `refresh_token` (`Path=/identity`).
 - **`register` e a leitura de usuário saem da sessão**: `AuthUseCase` fica só
   com sessão (login/refresh/logout/senha); `UserUseCase` cobre cadastro e
-  leitura. `POST /identity/users/register`; sem `GET /auth/me` — vira `GET
+  leitura. `POST /identity/users` (cadastro); sem `GET /auth/me` — vira `GET
   /identity/users/{id}` (usuário comum só o próprio, 403 em qualquer outro;
   admin qualquer um). O frontend descobre o próprio `id` decodificando o claim
   `sub` do access token (payload do JWT, sem verificar assinatura — a
   verificação é sempre do backend).
-- **Sem listagem de usuários no contrato** — não existe `GET
-  /identity/users` (nem paginado, nem de outra forma). Se isso virar um
-  requisito real no futuro, entra como uma spec nova, com RF próprio.
+
+> **Nota de revisão (2026-09-17):** os dois pontos acima refletem o contrato
+> original de `identity-auth`. Desde então, a feature `identity-user-management`
+> mergeou `GET /identity/users` (listagem paginada, restrita a admin) e o
+> sufixo `/register` foi removido de `POST /identity/users` — ver
+> `specs/identity-user-management/` e a nota equivalente mais acima neste
+> arquivo. O ponto "sem listagem de usuários no contrato" não vale mais.

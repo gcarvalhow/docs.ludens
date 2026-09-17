@@ -117,7 +117,7 @@ destinatário de forma genérica ("Olá,"), não personalizada por nome.
 
 ```python
 from azure.communication.email.aio import EmailClient
-from azure.core.exceptions import HttpResponseError
+from azure.core.exceptions import AzureError
 
 from app.config import settings
 
@@ -135,9 +135,14 @@ class AcsEmailService:
             async with EmailClient.from_connection_string(settings.acs_connection_string) as client:
                 poller = await client.begin_send(message)
                 await poller.result()
-        except HttpResponseError as exc:
+        except AzureError as exc:
             raise EmailServiceError(f"Falha ao enviar e-mail via ACS para {to}: {exc}") from exc
 ```
+
+`AzureError` (não só `HttpResponseError`) — é a base comum de erro de resposta
+HTTP, autenticação (connection string malformada) e requisição/rede do SDK;
+capturar só `HttpResponseError` deixaria vazar exceção crua em falha de auth
+ou de rede, quebrando a garantia de "nunca a exceção crua do transporte".
 
 Pontos de produção deliberados:
 

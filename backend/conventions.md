@@ -153,6 +153,48 @@ arbitrária: `self._refresh_repository` (para `RefreshTokenRepository`, dentro
 de um usecase que já lida só com sessão), não `self._refresh_token_repo` nem
 `self._refresh_token_repository`.
 
+## Porta com múltiplos adapters reais (Protocol + factory)
+
+> **Nota (2026-09-17):** primeiro precedente real deste padrão —
+> `notification/infrastructure/services/email_service.py`, ver
+> `specs/notification-transactional-email/backend.md` para o exemplo
+> completo.
+
+O caso comum em `infrastructure/services/` é o de `references/05` da skill
+`backend-architecture` (`PaymentGateway`, `TokenService`, `PasswordService`):
+uma classe concreta única — a interface e a implementação são a mesma
+classe, porque só existe um adapter real. Isso muda quando o serviço
+**precisa mesmo** de mais de um adapter real (não hipotético) — o caso
+canônico é dev vs. produção de uma dependência externa trocável por
+configuração (RNF06), como `EmailService`.
+
+Quando isso acontece:
+
+- A porta vira um `typing.Protocol` sozinho num arquivo
+  (`email_service.py`), com a exceção própria do módulo **no mesmo
+  arquivo** (`EmailServiceError`) — mesma regra de sempre para
+  `services/`, só que agora o arquivo não tem implementação nenhuma, só o
+  contrato. Isso é esperado, não é um arquivo "vazio" ou incompleto.
+- Cada adapter vira um arquivo próprio (`acs_email_service.py`,
+  `smtp_email_service.py`), implementando o `Protocol` estruturalmente
+  (sem herança explícita — é assim que `Protocol` funciona).
+- Um `factory.py` com uma função `@lru_cache` (`get_email_service`,
+  `get_<serviço>_service`) escolhe o adapter certo por
+  `settings.<nome>_backend`, igual a qualquer outro ponto de configuração
+  do projeto.
+- A porta **não** vive em `domain/` — o projeto não usa hexagonal clássico
+  com porta em `domain/`/adapter em `infrastructure/`. A porta fica em
+  `infrastructure/services/` mesmo, e quem consome (usecase, handler de
+  outbox) importa direto do pacote de `services/`, sem camada de
+  abstração intermediária em `domain/`.
+- A exceção própria do módulo **nunca** estende `DomainError`
+  (`core/domain/errors.py`) — ela representa falha de infraestrutura
+  (rede, serviço externo fora do ar), não violação de regra de negócio, e
+  não deve ser mapeada pelo `exception_handler(DomainError)` genérico da
+  API. Também não vive em `core/shared/` (que não tem nenhuma classe de
+  erro, só utilitário de formatação) nem em um `shared/` de módulo (essa
+  camada não existe como convenção neste projeto).
+
 ## Política de comentário
 
 Comentário só para referenciar regra de negócio (`# RF08: ...`, `# RN04 —

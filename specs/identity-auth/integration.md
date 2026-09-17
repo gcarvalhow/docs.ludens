@@ -26,15 +26,19 @@ responsavel: Igor (Backend)
 | POST | `/identity/password/change` | Bearer | 204 | Troca de senha (senha atual + nova) |
 | POST | `/identity/password/forgot` | pública | 202 | Sempre 202, resposta neutra |
 | POST | `/identity/password/reset` | pública (token no corpo) | 204 | Define nova senha via token |
-| POST | `/identity/users/register` | pública | 201 | Cria conta e já autentica |
+| POST | `/identity/users` | pública | 201 | Cria conta e já autentica |
 | GET | `/identity/users/{id}` | Bearer | 200 | Dados do usuário `id` — usuário comum só o próprio, admin (`is_admin`) qualquer um |
 
 `/identity/...` (tag `01.Identity - Auth`) cobre sessão (`AuthUseCase`);
 `/identity/users/...` (tag `02.Identity - User`) cobre cadastro e leitura de
-usuário (`UserUseCase`) — `register` e a leitura por `id` não são concern de
-auth. Não há listagem paginada de usuários: não existe requisito em
-`requirements/functional.md` que a peça, e o `UserRepository` real não tem
-`list_paginated` — ver a revisão de `backend.md` de 2026-09-11.
+usuário (`UserUseCase`) — cadastro e a leitura por `id` não são concern de
+auth. Cadastro é `POST /identity/users` puro, sem sufixo `/register` — a
+razão original para reservar esse path (2026-09-11: "libera para uma
+eventual listagem futura") caiu quando a listagem paginada de usuários foi
+implementada como `GET /identity/users` (feature `identity-user-management`,
+2026-09-17); manter `/register` como sufixo de cadastro deixaria de fazer
+sentido. Ver `specs/identity-user-management/` para o restante do contrato de
+usuário (perfil, troca de e-mail, exclusão de conta, listagem admin).
 
 > Prefixo/base path e versionamento: **sem versionamento no N1** — as rotas do
 > módulo `identity` são montadas sob `/identity/...` na raiz; base =
@@ -49,7 +53,7 @@ camada de conversão para camelCase. `expires_in` é em **segundos**. Não exist
 campo `role`: permissão é o booleano `is_admin` (`true`/`false`), tanto no
 `UserResponse` quanto no claim do JWT.
 
-- `POST /identity/users/register` → body `{ name, cpf, email, password }` (CPF
+- `POST /identity/users` → body `{ name, cpf, email, password }` (CPF
   sem máscara, só dígitos; `password` ≥ 8). 201 → `{ access_token, expires_in }`
   + `Set-Cookie: refresh_token=...` (`HttpOnly; Secure; SameSite=Strict; Path=/identity`;
   `Secure` desligado quando `ENVIRONMENT=development`).
@@ -121,8 +125,9 @@ limpa o estado e manda para `/login`. Mensagens conforme a tabela de erros.
   - **`/identity/password/change`:** corpo `{ current_password, new_password }`.
   - **`/identity/logout`:** 204 + `Set-Cookie` apagando `refresh_token`.
   - **`register` e leitura de usuário não são rota de sessão:** `POST
-    /identity/users/register` (cadastro), `GET /identity/users/{id}`
-    (substitui `/auth/me`, restrito por papel). Sem listagem paginada.
+    /identity/users` (cadastro), `GET /identity/users/{id}`
+    (substitui `/auth/me`, restrito por papel). Listagem paginada existe em
+    `GET /identity/users` (admin) — ver `identity-user-management`.
 - **Frontend ainda não atualizado:** `web.ludens` foi construído contra o
   contrato antigo (`/auth/...`, `/users/...`). Ver
   [`team/tech-debt.md`](../../team/tech-debt.md) para o débito técnico

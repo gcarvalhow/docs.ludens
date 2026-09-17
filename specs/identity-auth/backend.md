@@ -1066,10 +1066,15 @@ async def get(user_id: UUID, session: AsyncSession = Depends(get_db), current_us
     return await UserUseCase(session).get_by_id(user_id)
 ```
 
-Cadastro é `POST /identity/users/register` (não `POST /identity/users` puro) —
-libera `POST /identity/users` pra uma eventual listagem futura, se algum dia
-houver RF pra isso. A
-checagem "próprio usuário ou admin" mora aqui, no router — nunca dentro do
+> **Nota de revisão (2026-09-17):** o trecho acima (`@router.post("/register", ...)`)
+> é um snapshot histórico da primeira versão do router. A razão original para o
+> sufixo `/register` — reservar `POST /identity/users` pra uma eventual listagem
+> futura — deixou de valer quando a listagem paginada de usuários virou `GET
+> /identity/users` (feature `identity-user-management`). Cadastro hoje é
+> `POST /identity/users` puro, sem sufixo; ver `specs/identity-user-management/`
+> e `user_router.py` real para o contrato atual.
+
+A checagem "próprio usuário ou admin" mora no router — nunca dentro do
 usecase (mesmo racional de `require_admin` em `catalog-admin-management`:
 usecase não tem sufixo nem lógica de papel).
 
@@ -1438,11 +1443,15 @@ real, que agora está `status: canônico`** — incluindo a troca de prefixo par
   `refresh_token` (`Path=/identity`).
 - **`register` e a leitura de usuário saem da sessão**: `AuthUseCase` fica só
   com sessão (login/refresh/logout/senha); `UserUseCase` cobre cadastro e
-  leitura. `POST /identity/users/register`; sem `GET /auth/me` — vira `GET
+  leitura. `POST /identity/users` (cadastro); sem `GET /auth/me` — vira `GET
   /identity/users/{id}` (usuário comum só o próprio, 403 em qualquer outro;
   admin qualquer um). O frontend descobre o próprio `id` decodificando o claim
   `sub` do access token (payload do JWT, sem verificar assinatura — a
   verificação é sempre do backend).
-- **Sem listagem de usuários no contrato** — não existe `GET
-  /identity/users` (nem paginado, nem de outra forma). Se isso virar um
-  requisito real no futuro, entra como uma spec nova, com RF próprio.
+
+> **Nota de revisão (2026-09-17):** os dois pontos acima refletem o contrato
+> original de `identity-auth`. Desde então, a feature `identity-user-management`
+> mergeou `GET /identity/users` (listagem paginada, restrita a admin) e o
+> sufixo `/register` foi removido de `POST /identity/users` — ver
+> `specs/identity-user-management/` e a nota equivalente mais acima neste
+> arquivo. O ponto "sem listagem de usuários no contrato" não vale mais.

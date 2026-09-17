@@ -1,7 +1,7 @@
 # Convenções de arquitetura e código — Backend
 
 > **Responsável:** Desenvolvedor Backend (Igor Thiago Seberino) · **Aprovação:** PO (Gabriel Carvalho)
-> **Última revisão:** 2026-09-11 · **Status:** vigente
+> **Última revisão:** 2026-09-17 · **Status:** vigente
 > Ver também [`code-style.md`](code-style.md) para formatação, idioma e regras
 > de manutenibilidade — este documento cobre padrão de arquitetura e de
 > código que não é formatação. Ver também
@@ -177,8 +177,35 @@ do envelope de validação Pydantic, `{"detail": [{"field", "message"}]}` (lista
 via `format_validation_errors`). Não confundir os dois formatos ao documentar
 contrato de erro numa spec nova.
 
-## Só `PUT`, nunca `PATCH`
+## `PUT` para várias propriedades, `PATCH` para uma só
 
-Edição usa sempre `PUT` com corpo completo — um único schema serve criação e
-edição (`ShowRequest`, não `CreateShowRequest`/`UpdateShowRequest` com campos
-opcionais). Sem edição parcial.
+> **Nota de revisão (2026-09-17):** regra original ("só `PUT`, nunca `PATCH`")
+> revista ao desenhar os endpoints de perfil de `identity-user-management`
+> (Workstream B do plano técnico aprovado em `/plan`, `api.ludens`). A decisão
+> de 2026-09-11 continua valendo para o caso que ela cobria (edição de recurso
+> completo, como `Show`/`Session`) — a mudança é granular, não uma reversão.
+
+- **`PUT`** quando o endpoint atualiza **múltiplas propriedades** do recurso
+  de uma vez, com corpo completo — um único schema serve criação e edição
+  (`ShowRequest`, não `CreateShowRequest`/`UpdateShowRequest` com campos
+  opcionais). Sem edição parcial de um recurso multi-campo.
+- **`PATCH`** quando o endpoint atualiza **uma única propriedade** do recurso
+  (ex.: `PATCH /identity/users` só edita `name`). Não é edição parcial genérica
+  com campos todos opcionais — o schema de corpo tem exatamente o campo que
+  aquela rota edita, obrigatório.
+
+Nenhum endpoint usa `/me` ou `/admin` como segmento de URL — a permissão
+(self, admin, self-or-admin) é resolvida por `Depends()`/checagem inline
+dentro do handler, nunca por namespace de rota.
+
+### Confirmação por link de e-mail: token via query param
+
+Endpoints que confirmam uma ação a partir de um link de e-mail (troca de
+e-mail, exclusão de conta) recebem o token pela **query string**
+(`?token=...`), não no corpo — quem abre o link é o navegador seguindo uma URL,
+não um cliente montando um JSON. Esses endpoints não são autenticados: a
+posse do token (opaco, hasheado no banco, TTL de 1h) é a própria credencial da
+ação. Decisão de 2026-09-17; `POST /identity/password/reset`
+(`identity-auth`, anterior a esta decisão) continua recebendo o token no
+corpo — não foi alterado por esta revisão, e não é o padrão a copiar para
+endpoints novos.

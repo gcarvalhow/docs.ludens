@@ -132,7 +132,9 @@ class AcsEmailService:
         }
 
         try:
-            async with EmailClient.from_connection_string(settings.acs_connection_string) as client:
+            async with EmailClient.from_connection_string(
+                settings.acs_connection_string, connection_timeout=5, read_timeout=10
+            ) as client:
                 poller = await client.begin_send(message)
                 await poller.result()
         except AzureError as exc:
@@ -161,6 +163,10 @@ Pontos de produção deliberados:
 - Credencial (`ACS_CONNECTION_STRING`) é `SECRET` — nunca commitada; em
   produção fica em App Service Application Settings / Key Vault, nunca em
   `.env` versionado. Ver §4 DevOps.
+- Timeout explícito (`connection_timeout=5`, `read_timeout=10`) — regra
+  obrigatória da skill `backend-architecture` pra toda chamada de rede em
+  `infrastructure/services/`; sem isso, um ACS lento/parado atrasa o lote
+  inteiro do relay.
 
 ### 4. `src/app/modules/notification/infrastructure/services/smtp_email_service.py` — novo
 
@@ -182,7 +188,7 @@ class SmtpEmailService:
         message.set_content(html_body, subtype="html")
 
         try:
-            await aiosmtplib.send(message, hostname=settings.smtp_host, port=settings.smtp_port)
+            await aiosmtplib.send(message, hostname=settings.smtp_host, port=settings.smtp_port, timeout=10)
         except aiosmtplib.SMTPException as exc:
             raise EmailServiceError(f"Falha ao enviar e-mail via SMTP para {to}: {exc}") from exc
 ```
@@ -410,6 +416,13 @@ FRONTEND_BASE_URL=http://localhost:3000
 # dependencies: aiosmtplib>=3.0 sai do "nunca usado" — passa a ser usado de
 # verdade pelo SmtpEmailService. Adicionar:
 "azure-communication-email>=1.0",
+# EmailClient assíncrono (azure.communication.email.aio) usa aiohttp como
+# transporte HTTP — não é dependência transitiva de azure-communication-email
+# nem de azure-core; sem isso, from_connection_string() falha em runtime com
+# ModuleNotFoundError. Só foi pego rodando o smoke test de verdade, não na
+# revisão estática de conformidade — vale lição pra próximos adapters async
+# do SDK Azure.
+"aiohttp>=3.9",
 ```
 
 ### 13. `docker/docker-compose.Development.yml` — editar

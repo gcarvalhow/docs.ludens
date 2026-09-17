@@ -3,10 +3,29 @@ status: approved
 domain: identity
 created_at: 2026-09-01
 approved_at: 2026-09-01
-updated_at: 2026-09-11
+updated_at: 2026-09-17
 ---
 
 # Autenticação e sessão de usuário
+
+> **Nota de reescopo (2026-09-17):** a **alteração de e-mail sai desta spec** e
+> passa a viver em
+> [`identity-user-management`](../identity-user-management/spec.md), junto com o
+> encerramento de conta — as duas são mudanças no dado da conta confirmadas por
+> link enviado ao e-mail atual, e formam uma família só. O mecanismo também
+> mudou: a confirmação passa a ir para o **e-mail atual** (era para o novo), não
+> se pede mais a senha atual no pedido, e confirmar **derruba todas as sessões**
+> (antes: não derrubava nenhuma). O motivo da escolha (anti-sequestro de sessão)
+> e o que ela custa estão registrados em
+> [`identity-user-management` § 8 e § 9](../identity-user-management/spec.md#8-decisões-tomadas).
+>
+> Esta spec fica com o que é **sessão e credencial**: entrar, sair, continuar
+> conectado, trocar a senha e redefinir a senha esquecida. Ela continua dona do
+> mecanismo de invalidação de sessão que `identity-user-management` aciona ao
+> confirmar uma troca de e-mail ou um encerramento de conta.
+>
+> Origem: decisão do PO em 2026-09-17, ao alinhar as specs de conta com o plano
+> técnico da Workstream B do módulo `identity`.
 
 > **Nota de reescopo (2026-09-11):** esta spec cobria originalmente cadastro +
 > autenticação do comprador. O cadastro (criação de conta) e a consulta de
@@ -14,7 +33,9 @@ updated_at: 2026-09-11
 > [`identity-user-management`](../identity-user-management/spec.md). Esta spec
 > passa a cobrir só os mecanismos de **sessão e credencial** — o que é comum a
 > qualquer conta já existente, seja `Comprador` ou `Admin`: entrar, sair,
-> continuar conectado, redefinir senha esquecida e alterar e-mail. `backend.md`
+> continuar conectado e redefinir senha esquecida (a alteração de e-mail, que
+> esta nota de 2026-09-11 trazia para cá, saiu em 2026-09-17 — ver acima).
+> `backend.md`
 > / `frontend.md` / `quality.md` ainda descrevem o código sob o escopo antigo
 > (que inclui cadastro) e precisam de rework antes de bater com este documento
 > — ver aviso no topo de cada um.
@@ -24,8 +45,9 @@ updated_at: 2026-09-11
 Depois que a pessoa tem uma conta, ela entra com e-mail e senha e continua
 conectada entre visitas, sem precisar digitar a senha de novo a cada vez, até
 decidir sair. Se esquecer a senha, pede uma redefinição por e-mail e volta a
-acessar a conta em poucos minutos. Se precisar trocar o e-mail cadastrado,
-confirma a posse do novo endereço antes de a troca valer.
+acessar a conta em poucos minutos. Se quiser trocar a senha que já sabe, troca —
+e todos os dispositivos conectados caem junto, para que trocar a senha seja de
+fato uma forma de retomar o controle da conta.
 
 Vale tanto para quem compra ingresso (`Comprador`) quanto para quem administra
 o catálogo (`Admin`) — é o mesmo mecanismo de sessão para as duas contas, só
@@ -35,17 +57,16 @@ muda o que cada uma pode fazer depois de entrar.
 
 Sem um login que se mantém, a pessoa teria que se autenticar a cada passo do
 checkout — fricção que faz desistir da compra. Sem redefinição de senha
-autônoma, uma senha esquecida vira um chamado pro teatro resolver na mão. Sem
-uma forma seguindo de trocar o e-mail cadastrado, a pessoa fica presa a um
-endereço que não usa mais (perdeu acesso, trocou de provedor) sem conseguir
-recuperar a própria conta.
+autônoma, uma senha esquecida vira um chamado pro teatro resolver na mão. E sem
+uma troca de senha que derrube as outras sessões, quem desconfia que deixou a
+conta aberta em algum lugar não tem como fechar essa porta sozinho.
 
 ## 3. Para quem é
 
 - **Beneficiário direto:** qualquer pessoa com conta na plataforma —
   `Comprador` ou `Admin`.
 - **Beneficiário indireto:** o teatro, que deixa de precisar intervir
-  manualmente em senha esquecida ou e-mail desatualizado.
+  manualmente em senha esquecida.
 
 Entra toda vez que uma pessoa com conta volta à plataforma, ou perde acesso a
 ela.

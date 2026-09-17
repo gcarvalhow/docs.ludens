@@ -161,10 +161,6 @@ da decisão está em
   ([guia de estilo](../backend/code-style.md)).
 - Todo o tráfego entre cliente e servidor sobre HTTPS.
 
-**Métrica / verificação:** teste automatizado garantindo o *hash* de senha e a
-recusa de emissão ou log com dado sensível; item de segurança no roteiro de QA
-antes de cada entrega.
-
 **Status:** aprovada pelo PO em 2026-08-28 — consolida compromissos já firmados
 no Acordo de Manutenibilidade e nos critérios de RF09.
 
@@ -179,8 +175,7 @@ no Acordo de Manutenibilidade e nos critérios de RF09.
   pagamento (já em RF05).
 
 **Métrica / verificação:** medição em ambiente de homologação com volume de dados
-representativo; o roteiro de QA antes de cada entrega inclui a medição do tempo
-de resposta do fluxo principal.
+representativo.
 
 **Status:** aprovada pelo PO em 2026-08-28.
 
@@ -199,10 +194,6 @@ de resposta do fluxo principal.
   [RN05](business-rules.md#rn05--consistência-de-disponibilidade) (regra
   vigente).
 
-**Métrica / verificação:** teste de resiliência no roteiro de QA (derrubar
-gateway/e-mail e confirmar catálogo no ar e reserva liberada) e teste de reinício
-da aplicação com reservas em aberto.
-
 **Status:** aprovada pelo PO em 2026-08-28. O comportamento de degradação e
 recuperação já é exigido pelos RF/RN citados.
 
@@ -220,16 +211,13 @@ recuperação já é exigido pelos RF/RN citados.
   AA** como referência.
 - Idioma da interface: português (pt-BR).
 
-**Métrica / verificação:** teste de usabilidade com o roteiro do fluxo principal
-antes de cada entrega; verificação de contraste e navegação por teclado nas telas
-de checkout.
+**Métrica / verificação:** verificação de contraste e navegação por teclado nas
+telas de checkout.
 
 **Status:** aprovada pelo PO em 2026-08-28.
 
 ### RNF05 — Manutenibilidade
 
-- Testes automatizados cobrem as regras de negócio da camada de domínio do
-  backend ([estratégia de testes](../backend/testing.md)).
 - Padrão de código, responsabilidade única com funções de até ~30 linhas,
   proibição de `except`/`catch` vazio e lint obrigatório na pipeline
   ([guia de estilo](../backend/code-style.md)).
@@ -238,8 +226,7 @@ de checkout.
 - Cerca de **15% do esforço de cada ciclo** reservado para débito técnico
   ([gestão de débito técnico](../team/tech-debt.md)).
 
-**Métrica / verificação:** pipeline verde (lint + testes) como portão de merge; o
-[Definition of Done](../team/quality.md) exige testes relevantes passando.
+**Métrica / verificação:** pipeline verde (lint) como portão de merge.
 
 **Status:** aprovada pelo PO em 2026-08-28 — consolida os compromissos do Acordo
 de Manutenibilidade.
@@ -248,8 +235,7 @@ de Manutenibilidade.
 
 - A aplicação sobe via **Docker** sem passos manuais além da definição das
   variáveis de ambiente; o ambiente conteinerizado é o padrão local e de
-  pipeline ([escopo do produto](../product/scope.md),
-  [CI/CD](../backend/testing.md)).
+  pipeline ([escopo do produto](../product/scope.md)).
 - Dependências externas (gateway de pagamento, SMTP) são acessadas por
   configuração, permitindo trocar de provedor sem alterar o código de domínio.
 - Banco de dados PostgreSQL, com migrações versionadas no repositório do backend.

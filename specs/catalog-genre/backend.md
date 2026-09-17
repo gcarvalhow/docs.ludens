@@ -99,8 +99,7 @@ class Genre(AggregateRoot, Model):
 
 > Ícone validado no próprio domínio (não só na forma via `GenreRequest`,
 > `Field(min_length=1)`) — reforça o invariante "todo gênero precisa de
-> ícone" (`logic.md` §3) na camada certa, e é o que os casos de teste
-> `test_icone_*_e_recusado` de `quality.md` assumem.
+> ícone" (`logic.md` §3) na camada certa.
 
 ### `src/app/modules/catalog/domain/aggregates/__init__.py` — editar
 
@@ -479,7 +478,7 @@ class GenreUseCase:
         # Duplicidade sem diferenciar maiúscula/acento (logic.md §3). Checagem
         # otimista aqui + backstop atômico no índice único parcial
         # uq_genres_name_active (migration 0003_catalog_genre) — cobre criação
-        # concorrente com o mesmo nome (ver quality.md §5, risco de concorrência).
+        # concorrente com o mesmo nome.
         if await self._genre_repository.exists_by("name", normalized):
             raise ConflictError("Já existe um gênero com esse nome.")
 
@@ -746,7 +745,7 @@ def card_response(row: ShowCardRow) -> ShowCardResponse:
 
 ### `src/app/modules/catalog/application/usecases/utils/genre_slug.py` — **apagar**
 
-Fica morto assim que `search()`/`list_genres()` deixam de resolver slug contra texto livre. Sem outro uso no repo além de `tests/test_catalog_show_search.py` (ver `quality.md` §5, testes existentes a reescrever).
+Fica morto assim que `search()`/`list_genres()` deixam de resolver slug contra texto livre. Sem outro uso no repo.
 
 ### `src/app/modules/catalog/infrastructure/repositories/genre_repository.py` — novo
 
@@ -1079,7 +1078,7 @@ sob a mesma forma normalizada — a normalizada É o `Genre.name` final.
 sobre qual ícone um gênero migrado automaticamente recebe (spec/logic só
 cobrem criação manual pelo admin, onde o ícone é sempre escolhido). Usa um
 placeholder fixo (`_MIGRATED_GENRE_ICON`) só para a coluna NOT NULL não
-travar a migration. Ver quality.md / bloqueios.
+travar a migration.
 """
 
 import re

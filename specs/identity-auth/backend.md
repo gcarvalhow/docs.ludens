@@ -3,17 +3,28 @@ status: done
 spec: identity-auth
 surface: backend
 created_at: 2026-09-03
-updated_at: 2026-09-11
+updated_at: 2026-09-17
 ---
 
 # Cadastro e autenticação do comprador — Backend
+
+> **Nota de reescopo (2026-09-11):** `spec.md`/`logic.md` de `identity-auth`
+> foram trimmados — cadastro e leitura de usuário saíram para
+> `identity-user-management`. O código abaixo (ainda em produção, ainda
+> correto) reflete o escopo **antigo**: note que já existe uma separação
+> `AuthUseCase` (sessão) × `UserUseCase` (cadastro/leitura) nos arquivos #24 e
+> #25 — a divisão de spec só está formalizando uma fronteira que o código já
+> tinha. Pendente: mover os arquivos de `UserUseCase`/`user_router.py` (#25,
+> #28) pro `backend.md` de `identity-user-management`, e adicionar aqui o
+> fluxo de alteração de e-mail (novo). Ver `feature-implementation-spec`.
 
 **Resumo:** módulo `identity` com o aggregate `User` (CPF validado, e-mail, hash
 bcrypt, `is_admin: bool`, `security_stamp`), dual-token JWT (access HS256 +
 refresh opaco SHA-256 rotacionado a cada uso), recuperação de senha por token
 de uso único com validade de 1 hora. Duas usecases — `AuthUseCase` (sessão:
 login/refresh/logout/senha) e `UserUseCase` (cadastro e leitura) — expostas em
-dois routers: 6 rotas em `/auth` e 2 em `/users`. Dependências
+dois routers: 6 rotas em `/identity` (tag `01.Identity - Auth`) e 2 em
+`/identity/users` (tag `02.Identity - User`). Dependências
 `get_current_user` / `require_admin` exportadas para os demais módulos.
 **RF:** RF09 · **RN:** — (reforça RNF01) · **Módulo backend:** `identity`
 **Contrato:** `docs.ludens/specs/identity-auth/integration.md`
@@ -53,6 +64,16 @@ dois routers: 6 rotas em `/auth` e 2 em `/users`. Dependências
 > isso está **pendente como débito técnico**, não implementado, apesar do
 > `status: done` deste documento referir-se ao fluxo de sessão/cadastro, que
 > está completo. Ver §7.
+
+> **Revisão de 2026-09-17:** os routers do módulo mudaram de prefixo/tag para
+> seguir o novo padrão do backend (`prefix`/`tags` numerados por router).
+> `auth_router.py`: `prefix="/auth", tags=["Identity"]` →
+> `prefix="/identity", tags=["01.Identity - Auth"]`. `user_router.py`:
+> `prefix="/users", tags=["Identity"]` → `prefix="/identity/users",
+> tags=["02.Identity - User"]`. O `Path` do cookie de refresh acompanhou a
+> mudança (`REFRESH_PATH`: `/auth` → `/identity`). Todas as rotas abaixo estão
+> atualizadas para os novos caminhos; `web.ludens` ainda não foi atualizado —
+> ver débito técnico em `docs.ludens/team/tech-debt.md`.
 
 Este é o primeiro módulo de negócio do repositório. Ele também introduz dois
 arquivos de infraestrutura compartilhada que qualquer feature seguinte
@@ -937,7 +958,7 @@ from fastapi import Response
 from app.config import settings
 
 REFRESH_COOKIE = "refresh_token"
-REFRESH_PATH = "/auth"
+REFRESH_PATH = "/identity"
 
 def set_refresh_cookie(response: Response, raw_refresh: str) -> None:
     response.set_cookie(
@@ -972,9 +993,9 @@ from app.modules.identity.application.schemas.request import (
 )
 
 from app.modules.identity.application.schemas.response import TokenResponse
-from app.modules.identity.api.routers.utils.cookies import REFRESH_COOKIE, set_refresh_cookie
+from app.modules.identity.api.routers.utils.cookies import REFRESH_COOKIE, REFRESH_PATH, set_refresh_cookie
 
-router = APIRouter(prefix="/auth", tags=["Identity"])
+router = APIRouter(prefix="/identity", tags=["01.Identity - Auth"])
 
 @router.post("/login", response_model=TokenResponse)
 async def login(body: LoginRequest, response: Response, session: AsyncSession = Depends(get_db)) -> TokenResponse:
@@ -986,7 +1007,7 @@ async def login(body: LoginRequest, response: Response, session: AsyncSession = 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 async def logout(response: Response, session: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)) -> None:
     await AuthUseCase(session).logout(user)
-    response.delete_cookie(REFRESH_COOKIE, path="/auth")
+    response.delete_cookie(REFRESH_COOKIE, path=REFRESH_PATH)
 
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh(request: Request, response: Response, session: AsyncSession = Depends(get_db)) -> TokenResponse:
@@ -1028,7 +1049,7 @@ from app.modules.identity.application.schemas.response import TokenResponse, Use
 from app.modules.identity.api.routers.utils.cookies import set_refresh_cookie
 from app.modules.identity.application.usecases.user_usecase import UserUseCase
 
-router = APIRouter(prefix="/users", tags=["Identity"])
+router = APIRouter(prefix="/identity/users", tags=["02.Identity - User"])
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def register(body: RegisterRequest, response: Response, session: AsyncSession = Depends(get_db)) -> TokenResponse:
@@ -1045,8 +1066,9 @@ async def get(user_id: UUID, session: AsyncSession = Depends(get_db), current_us
     return await UserUseCase(session).get_by_id(user_id)
 ```
 
-Cadastro é `POST /users/register` (não `POST /users` puro) — libera `POST
-/users` pra uma eventual listagem futura, se algum dia houver RF pra isso. A
+Cadastro é `POST /identity/users/register` (não `POST /identity/users` puro) —
+libera `POST /identity/users` pra uma eventual listagem futura, se algum dia
+houver RF pra isso. A
 checagem "próprio usuário ou admin" mora aqui, no router — nunca dentro do
 usecase (mesmo racional de `require_admin` em `catalog-admin-management`:
 usecase não tem sufixo nem lógica de papel).
@@ -1293,7 +1315,7 @@ REFRESH_TOKEN_EXPIRE_DAYS=7
 | RF09 — nova solicitação invalida as anteriores | `auth_usecase.py` · `forgot_password` + `password_reset_token_repository.py` · `invalidate_all_for_user` | invalida tudo que ainda não foi usado antes de emitir o novo token |
 | RF09 — logout / troca / redefinição derrubam todas as sessões | `domain/aggregates/user.py` · `rotate_security_stamp` + `infrastructure/repositories/refresh_token_repository.py` · `deactivate_all_for_user` | novo `security_stamp` invalida qualquer access token anterior; `deactivate_all_for_user` também desativa todo refresh token do usuário |
 | RF09 — reuso de refresh token detectado | `auth_usecase.py` · `refresh` / `_revoke_all_sessions` + `domain/entities/refresh_token.py` · `mark_rotated` | `mark_rotated` marca `used=True` a cada uso; reuso do mesmo token → revoga tudo numa sessão de banco própria + 401 |
-| RF09 — `GET /users/{id}` restrito a si mesmo ou admin | `api/routers/user_router.py` · `get` | `current_user.is_admin` ou `current_user.id == user_id`, senão `ForbiddenError` 403 — checagem no router, não no usecase |
+| RF09 — `GET /identity/users/{id}` restrito a si mesmo ou admin | `api/routers/user_router.py` · `get` | `current_user.is_admin` ou `current_user.id == user_id`, senão `ForbiddenError` 403 — checagem no router, não no usecase |
 | RNF01 — hash de senha | `infrastructure/services/password_service.py` | bcrypt com salt automático; `password_hash` nunca aparece em nenhum schema de response nem em log |
 | RNF01 — `security_stamp` no claim e verificado a cada request | `token_service.py` · `issue_access` (claim) + `dependencies.py` · `get_current_user` | stamp do token comparado ao do `User` buscado de novo no banco; divergência → 401 mesmo com JWT válido |
 | RNF01 — nada sensível em log / erro / URL | `errors.py` (`DomainError` sem CPF/e-mail na mensagem), CPF guardado só em dígitos | mensagens de erro em linguagem de negócio; o refresh token opaco vai em cookie `HttpOnly`, nunca em query string de rota da API |
@@ -1309,7 +1331,11 @@ REFRESH_TOKEN_EXPIRE_DAYS=7
 echo "JWT_SECRET_KEY=$(openssl rand -hex 32)" >> .env.local
 ```
 
-No CI, o job de testes usa um valor fixo de desenvolvimento direto no
+**Revisão de 2026-09-17:** o job de testes do CI (`.github/workflows/ci.yml`)
+foi removido junto com `tests/` — a pipeline hoje só builda a imagem Docker,
+sem consumir `JWT_SECRET_KEY`. O valor continua necessário só em
+`.env.local` para rodar localmente; quando a suite for reconstruída, o job de
+testes volta a precisar de um valor fixo de desenvolvimento direto no
 workflow (`JWT_SECRET_KEY: ci-only-not-a-real-secret`) — não é secret de
 repositório, porque não assina nada fora do próprio pipeline.
 
@@ -1347,7 +1373,7 @@ git commit -m "feat(identity): expor rotas de /auth e /users, dependencies e mig
 
 Depois: `/team-ludens:tbd-pr` (senior-dev Modo 2 + `/code-review`) → push → PR
 `Closes #<NN>` → merge (1 aprovação + CI verde). Antes do PR, localmente:
-`alembic upgrade head` · `pytest -q` (inclui os casos de `quality.md`) — sem
+`alembic upgrade head` — sem
 lint automatizado (o projeto não usa Ruff nem outro formatter, ver
 [`code-style.md`](../../backend/code-style.md)).
 
@@ -1355,7 +1381,7 @@ lint automatizado (o projeto não usa Ruff nem outro formatter, ver
 
 ## 6. Ordem entre as superfícies
 
-Backend e QA (casos de domínio de `quality.md`) começam juntos a partir do
+Backend começa a partir do
 `logic.md`. Frontend começa em paralelo contra o contrato-alvo do
 `integration.md` — `fetcher` com refresh e `AuthContext` não dependem do backend
 pronto. O `integration.md` vira `canônico` e a integração real acontece depois do
@@ -1391,31 +1417,32 @@ de depender deles em produção.
 
 ## 8. Ajustes feitos no `integration.md`
 
-Ao fechar este documento, o `integration.md` (mantido `status: alvo`) foi
-precisado nos pontos que estavam `<a definir globalmente>` — **os pontos
-abaixo precisam ser conferidos contra o `integration.md` real**, porque esta
-revisão só corrigiu o `backend.md`:
+Ao fechar este documento (revisão de 2026-09-11), o `integration.md` foi
+precisado nos pontos que estavam `<a definir globalmente>`. **Atualização de
+2026-09-17: os pontos abaixo foram conferidos e aplicados ao `integration.md`
+real, que agora está `status: canônico`** — incluindo a troca de prefixo para
+`/identity/...` (§ revisão de 2026-09-17 acima):
 
 - **Envelope de erro**: são **dois formatos diferentes**, não um só. Erro de
   validação Pydantic (422): `{"detail": [{"field": string, "message":
   string}]}`. Erro de domínio (409/401/403/404/410): `{"detail": "mensagem em
   string"}` — sem lista, sem campo. O frontend precisa tratar os dois formatos
   separadamente.
-- **Prefixo / versionamento**: sem prefixo e sem versionamento no N1 — as rotas
-  são montadas em `/auth/...` e `/users/...`; base = `NEXT_PUBLIC_API_URL`.
+- **Prefixo / versionamento**: sem versionamento no N1 — as rotas montadas em
+  `/identity/...` e `/identity/users/...`; base = `NEXT_PUBLIC_API_URL`.
 - **`expires_in`**: em segundos (`ACCESS_TOKEN_EXPIRE_MINUTES * 60`), campo
   snake_case (não `expiresIn`) — contrato inteiro é snake_case, sem exceção.
-- **`is_admin`** no `/users/{id}` e no claim do JWT: `true`/`false` — não há
-  `role`/`Role` em nenhum lugar do contrato.
-- **`POST /auth/logout`**: além de 204, envia `Set-Cookie` apagando
-  `refresh_token` (`Path=/auth`).
-- **`register` e a leitura de usuário saem de `/auth`**: `AuthUseCase` fica só
+- **`is_admin`** no `/identity/users/{id}` e no claim do JWT: `true`/`false` —
+  não há `role`/`Role` em nenhum lugar do contrato.
+- **`POST /identity/logout`**: além de 204, envia `Set-Cookie` apagando
+  `refresh_token` (`Path=/identity`).
+- **`register` e a leitura de usuário saem da sessão**: `AuthUseCase` fica só
   com sessão (login/refresh/logout/senha); `UserUseCase` cobre cadastro e
-  leitura. `POST /auth/register` → `POST /users/register`; sem `GET
-  /auth/me` — vira `GET /users/{id}` (usuário comum só o próprio, 403 em
-  qualquer outro; admin qualquer um). O frontend descobre o próprio `id`
-  decodificando o claim `sub` do access token (payload do JWT, sem verificar
-  assinatura — a verificação é sempre do backend).
-- **Sem listagem de usuários no contrato** — não existe `GET /users` (nem
-  paginado, nem de outra forma). Se isso virar um requisito real no futuro,
-  entra como uma spec nova, com RF próprio.
+  leitura. `POST /identity/users/register`; sem `GET /auth/me` — vira `GET
+  /identity/users/{id}` (usuário comum só o próprio, 403 em qualquer outro;
+  admin qualquer um). O frontend descobre o próprio `id` decodificando o claim
+  `sub` do access token (payload do JWT, sem verificar assinatura — a
+  verificação é sempre do backend).
+- **Sem listagem de usuários no contrato** — não existe `GET
+  /identity/users` (nem paginado, nem de outra forma). Se isso virar um
+  requisito real no futuro, entra como uma spec nova, com RF próprio.

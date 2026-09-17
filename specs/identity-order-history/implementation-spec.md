@@ -79,37 +79,17 @@ npm run lint && npm run build
 
 ---
 
-## C. QA — responsável: Adrian
-
-| Caso | Cenário | Cobre |
-| --- | --- | --- |
-| `test_lista_so_pedidos_do_comprador` | comprador A não vê pedido de B; `GET /me/orders/{id_de_B}` → 404 | RF06 / RNF01 |
-| `test_ordenacao_mais_recente_primeiro` | 3 pedidos em datas diferentes → ordem desc | RF06 |
-| `test_detalhe_traz_ingressos_so_se_pago` | pedido `pending` → sem tickets; `paid` → N tickets | RF06 |
-| `test_can_cancel` | `paid` + sessão futura → `canCancel=True`; sessão passada → `False` | RF06 / RF07 |
-| `test_status_labels` | cada `Order.status` mapeia para o rótulo certo | RF06 |
-| `test_paginacao` | `size=10` com 25 pedidos → 3 páginas, `total=25` | RF06 |
-
-Roteiro manual: fazer 3 compras (uma pendente, uma paga, uma reembolsada) → a
-lista mostra as 3 com status certos; abrir a paga → ingressos + botões; abrir a
-pendente → sem ingressos; tentar `GET /me/orders/{id}` de outro usuário → 404.
-
-```text
-git checkout master && git pull && git checkout -b test/<NN>-order-history
-git commit -m "test(payment): cobrir escopo por comprador, ordenação, ingressos e canCancel"
-```
-
-## D. DevOps — Gabriel
+## C. DevOps — Gabriel
 
 Nada.
 
-## E. Ordem entre as fatias
+## D. Ordem entre as fatias
 
 **Última fatia** — depende de `payment-pix-checkout` e `booking-ticket-issuance`
-mergeados, e usa os exports de `catalog-session-detail`. Backend + QA juntos;
+mergeados, e usa os exports de `catalog-session-detail`. Backend e
 frontend contra o alvo.
 
-## F. Bloqueios em aberto
+## E. Bloqueios em aberto
 
 - **[decidir com senior-dev]** módulo dono das rotas `/me/orders` (`payment` ou
   `identity`). Não bloqueia o frontend.

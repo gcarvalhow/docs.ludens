@@ -131,55 +131,18 @@ npm run lint && npm run build
 
 ---
 
-## C. QA — responsável: Adrian
-
-### Casos de teste de domínio (pytest)
-
-| Caso | Cenário | Cobre |
-| --- | --- | --- |
-| `test_abre_reserva_dentro_da_capacidade` | capacidade 10, 3 confirmados, pede 4 → reserva `OPEN`, evento `ReservationOpened` | RF03 |
-| `test_recusa_quando_excede_capacidade` | capacidade 10, 7 confirmados + 2 abertos, pede 2 → `DomainError` | RN05 |
-| `test_recusa_limite_cpf` | CPF já com 5 (confirmados+abertos) na sessão, pede 2 → `DomainError` | RN01 |
-| `test_reserva_vencida_nao_conta_disponibilidade` | reserva aberta com `expires_at` no passado não entra na contagem `count_open_quantity_for_session` | RN03 |
-| `test_expire_transiciona_e_emite_evento` | `expire_due_reservations` sobre reserva vencida → `status=EXPIRED`, evento `ReservationExpired` | RN03 |
-| `test_confirmar_reserva_nao_aberta_recusa` | `confirm()` numa reserva já `EXPIRED` → `DomainError` | RF03 |
-| `test_cancelar_por_dono` | `cancel()` numa reserva `OPEN` → `CANCELLED`, evento | RF03 |
-
-### Teste de concorrência (usecase, Postgres real)
-
-`test_duas_reservas_concorrentes_na_ultima_poltrona`: capacidade 1, 0
-confirmados; duas corrotinas chamam `open` simultaneamente → exatamente uma
-retorna 201, a outra `DomainError` (409). Roda ≥ 20 vezes.
-
-### Roteiro manual
-
-Reservar 2 na sessão com 2 lugares restantes em duas abas ao mesmo tempo → só
-uma sucede. Deixar a reserva vencer → contador zera → mensagem de expiração →
-lugares voltam. Cancelar manualmente → lugares voltam na hora. Matar a API com
-reserva aberta e subir de novo → reserva vence normalmente.
-
-### Passo a passo TBD (QA)
-
-```text
-git checkout master && git pull && git checkout -b test/<NN>-booking-reservation
-git commit -m "test(booking): cobrir RN01, RN03, RN05 e concorrência de reserva"
-```
-
----
-
-## D. DevOps — Gabriel
+## C. DevOps — Gabriel
 
 - `.env.example`: adicionar `RESERVATION_TTL_MINUTES=15`, `MAX_TICKETS_PER_CPF=6`
   (CONFIG). Nenhum segredo novo.
 
-## E. Ordem entre as fatias
+## D. Ordem entre as fatias
 
 Backend depende do merge de `identity-auth` e de `catalog-session-detail` (exports
-de trava/contagem da `Session`). QA de domínio pode escrever os casos junto com
-o backend. Frontend contra o contrato-alvo; a integração real após o merge do
+de trava/contagem da `Session`). Frontend contra o contrato-alvo; a integração real após o merge do
 backend.
 
-## F. Bloqueios em aberto
+## E. Bloqueios em aberto
 
 - **[coordenar, não bloqueio]** `catalog-session-detail` precisa expor
   `lock_session_for_update` e `count_confirmed_tickets_for_session` em

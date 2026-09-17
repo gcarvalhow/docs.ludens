@@ -1686,6 +1686,3 @@ de dependência — não impedem escrever o código, impedem rodar ponta a ponta
 - **shadcn/ui não está no repo.** Os componentes usam elementos nativos + Tailwind
   (já configurado). Quando o design system entrar, `components/ui/*` e os forms
   são os arquivos a migrar — sem mudar hooks nem services.
-- **Sem runner de teste de frontend** (`docs.ludens/backend/testing.md` §gaps):
-  o portão hoje é `npm run lint` + `npm run build`. Os testes de `quality.md`
-  para esta superfície são Playwright, a rodar quando a suíte existir.

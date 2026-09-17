@@ -59,9 +59,13 @@ conjunto de handlers de evento (outbox) + um serviço de envio.
 
 ## 7. Custos adicionais
 
-**Depende de um serviço de e-mail transacional** (SMTP) — já previsto nas
-premissas do produto. É uma dependência de configuração (host, credenciais,
-remetente), trocável sem mexer no domínio. Sem provedor novo além desse.
+**Depende de um serviço de e-mail transacional** — já previsto nas premissas
+do produto. Decisão de 2026-09-11: o provedor é **AWS SES**. Não é
+literalmente gratuito (cobra por e-mail enviado), mas no volume de um teatro
+comunitário (dezenas a poucas centenas de e-mails por mês) o custo fica na
+casa de centavos de dólar por mês — desprezível, não zero. É uma dependência
+de configuração (credenciais, remetente, região), trocável sem mexer no
+domínio (nenhum provedor novo além desse).
 
 ## 8. Decisões tomadas
 
@@ -71,7 +75,8 @@ remetente), trocável sem mexer no domínio. Sem provedor novo além desse.
 | Gatilhos no N1 | `OrderPaid` → confirmação + ingressos; `PasswordResetRequested` → link; `OrderRefunded` → aviso de reembolso; `SessionCancelled` → aviso ao comprador; alteração de horário de sessão vendida → aviso; reenvio de ingresso (ação do comprador) → reenvia a confirmação. |
 | Idempotência | Todo handler é idempotente por (destinatário, tipo de e-mail, referência) — o relay entrega at-least-once. |
 | Falha de envio | Logada; o relay retenta. **Nunca** desfaz a transação de origem (RF05). |
-| Prazo | Confirmação em ≤ 5 min após a aprovação (RF05) — folgado para a latência do relay (~2 s) + o SMTP. |
+| Prazo | Confirmação em ≤ 5 min após a aprovação (RF05) — folgado para a latência do relay (~2 s) + o envio pelo provedor. |
+| Provedor | AWS SES — trocável por configuração (RNF06); adapter de log substitui o envio real em desenvolvimento, sem precisar de conta AWS. |
 | Conteúdo | Texto claro em pt-BR, com os dados da sessão e o código/QR do ingresso quando aplicável. Sem dado sensível além do necessário (RNF01). |
 
 ## 9. Perguntas abertas

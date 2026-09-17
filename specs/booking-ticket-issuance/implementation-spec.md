@@ -110,38 +110,16 @@ npm run lint && npm run build
 
 ---
 
-## C. QA — responsável: Adrian
-
-| Caso | Cenário | Cobre |
-| --- | --- | --- |
-| `test_emite_um_ticket_por_unidade` | reserva confirmada de 3 → 3 `Ticket` `VALID`, eventos `TicketIssued` | RF05 |
-| `test_meia_entrada_nao_exige_documento` | `issue` com `type=HALF` → ticket criado; **não existe atributo de documento** | RN04 |
-| `test_codigo_unico_e_opaco` | 1000 emissões → nenhum código repetido; código não é sequencial | RF05 |
-| `test_preco_congelado_no_ticket` | admin muda o preço da sessão depois → `ticket.unit_price` não muda | RF05 |
-| `test_invalidar_por_reembolso` | `invalidate_for_order` → tickets `INVALID`, evento; `count_valid_for_session` cai | RF07 |
-| `test_emissao_falha_faz_rollback` | forçar erro na emissão dentro da transação → pedido não fica `PAID`, nenhum ticket persiste | RF05 |
-
-Roteiro manual: comprar 2 (uma inteira, uma meia) → confirmação mostra 2 cards
-com QR → e-mail chega com os mesmos códigos → derrubar o serviço de e-mail e
-comprar de novo: a compra vale, ingressos em "Minhas compras", botão reenviar.
-Reembolsar → cards ficam "cancelado", QR não vale.
-
-```text
-git checkout master && git pull && git checkout -b test/<NN>-booking-ticket-issuance
-git commit -m "test(booking): cobrir emissão, RN04, unicidade de código e invalidação"
-```
-
-## D. DevOps — Gabriel
+## C. DevOps — Gabriel
 
 Nada. (Geração de QR é client-side; código é gerado no backend sem dependência
 externa.)
 
-## E. Ordem entre as fatias
+## D. Ordem entre as fatias
 
 Sai **junto ou logo após** `booking-reservation` e **antes** do merge de
-`payment-pix-checkout` (que depende dos exports). QA de domínio com o backend;
-frontend contra o alvo.
+`payment-pix-checkout` (que depende dos exports). Frontend contra o alvo.
 
-## F. Bloqueios em aberto
+## E. Bloqueios em aberto
 
 - **[decidir com identity-order-history]** onde mora a rota `resend-ticket`.

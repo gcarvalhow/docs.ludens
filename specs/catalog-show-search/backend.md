@@ -388,8 +388,6 @@ git commit -m "feat(catalog): query de espetaculos com sessao futura e generos"
 # commit 3 — rotas
 git add src/app/modules/catalog/api/routers/show_router.py src/app/modules/catalog/router.py
 git commit -m "feat(catalog): expor GET /shows e GET /genres"
-
-pytest -q
 ```
 
 Depois: `/team-ludens:tbd-pr` (senior-dev Modo 2 + `/code-review`) → push → PR

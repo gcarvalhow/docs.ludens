@@ -72,15 +72,6 @@ docker compose -f docker/docker-compose.Development.yml up -d
 docker compose -f docker/docker-compose.Development.yml exec api alembic upgrade head
 ```
 
-### Testes
-
-```bash
-pytest -q
-```
-
-Roda na pipeline e é portão de merge — ver
-[`backend/testing.md`](../backend/testing.md).
-
 ## Frontend (`web.ludens`)
 
 ```bash
@@ -109,7 +100,7 @@ npx markdown-link-check README.md   # ou lychee, para checar links
 ## Convenções de contribuição
 
 - Branches de curta duração a partir de `master`; PR pequeno; **1 aprovação** de
-  outro desenvolvedor; pipeline verde (lint + testes + build Docker).
+  outro desenvolvedor; pipeline verde (lint + build Docker).
 - Commits em [Conventional Commits](https://www.conventionalcommits.org/pt-br/),
   mensagem em português no imperativo.
 - Sem segredo versionado — só `.env.example` com valores em branco.

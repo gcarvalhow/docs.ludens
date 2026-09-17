@@ -351,8 +351,6 @@ git commit -m "feat(catalog): expor GET /shows/{id} e GET /sessions/{id}"
 # commit 4 — export para booking
 git add src/app/modules/catalog/dependencies.py
 git commit -m "feat(catalog): exportar SessionRef, lock e contagem confirmada para booking"
-
-pytest -q
 ```
 
 Depois: `/team-ludens:tbd-pr`.

@@ -162,8 +162,7 @@ Nada específico desta feature — mesmo padrão do resto do módulo `catalog`
 ## 16. Lacunas e decisões em aberto
 
 - **[bloqueio] Ícone de gênero migrado automaticamente** — sem decisão de
-  produto (ver `backend.md`/`quality.md` §7). Não rodar a migration contra
-  dado real sem isso.
+  produto (ver `backend.md`). Não rodar a migration contra dado real sem isso.
 - **[bloqueio, fora desta pasta] `docs.ludens/specs/catalog-show-search/integration.md`
   fica desatualizado por esta feature** — `GET /shows?genre=<slug>` vira
   `?genre_id=<uuid>`, `ShowCardResponse.genre` deixa de ser `string`. Alguém

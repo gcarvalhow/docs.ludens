@@ -1,67 +1,74 @@
 ---
-status: alvo
+status: canônico
 spec: identity-auth
-updated_at: 2026-09-04
+updated_at: 2026-09-17
 responsavel: Igor (Backend)
 ---
 
 # Integration Contract — Cadastro e autenticação do comprador
 
-**Status:** alvo (contrato para o frontend construir; vira `canônico` quando o
-backend implementar). **Módulo backend:** `identity`.
+> **Nota de reescopo (2026-09-11):** rotas de cadastro/leitura de usuário saem
+> pra `identity-user-management/integration.md`; falta adicionar aqui a rota
+> de alteração de e-mail (nova). Conteúdo abaixo ainda reflete o escopo
+> antigo (ver também a revisão de 2026-09-17 logo abaixo, sobre o prefixo de
+> rota e o casing do contrato).
+
+**Status:** canônico (reflete o código real já mergeado — ver `backend.md`).
+**Módulo backend:** `identity`.
 
 ## Rotas
 
 | Método | Caminho | Auth | Sucesso | Descrição |
 | --- | --- | --- | --- | --- |
-| POST | `/auth/login` | pública | 200 | Autentica |
-| POST | `/auth/refresh` | cookie de refresh | 200 | Novo par de tokens (rotaciona refresh) |
-| POST | `/auth/logout` | Bearer | 204 | Regenera `security_stamp` |
-| POST | `/auth/password/change` | Bearer | 204 | Troca de senha (senha atual + nova) |
-| POST | `/auth/password/forgot` | pública | 202 | Sempre 202, resposta neutra |
-| POST | `/auth/password/reset` | pública (token no corpo) | 204 | Define nova senha via token |
-| POST | `/users` | pública | 201 | Cria conta e já autentica |
-| GET | `/users` | Bearer, `ADMIN` | 200 | Lista paginada de usuários |
-| GET | `/users/{id}` | Bearer | 200 | Dados do usuário `id` — `BUYER` só o próprio, `ADMIN` qualquer um |
+| POST | `/identity/login` | pública | 200 | Autentica |
+| POST | `/identity/refresh` | cookie de refresh | 200 | Novo par de tokens (rotaciona refresh) |
+| POST | `/identity/logout` | Bearer | 204 | Regenera `security_stamp` |
+| POST | `/identity/password/change` | Bearer | 204 | Troca de senha (senha atual + nova) |
+| POST | `/identity/password/forgot` | pública | 202 | Sempre 202, resposta neutra |
+| POST | `/identity/password/reset` | pública (token no corpo) | 204 | Define nova senha via token |
+| POST | `/identity/users/register` | pública | 201 | Cria conta e já autentica |
+| GET | `/identity/users/{id}` | Bearer | 200 | Dados do usuário `id` — usuário comum só o próprio, admin (`is_admin`) qualquer um |
 
-`/auth/...` cobre sessão (`AuthUseCase`); `/users/...` cobre cadastro e leitura
-de usuário (`UserUseCase`) — `register` e a leitura por `id`/listagem não são
-concern de auth.
+`/identity/...` (tag `01.Identity - Auth`) cobre sessão (`AuthUseCase`);
+`/identity/users/...` (tag `02.Identity - User`) cobre cadastro e leitura de
+usuário (`UserUseCase`) — `register` e a leitura por `id` não são concern de
+auth. Não há listagem paginada de usuários: não existe requisito em
+`requirements/functional.md` que a peça, e o `UserRepository` real não tem
+`list_paginated` — ver a revisão de `backend.md` de 2026-09-11.
 
-> Prefixo/base path e versionamento: **sem prefixo e sem versionamento no N1** —
-> as rotas são montadas em `/auth/...` e `/users/...` na raiz; base =
+> Prefixo/base path e versionamento: **sem versionamento no N1** — as rotas do
+> módulo `identity` são montadas sob `/identity/...` na raiz; base =
 > `NEXT_PUBLIC_API_URL` no frontend. Decisão registrada ao gerar
 > `backend.md`/`frontend.md`; revisitar se uma convenção global for adotada
 > (`docs.ludens/backend/integration/_template.md`).
 
 ## Request / Response (shapes principais)
 
-Todo corpo trafega em **camelCase** (request e response). `expiresIn` é em
-**segundos**. `role` é `"BUYER"` | `"ADMIN"` (maiúsculas).
+Todo corpo trafega em **snake_case** (request e response) — sem exceção, não há
+camada de conversão para camelCase. `expires_in` é em **segundos**. Não existe
+campo `role`: permissão é o booleano `is_admin` (`true`/`false`), tanto no
+`UserResponse` quanto no claim do JWT.
 
-- `POST /users` → body `{ name, cpf, email, password }` (CPF sem máscara,
-  só dígitos; `password` ≥ 8). 201 → `{ accessToken, expiresIn }` +
-  `Set-Cookie: refresh_token=...` (`HttpOnly; Secure; SameSite=Strict; Path=/auth`;
+- `POST /identity/users/register` → body `{ name, cpf, email, password }` (CPF
+  sem máscara, só dígitos; `password` ≥ 8). 201 → `{ access_token, expires_in }`
+  + `Set-Cookie: refresh_token=...` (`HttpOnly; Secure; SameSite=Strict; Path=/identity`;
   `Secure` desligado quando `ENVIRONMENT=development`).
-- `POST /auth/login` → `{ email, password }` → 200 mesmo shape + `Set-Cookie`.
-- `POST /auth/refresh` → sem body; lê o cookie → 200 `{ accessToken, expiresIn }`,
+- `POST /identity/login` → `{ email, password }` → 200 mesmo shape + `Set-Cookie`.
+- `POST /identity/refresh` → sem body; lê o cookie → 200 `{ access_token, expires_in }`,
   mais um novo `Set-Cookie` de refresh (rotação).
-- `POST /auth/logout` → Bearer, sem body → 204 + `Set-Cookie` **apagando**
-  `refresh_token` (`Path=/auth`).
-- `POST /auth/password/change` → Bearer → `{ currentPassword, newPassword }`
-  (`newPassword` ≥ 8) → 204.
-- `GET /users/{id}` → 200 `{ id, name, email, cpf, role }`. `BUYER` só pode pedir
-  o próprio `id` (403 em qualquer outro); `ADMIN` pode pedir qualquer `id`,
-  inclusive o próprio — sem `/me`, o frontend descobre o próprio `id`
-  decodificando o claim `sub` do access token (payload do JWT; não precisa
-  verificar assinatura no cliente, isso é sempre feito pelo backend).
-- `GET /users` → Bearer, só `ADMIN` (403 pra `BUYER`) → query `?page=1&size=20`
-  (`page` ≥ 1, `size` 1–100) → 200
-  `{ items: [{ id, name, email, role }], page, size, total }` — `items` não
-  traz `cpf` (visão de listagem, não de detalhe).
-- `POST /auth/password/forgot` → `{ email }` → **202 sempre**, body
+- `POST /identity/logout` → Bearer, sem body → 204 + `Set-Cookie` **apagando**
+  `refresh_token` (`Path=/identity`).
+- `POST /identity/password/change` → Bearer → `{ current_password, new_password }`
+  (`new_password` ≥ 8) → 204.
+- `GET /identity/users/{id}` → 200 `{ id, name, email, cpf, is_admin }`.
+  Usuário comum só pode pedir o próprio `id` (403 em qualquer outro); admin
+  pode pedir qualquer `id`, inclusive o próprio — sem `/me`, o frontend
+  descobre o próprio `id` decodificando o claim `sub` do access token (payload
+  do JWT; não precisa verificar assinatura no cliente, isso é sempre feito
+  pelo backend).
+- `POST /identity/password/forgot` → `{ email }` → **202 sempre**, body
   `{ message: "Se houver uma conta com esse e-mail, enviamos um link." }`.
-- `POST /auth/password/reset` → `{ token, password }` (`password` ≥ 8) → 204.
+- `POST /identity/password/reset` → `{ token, password }` (`password` ≥ 8) → 204.
 
 ## Erros esperados (linguagem de negócio)
 
@@ -72,22 +79,24 @@ Todo corpo trafega em **camelCase** (request e response). `expiresIn` é em
 | register | 422 | CPF inválido | "CPF inválido." |
 | login | 401 | e-mail ou senha errados | "E-mail ou senha inválidos." |
 | refresh | 401 | cookie ausente/expirado/reusado | (frontend trata como anônimo) |
-| password/change | 422 | senha atual errada | "A senha atual não confere." (`field: "currentPassword"`) |
+| password/change | 422 | senha atual errada | "A senha atual não confere." (`field: "current_password"`) |
 | password/reset | 410 | token expirado ou já usado | "Este link não é mais válido, solicite um novo." |
-| `/users/{id}` | 403 | `BUYER` pedindo `id` de outra pessoa | "Você só pode ver os próprios dados." |
-| `/users` (listagem) | 403 | `BUYER` chamando (só `ADMIN`) | "Acesso restrito a administradores." |
+| `/identity/users/{id}` | 403 | usuário comum pedindo `id` de outra pessoa | "Acesso restrito ao próprio usuário." |
 
-**Envelope de erro (4xx):** `{ "detail": [ { "field": string, "message": string } ] }`
-— vale para a validação de forma (422, handler de `RequestValidationError`) e
-para os erros de domínio (`DomainError` e subclasses, novo handler em `main.py`).
-`field` é o campo de formulário associado ou `"body"`/`"authorization"`. O
-frontend usa `detail[0].message` no toast.
+**Envelope de erro (4xx):** são **dois formatos diferentes**, não um só:
+- Erro de validação de forma (422, handler de `RequestValidationError`):
+  `{ "detail": [ { "field": string, "message": string } ] }` — `field` é o
+  campo de formulário associado ou `"body"`. O frontend usa
+  `detail[0].message` no toast.
+- Erro de domínio (409/401/403/404/410, `DomainError` e subclasses, handler em
+  `main.py`): `{ "detail": string }` — mensagem única, sem lista, sem `field`.
+  O frontend usa `detail` diretamente no toast.
 
 ## Semântica de auth
 
 - Access token: JWT HS256, `Authorization: Bearer`, expira em 30 min, claims
-  `sub`, `role`, `security_stamp`, `type=access`, `exp`, `iat`.
-- Refresh token: opaco, cookie `HttpOnly; Secure; SameSite=Strict; Path=/auth`,
+  `sub`, `is_admin`, `security_stamp`, `type=access`, `exp`, `iat`.
+- Refresh token: opaco, cookie `HttpOnly; Secure; SameSite=Strict; Path=/identity`,
   7 dias, rotacionado a cada `refresh`. Reuso detectado → `security_stamp`
   regenerado (derruba tudo).
 - Qualquer token cujo `security_stamp` não bate o do comprador → 401. Logout,
@@ -101,15 +110,22 @@ limpa o estado e manda para `/login`. Mensagens conforme a tabela de erros.
 ## Lacunas / decisões em aberto
 
 - Nenhuma bloqueante. As convenções que estavam `<a definir globalmente>` foram
-  fixadas para esta feature ao gerar `backend.md`/`frontend.md`/`quality.md`
-  (mantido `status: alvo` até o backend implementar):
-  - **Envelope de erro 4xx:** `{ "detail": [ { "field", "message" } ] }`.
-  - **Prefixo / versionamento:** nenhum no N1; rotas em `/auth/...` e `/users/...`.
-  - **`expiresIn`:** segundos. **`role`:** `"BUYER"` | `"ADMIN"`.
-  - **`/auth/password/change`:** corpo `{ currentPassword, newPassword }`.
-  - **`/auth/logout`:** 204 + `Set-Cookie` apagando `refresh_token`.
-  - **`register` e leitura de usuário não são rota de `/auth`:** `POST /users`
-    (cadastro), `GET /users/{id}` (substitui `/auth/me`, restrito por papel),
-    `GET /users` (listagem paginada, só `ADMIN`).
+  fixadas para esta feature ao gerar `backend.md`/`frontend.md`:
+  - **Envelope de erro 4xx:** dois formatos — lista `{ field, message }` para
+    422 de validação, mensagem única `{ detail: string }` para erro de
+    domínio.
+  - **Prefixo / versionamento:** nenhum versionamento no N1; rotas do módulo
+    `identity` montadas sob `/identity/...`.
+  - **Casing:** contrato inteiro em snake_case, sem exceção. **`expires_in`:**
+    segundos. Sem campo `role`: permissão é o booleano `is_admin`.
+  - **`/identity/password/change`:** corpo `{ current_password, new_password }`.
+  - **`/identity/logout`:** 204 + `Set-Cookie` apagando `refresh_token`.
+  - **`register` e leitura de usuário não são rota de sessão:** `POST
+    /identity/users/register` (cadastro), `GET /identity/users/{id}`
+    (substitui `/auth/me`, restrito por papel). Sem listagem paginada.
+- **Frontend ainda não atualizado:** `web.ludens` foi construído contra o
+  contrato antigo (`/auth/...`, `/users/...`). Ver
+  [`team/tech-debt.md`](../../team/tech-debt.md) para o débito técnico
+  registrado.
 - Se uma convenção global de prefixo/versionamento/erro for adotada depois, ela
-  substitui o que está aqui e o contrato vira `canônico`.
+  substitui o que está aqui.

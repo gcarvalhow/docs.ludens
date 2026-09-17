@@ -125,41 +125,19 @@ npm run lint && npm run build
 
 ---
 
-## C. QA — responsável: Adrian
-
-| Caso | Cenário | Cobre |
-| --- | --- | --- |
-| `test_checkout_cria_order_pendente` | reserva aberta → `Order` `PENDING`, evento `OrderCreated`, total = qtd × preço | RF04 |
-| `test_checkout_reserva_expirada_recusa` | reserva não "open" → `DomainError` (409) | RF04 |
-| `test_webhook_aprovado_confirma_tudo` | webhook aprovado, order `PENDING` → order `PAID`, reserva `CONFIRMED`, N tickets emitidos, evento `OrderPaid` | RF04/RF05 |
-| `test_webhook_duplicado_idempotente` | mesmo webhook 2x → nenhuma mudança na segunda; nenhum ticket extra | RF04 |
-| `test_webhook_recusado_libera_reserva` | webhook recusa → order `FAILED`, reserva liberada | RF04 |
-| `test_meia_entrada_valor` | tipo `half` → total = qtd × (inteira × 0.5) | RN04 |
-| `test_nenhum_dado_de_pagador_persistido` | após webhook, `Order` não tem campo com dado do pagador; nada logado | RNF01 |
-
-Roteiro manual (sandbox AbacatePay): reservar → checkout → pagar no sandbox →
-ver "aguardando" → confirmação com ingressos. Repetir com pagamento recusado →
-reserva volta. Derrubar o gateway na criação → "tente de novo". Reenviar o
-webhook manualmente → sem efeito duplicado.
-
-```text
-git checkout master && git pull && git checkout -b test/<NN>-payment-pix-checkout
-git commit -m "test(payment): cobrir checkout, webhook idempotente e liberação de reserva"
-```
-
-## D. DevOps — Gabriel
+## C. DevOps — Gabriel
 
 - `.env.example`: `ABACATEPAY_API_KEY` (SECRET), `ABACATEPAY_BASE_URL` (CONFIG),
   `ABACATEPAY_WEBHOOK_SECRET` (SECRET). Configurar sandbox no ambiente de dev e
   os secrets no CI. Registrar a URL do webhook no painel do AbacatePay.
 
-## E. Ordem entre as fatias
+## D. Ordem entre as fatias
 
 Depende de `booking-reservation` e `catalog-session-detail` mergeados. A fatia
 `booking/dependencies.py` (`confirm_reservation`, `issue_tickets_for_reservation`)
-sai com `booking-ticket-issuance`. Backend + QA juntos; frontend contra o alvo.
+sai com `booking-ticket-issuance`. Backend e frontend contra o alvo.
 
-## F. Bloqueios em aberto
+## E. Bloqueios em aberto
 
 - **[coordenar]** `booking` precisa expor `confirm_reservation` e
   `issue_tickets_for_reservation` — fatiar como sub-issue de

@@ -3,97 +3,115 @@ status: approved
 domain: identity
 created_at: 2026-09-01
 approved_at: 2026-09-01
+updated_at: 2026-09-11
 ---
 
-# Cadastro e autenticação do comprador
+# Autenticação e sessão de usuário
+
+> **Nota de reescopo (2026-09-11):** esta spec cobria originalmente cadastro +
+> autenticação do comprador. O cadastro (criação de conta) e a consulta de
+> perfil (próprio ou por um administrador) saíram daqui e agora vivem em
+> [`identity-user-management`](../identity-user-management/spec.md). Esta spec
+> passa a cobrir só os mecanismos de **sessão e credencial** — o que é comum a
+> qualquer conta já existente, seja `Comprador` ou `Admin`: entrar, sair,
+> continuar conectado, redefinir senha esquecida e alterar e-mail. `backend.md`
+> / `frontend.md` / `quality.md` ainda descrevem o código sob o escopo antigo
+> (que inclui cadastro) e precisam de rework antes de bater com este documento
+> — ver aviso no topo de cada um.
 
 ## 1. Visão da feature
 
-Antes de comprar um ingresso, a pessoa cria uma conta com CPF, e-mail e senha, e
-depois entra com e-mail e senha. Uma vez dentro, ela continua conectada entre
-visitas sem precisar digitar a senha de novo a cada vez, e pode sair quando
-quiser. Se esquecer a senha, pede uma redefinição por e-mail e volta a acessar a
-conta em poucos minutos.
+Depois que a pessoa tem uma conta, ela entra com e-mail e senha e continua
+conectada entre visitas, sem precisar digitar a senha de novo a cada vez, até
+decidir sair. Se esquecer a senha, pede uma redefinição por e-mail e volta a
+acessar a conta em poucos minutos. Se precisar trocar o e-mail cadastrado,
+confirma a posse do novo endereço antes de a troca valer.
 
-É o que separa "navegar o catálogo" de "ter ingressos, um histórico e um CPF
-associado a cada compra".
+Vale tanto para quem compra ingresso (`Comprador`) quanto para quem administra
+o catálogo (`Admin`) — é o mesmo mecanismo de sessão para as duas contas, só
+muda o que cada uma pode fazer depois de entrar.
 
 ## 2. Problema que resolve
 
-Sem conta, não há como amarrar uma compra a uma pessoa, aplicar o limite de 6
-ingressos por CPF por sessão (RN01), nem oferecer um histórico consultável
-(RF06). E sem um login que se mantém, a pessoa teria que se autenticar a cada
-passo do checkout — fricção que faz desistir da compra.
-
-Hoje isso não existe: a venda informal pela internet não identifica o comprador,
-o que impede qualquer controle e qualquer histórico.
+Sem um login que se mantém, a pessoa teria que se autenticar a cada passo do
+checkout — fricção que faz desistir da compra. Sem redefinição de senha
+autônoma, uma senha esquecida vira um chamado pro teatro resolver na mão. Sem
+uma forma seguindo de trocar o e-mail cadastrado, a pessoa fica presa a um
+endereço que não usa mais (perdeu acesso, trocou de provedor) sem conseguir
+recuperar a própria conta.
 
 ## 3. Para quem é
 
-- **Beneficiário direto:** o visitante que quer comprar (vira `Comprador` ao se
-  cadastrar/autenticar).
-- **Beneficiário indireto:** o teatro, que passa a ter cada compra ligada a um
-  CPF — base para RN01, para o histórico e para o contato em caso de
-  cancelamento de sessão.
+- **Beneficiário direto:** qualquer pessoa com conta na plataforma —
+  `Comprador` ou `Admin`.
+- **Beneficiário indireto:** o teatro, que deixa de precisar intervir
+  manualmente em senha esquecida ou e-mail desatualizado.
 
-Entra logo no início da jornada: a pessoa encontra a sessão, decide comprar, e o
-sistema pede cadastro/login antes da reserva.
+Entra toda vez que uma pessoa com conta volta à plataforma, ou perde acesso a
+ela.
 
 ## 4. Como melhora a experiência atual
 
-**Antes:** compra informal, sem identidade, sem histórico, sem como recuperar um
-ingresso perdido nem provar que comprou.
+**Antes:** login que se mantém entre visitas, recuperação de senha autônoma —
+já cobertos. Trocar o e-mail cadastrado não tinha caminho nenhum: a pessoa
+ficava presa ao e-mail do cadastro original.
 
-**Depois:** conta própria, login que se mantém entre visitas, "Minhas compras"
-com todos os pedidos e ingressos, e recuperação de senha autônoma sem falar com
-o teatro.
+**Depois:** além de login persistente e recuperação de senha, a pessoa também
+consegue atualizar o e-mail da própria conta, com a mesma segurança
+(confirmação por link) usada na redefinição de senha.
 
 ## 5. Como se conecta com o produto existente
 
-**Dependências obrigatórias:** nenhuma — é a base. É pré-requisito de
-`booking-reservation` (RF03), `payment-pix-checkout` (RF04),
-`identity-order-history` (RF06) e das rotas de administração (RF08, que exigem
-papel `ADMIN`).
+**Dependências obrigatórias:**
+[`identity-user-management`](../identity-user-management/spec.md) — a conta
+precisa existir (criada por lá) antes de qualquer login; esta spec assume que
+o cadastro já aconteceu.
+[`notification-transactional-email`](../notification-transactional-email/spec.md)
+— envio do e-mail de redefinição de senha e do e-mail de confirmação de troca
+de e-mail.
 
-**O que habilita:** todo o resto do fluxo autenticado.
+**O que habilita:** é pré-requisito de `booking-reservation` (RF03),
+`payment-pix-checkout` (RF04), `identity-order-history` (RF06) e de qualquer
+rota que exija sessão — comprador ou administrador.
 
 **Posição no produto:** core, N1.
 
-**RF/RN cobertos:** RF09. Reforça RNF01 (hash de senha, nenhum dado pessoal em
-log/URL/erro).
+**RF/RN cobertos:** RF09 (parte de autenticação). Reforça RNF01 (hash de
+senha, nenhum dado pessoal em log/URL/erro).
 
 ## 6. O que não é (escopo negativo)
 
+- **Não inclui** criação de conta (cadastro) — ver
+  [`identity-user-management`](../identity-user-management/spec.md).
+- **Não inclui** consulta de perfil, próprio ou de terceiros — ver
+  [`identity-user-management`](../identity-user-management/spec.md).
 - **Não inclui** login social (Google, etc.) — pode ser um método adicional no
   futuro, nunca o único.
-- **Não inclui** verificação de e-mail por link de confirmação no cadastro — o
-  MVP aceita o e-mail informado; a recuperação de senha já valida a posse do
-  e-mail quando necessário.
 - **Não inclui** autenticação em dois fatores.
-- **Não inclui** gestão de múltiplos endereços, dados de perfil além de
-  nome/CPF/e-mail, ou edição de CPF (o CPF é imutável após o cadastro).
-- **Não inclui** papéis além de `BUYER` e `ADMIN` — sem permissão granular.
-- **Não inclui** criação de administrador pela interface — o admin é semeado por
-  script (`seed_admin.py`), fora do fluxo público.
+- **Não inclui** verificação do e-mail original no cadastro — só a *troca* de
+  e-mail exige confirmação de posse; o e-mail informado no cadastro inicial
+  continua aceito sem verificação (decisão que pertence a
+  `identity-user-management`).
 
 ## 7. Custos adicionais
 
-Nenhum custo externo próprio. O envio do e-mail de recuperação de senha usa o
-mesmo serviço de e-mail transacional de `notification-transactional-email` — não
-é um provedor novo.
+Nenhum custo externo próprio. O envio dos e-mails de redefinição de senha e de
+confirmação de troca de e-mail usa o mesmo serviço de e-mail transacional de
+`notification-transactional-email` — não é um provedor novo.
 
 ## 8. Decisões tomadas
 
 | Ponto | Decisão |
 | --- | --- |
-| Identificador de login | E-mail + senha. O CPF é obrigatório no cadastro (RN01) mas não é usado para autenticar. |
+| Identificador de login | E-mail + senha. |
 | Sessão que se mantém | Dual-token JWT: access token curto (30 min) + refresh token opaco (7 dias) em cookie `HttpOnly; Secure; SameSite=Strict`. Ver `docs.ludens/backend/security/authentication.md`. |
-| Logout | Regenera o `security_stamp` do comprador — invalida todos os tokens em qualquer dispositivo. |
+| Logout | Regenera o `security_stamp` do usuário — invalida todos os tokens em qualquer dispositivo. |
 | Troca / recuperação de senha | Também regenera o `security_stamp` — desconecta todos os dispositivos. |
-| Link de recuperação | Expira em 1 hora. Uso único. |
+| Link de recuperação de senha | Expira em 1 hora. Uso único. |
 | Resposta a "esqueci a senha" com e-mail inexistente | Mensagem idêntica à de e-mail existente (não revela se o e-mail está cadastrado). |
+| Alteração de e-mail | Exige confirmação de posse do **novo** endereço por link antes de valer — mesmo padrão da redefinição de senha. Enquanto não confirmado, o e-mail antigo continua sendo o de login. |
+| Link de confirmação de novo e-mail | Expira em 1 hora. Uso único. Mesma janela do link de senha, por consistência. |
 | Hash de senha | bcrypt. |
-| CPF | Validado (dígitos verificadores) no cadastro; imutável depois. |
 
 ## 9. Perguntas abertas
 

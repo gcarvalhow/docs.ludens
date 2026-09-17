@@ -1235,7 +1235,6 @@ git add src/app/modules/catalog/api src/app/modules/catalog/router.py \
 git commit -m "feat(catalog): expor rotas admin (require_admin), router e migration"
 
 alembic upgrade head
-pytest -q
 ```
 
 Depois: `/team-ludens:tbd-pr` (senior-dev Modo 2 + `/code-review`) → push → PR
@@ -1248,7 +1247,7 @@ Depois: `/team-ludens:tbd-pr` (senior-dev Modo 2 + `/code-review`) → push → 
 `catalog-admin-management` é a **primeira fatia do módulo `catalog`** (base das
 demais). Dependia só do merge de `identity-auth` (`require_admin`) —
 já satisfeito, `identity-auth` está mergeado.
-Backend e QA (casos de domínio de `quality.md`) começam juntos a partir do
+Backend começa a partir do
 `logic.md`. Frontend começa em paralelo contra o contrato-alvo de
 `integration.md`. O `integration.md` vira canônico após o merge do backend.
 
@@ -1265,14 +1264,10 @@ atenção de implementação — não impedem abrir a issue:
   contagem é **0** (aviso no log, sem silenciar) — na prática a regra
   "não exclui sessão vendida" fica permissiva em runtime até `booking` entrar.
   O invariante de domínio (`Session.deactivate` / `Session.update`) já está
-  pronto e coberto por teste em `quality.md`. Ao mergear `booking`, revisar os
+  pronto. Ao mergear `booking`, revisar os
   nomes de coluna/status no SQL de `seat_counts_repository.py`
   (`tickets.status = 'valid'`, `reservations.status = 'open'`), que seguem a
   spec de `booking` mas não foram validados contra código.
-- **CI sem serviço Postgres no job de testes** (`api.ludens/.github/workflows/
-  ci.yml`) — mesma pendência registrada em `catalog-show-search/quality.md`
-  §6; os testes de domínio de `quality.md` (sem banco) não são afetados, só os
-  de repositório.
 - **`_DEFAULT_SHOW_IMAGES` aponta para arquivos que ainda não existem.**
   `web.ludens/public/images/show-placeholders/{1..6}.jpg` precisam ser
   fornecidos (design/PO) antes de implementar — não é algo que o backend gera.

@@ -8,6 +8,10 @@ updated_at: 2026-09-04
 
 # Cadastro e autenticação do comprador — Frontend
 
+> **Nota de reescopo (2026-09-11):** ver mesma nota em `backend.md`. Telas de
+> cadastro saem pra `identity-user-management`; falta adicionar aqui a tela de
+> alteração de e-mail (nova). Conteúdo abaixo ainda reflete o escopo antigo.
+
 **Resumo:** feature `account` com registro, login, "esqueci a senha", redefinição
 por link e sessão que se mantém entre visitas. O access token vive só em memória
 (nunca `localStorage`); o refresh acontece via cookie `HttpOnly` — o `fetcher`
@@ -17,6 +21,17 @@ subárvores autenticadas.
 **RF:** RF09 · **RN:** — (reforça RNF01) · **Feature frontend:** `account`
 **Contrato:** `docs.ludens/specs/identity-auth/integration.md`
 **Carregar antes:** skill `frontend-architecture` (todos os `references/`).
+
+> **Revisão de 2026-09-17 — documento desatualizado, não implementar/copiar
+> como está.** O `integration.md` foi corrigido para refletir o backend real
+> (`api.ludens`, PR #8): rotas migraram de `/auth/...`/`/users/...` para
+> `/identity/...`/`/identity/users/...`; o contrato inteiro é **snake_case**
+> (`access_token`, `expires_in`, `current_password`, `new_password`), não
+> camelCase; e não existe campo `role` — só o booleano `is_admin`. Este
+> documento e o código já publicado em `web.ludens` ainda assumem a versão
+> antiga (camelCase, `/auth`, `/users`, `role`). Débito técnico registrado em
+> `docs.ludens/team/tech-debt.md` — revisar `web.ludens` contra o
+> `integration.md` atualizado antes de confiar nos trechos de código abaixo.
 
 Stack: **Next.js (App Router) + TypeScript estrito**. Arquivos `.ts`/`.tsx`;
 rotas em `src/app/**/page.tsx` (Server Components; `await searchParams`);

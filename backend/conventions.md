@@ -159,6 +159,13 @@ de um usecase que já lida só com sessão), não `self._refresh_token_repo` nem
 > `notification/infrastructure/services/email_service.py`, ver
 > `specs/notification-transactional-email/backend.md` para o exemplo
 > completo.
+>
+> **Atualização (2026-09-18):** a exceção própria do módulo (`EmailServiceError`)
+> deixou de morar no mesmo arquivo do `Protocol` — ela foi movida para
+> `notification/shared/errors.py`, com a introdução da camada `shared/` por
+> módulo (ver seção "Camada `shared/` por módulo" abaixo). O restante do
+> padrão descrito aqui (Protocol sozinho, adapters em arquivos próprios,
+> factory com `@lru_cache`) continua válido sem mudança.
 
 O caso comum em `infrastructure/services/` é o de `references/05` da skill
 `backend-architecture` (`PaymentGateway`, `TokenService`, `PasswordService`):
@@ -170,11 +177,13 @@ configuração (RNF06), como `EmailService`.
 
 Quando isso acontece:
 
-- A porta vira um `typing.Protocol` sozinho num arquivo
-  (`email_service.py`), com a exceção própria do módulo **no mesmo
-  arquivo** (`EmailServiceError`) — mesma regra de sempre para
-  `services/`, só que agora o arquivo não tem implementação nenhuma, só o
-  contrato. Isso é esperado, não é um arquivo "vazio" ou incompleto.
+- A porta vira um `typing.Protocol` sozinho num arquivo (`email_service.py`),
+  sem implementação nenhuma, só o contrato (com um docstring curto
+  explicando que é interface estrutural, já que um arquivo só com um
+  `Protocol` pode parecer "vazio" ou incompleto sem essa explicação — não é).
+  A exceção própria do módulo (`EmailServiceError`) mora em `shared/errors.py`
+  do módulo, não no mesmo arquivo do `Protocol` (ver seção "Camada `shared/`
+  por módulo" abaixo).
 - Cada adapter vira um arquivo próprio (`acs_email_service.py`,
   `smtp_email_service.py`), implementando o `Protocol` estruturalmente
   (sem herança explícita — é assim que `Protocol` funciona).
@@ -192,8 +201,84 @@ Quando isso acontece:
   (rede, serviço externo fora do ar), não violação de regra de negócio, e
   não deve ser mapeada pelo `exception_handler(DomainError)` genérico da
   API. Também não vive em `core/shared/` (que não tem nenhuma classe de
-  erro, só utilitário de formatação) nem em um `shared/` de módulo (essa
-  camada não existe como convenção neste projeto).
+  erro, só utilitário de formatação) — vive em `shared/errors.py` do
+  próprio módulo (ver seção seguinte).
+
+## Camada `shared/` por módulo
+
+> **Nota (2026-09-18):** convenção nova, introduzida nesta data em
+> `notification` (`api.ludens`#38) e `identity` (`api.ludens`#40). Antes
+> desta data, `shared/` só existia em `core/` (compartilhado entre módulos)
+> — a versão anterior desta seção dizia explicitamente que uma camada
+> `shared/` por módulo "não existe como convenção neste projeto". Essa frase
+> ficou obsoleta e foi substituída pelo texto abaixo. `catalog` foi
+> considerado no mesmo ciclo (`api.ludens`#42) mas **não** ganhou `shared/`
+> — ver a ressalva no fim desta seção sobre por quê.
+
+Cada módulo pode ter uma pasta `shared/`, paralela a `api/`, `application/`,
+`domain/` e `infrastructure/`, para o que é reaproveitado **entre camadas**
+dentro do mesmo módulo (ex.: usecase + router, ou infra + handler de outbox)
+— o equivalente, em escopo de módulo, ao que `core/shared/` já é em escopo de
+projeto inteiro (que mistura `format_validation_errors`, `Page`/
+`PaginationParams`, `cents_from_reais`, `IdentifierResponse` sob o mesmo
+critério: "reaproveitado por mais de uma camada").
+
+Vai para `modules/<módulo>/shared/`:
+- Exceção própria de infraestrutura do módulo que não é `DomainError`
+  (`notification/shared/errors.py::EmailServiceError`).
+- Conteúdo de apresentação puro sem I/O, usado por mais de uma camada do
+  módulo (`notification/shared/templates.py`, usado pela infra de e-mail e
+  por `handlers.py`, camadas diferentes).
+- Helper reaproveitado por mais de uma camada do mesmo módulo
+  (`identity/shared/session.py::issue_session`, chamado pela camada de
+  `application/` a partir de dois usecases; `identity/shared/cookies.py`,
+  usado pela camada `api/` em dois routers).
+
+**Não** vai para `shared/` de módulo:
+- Regra de negócio pura sobre um agregado — isso é método do próprio agregado
+  em `domain/aggregates/` (ex.: `Session.available_count()`, `Session.status_at()`,
+  `Show.is_published`), não uma função solta em `shared/` nem um guard
+  separado que só chama esse método e levanta `NotFoundError` — o usecase
+  chama o predicado do agregado direto e faz o `raise` inline (visto em
+  `catalog`, `api.ludens`#42: um `guards.py` só para isso foi descartado por
+  não agregar nada além do que o `if` já diz sozinho).
+- Código que toca banco de dados (SQL/SQLAlchemy) — mesmo quando não é uma
+  operação de agregado (ex.: uma leitura agregada/read-model tipo
+  `catalog/infrastructure/queries/show_search_query.py::ShowSearchQuery`),
+  continua em `infrastructure/`, nunca em `shared/`.
+- Mapper que só traduz agregado/read-model → DTO de resposta (estilo
+  AutoMapper), mesmo quando reaproveitado por mais de um usecase — isso é
+  `application/mappers/` (ver seção seguinte), não `shared/`, porque nunca
+  cruza pra fora da camada `application/`.
+- Utilitário puro usado por um único usecase — fica em
+  `application/usecases/utils/` (ou privado no próprio usecase), não em
+  `shared/`. `shared/` de módulo é para reuso **entre camadas**, não faz
+  sentido pra algo que um único usecase consome.
+- Algo usado por uma única camada com um único consumidor — não crie
+  `shared/` preventivamente (mesmo espírito do ADR 003, contrato mínimo sem
+  abstração antecipada). Foi exatamente por isso que `catalog` (`api.ludens`#42)
+  não ganhou `shared/`: seus mappers (`show_mapper.py`, `session_mapper.py`)
+  ficam inteiros dentro de `application/` (mappers reaproveitados por
+  usecases, mas nunca por um router ou pela infra), e seus dois utilitários
+  restantes (`genre_slug.py`, `search_floor.py`) têm um único usecase
+  consumidor — nenhum dos dois casos cruza camada.
+
+## Mappers de apresentação (`application/mappers/`)
+
+> **Nota (2026-09-18):** primeiro precedente — `catalog/application/mappers/`
+> (`api.ludens`#42): `show_mapper.py` (`card_response`, a partir do read-model
+> `ShowCardRow`) e `session_mapper.py` (`session_response`, a partir do
+> agregado `Session`).
+
+Quando uma função só traduz um agregado ou um read-model de
+`infrastructure/queries/` para um DTO de resposta (`application/schemas/
+response.py`) — o equivalente a um `Profile`/mapper do AutoMapper (.NET) —,
+ela vive em `application/mappers/`, um arquivo por família de DTO
+(`<entidade>_mapper.py`). Continua sendo `application/`, não `shared/`,
+mesmo quando mais de um usecase do módulo chama o mesmo mapper: o critério
+de `shared/` de módulo é cruzar camada (`application` ↔ `api`, ou
+`infrastructure` ↔ handler de outbox), não múltiplos consumidores dentro da
+mesma camada.
 
 ## Política de comentário
 

@@ -1,4 +1,10 @@
-# Ludens — Documentação
+# docs.ludens
+
+> *Plataforma de Venda de Ingressos para Teatro Comunitário*
+
+<p align="center">
+  <img src=".github/assets/banner.svg" alt="ludens" width="720">
+</p>
 
 **Ludens** é a plataforma web de venda de ingressos de um teatro comunitário —
 busca de espetáculos, reserva, compra e confirmação de ingressos. É o projeto

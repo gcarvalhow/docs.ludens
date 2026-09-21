@@ -378,7 +378,7 @@ frontend ainda não implementadas em `web.ludens`
 (`/confirmar-troca-de-email`, `/confirmar-exclusao-de-conta`) — a página
 recebe o `token` via query string no `GET` e chama, via JS, o
 `PATCH`/`DELETE` real do backend (mesmo padrão de `/redefinir-senha`); ver
-débito em `docs.ludens/team/tech-debt.md`. Nenhum handler trata exceção — se
+débito em `docs.ludens/team/overview.md`. Nenhum handler trata exceção — se
 `EmailService.send` levantar `EmailServiceError`, ela sobe pro relay
 (`app/outbox/relay.py`), que já loga e deixa `dispatched_at` sem marcar,
 retentando no próximo ciclo. Não duplicar essa lógica aqui.
@@ -541,7 +541,7 @@ rotas de `identity` que emitem esses eventos já existem e não mudam). QA
 documento. Há, porém, um débito de frontend **fora** desta feature: as
 páginas que os links de `EmailChangeRequested`/`AccountDeletionRequested`
 apontam (`/confirmar-troca-de-email`, `/confirmar-exclusao-de-conta`) ainda
-não existem em `web.ludens` — ver `docs.ludens/team/tech-debt.md`.
+não existem em `web.ludens` — ver `docs.ludens/team/overview.md`.
 
 ---
 
@@ -558,7 +558,7 @@ não existem em `web.ludens` — ver `docs.ludens/team/tech-debt.md`.
 - **Páginas de frontend pra abrir os links de confirmação** (troca de e-mail,
   exclusão de conta) ainda não existem em `web.ludens` — só o backend está
   pronto; sem essas páginas, o link do e-mail não tem pra onde ir. Ver
-  `docs.ludens/team/tech-debt.md`.
+  `docs.ludens/team/overview.md`.
 - **Verificação de domínio remetente e provisionamento do recurso ACS** são
   passos de infraestrutura que este documento não executa — são
   pré-requisito de deploy, listados em §4, cobertos pela Workstream de

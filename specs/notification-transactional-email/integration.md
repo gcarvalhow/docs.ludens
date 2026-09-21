@@ -64,4 +64,4 @@ toast/rota pertence a `payment`/`booking-ticket-issuance`, não a este módulo.
   exclusão de conta); os demais entram junto do módulo que os disparar.
 - Páginas de frontend que os links de confirmação abrem
   (`/confirmar-troca-de-email`, `/confirmar-exclusao-de-conta`) ainda não
-  existem em `web.ludens` — ver `docs.ludens/team/tech-debt.md`.
+  existem em `web.ludens` — ver `docs.ludens/team/overview.md`.

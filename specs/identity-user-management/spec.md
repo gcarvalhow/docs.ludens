@@ -36,11 +36,13 @@ updated_at: 2026-09-17
 > **Nota de estado real (2026-09-21):** auditoria contra o código encontrou
 > que o backend desta feature **já existe** em `api.ludens`
 > (`identity/api/routers/user_router.py`: edição de perfil, troca de e-mail,
-> exclusão de conta, listagem admin paginada) — só não tinha `backend.md`
-> nem `integration.md` ainda. O frontend segue sem código. Esta pasta ainda
-> não tem esses arquivos; escrevê-los (auditando o código real, mesmo método
-> usado em `identity-auth`) é a próxima tarefa desta linha de trabalho, fora
-> do escopo desta sessão.
+> exclusão de conta, listagem admin paginada); `backend.md` e
+> `integration.md` foram escritos a partir dessa auditoria e já estão nesta
+> pasta. Eles registram uma violação de RNF01 em produção (a listagem
+> administrativa expõe CPF e não expõe data de criação, o oposto do que
+> `logic.md` §3 fecha) como o item mais urgente a corrigir. O frontend segue
+> sem código; `frontend.md` desta pasta é a especificação do que falta
+> construir, não uma feature pronta.
 
 ## 1. Visão da feature
 

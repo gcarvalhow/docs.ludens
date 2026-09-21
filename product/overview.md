@@ -26,6 +26,15 @@ Sem uma plataforma dedicada, o teatro também não tem:
 * **Base para relatórios de ocupação**: medir a taxa de ocupação de sala por
   sessão depende de contagem manual.
 
+## O que é o Ludens
+
+Ludens é uma **plataforma web de venda de ingressos** para um teatro comunitário.
+Ela cobre a jornada do comprador, da busca do espetáculo à confirmação do
+ingresso, e a operação administrativa de cadastro de espetáculos e sessões.
+
+O escopo é dimensionado para fins didáticos (disciplina de Manutenção e Melhoria
+de Software, 6º semestre de Engenharia de Software, Processo 18).
+
 ## Critério de sucesso
 
 * **Fonte única de disponibilidade**: a plataforma é o único lugar que define
@@ -43,15 +52,6 @@ Sem uma plataforma dedicada, o teatro também não tem:
   reembolsado) e um ingresso com identificador único validável na entrada.
 * **Ocupação mensurável**: a taxa de ocupação de sala por sessão pode ser
   extraída da plataforma, sem contagem manual (evolução N2/N3).
-
-## O que é o Ludens
-
-Ludens é uma **plataforma web de venda de ingressos** para um teatro comunitário.
-Ela cobre a jornada do comprador, da busca do espetáculo à confirmação do
-ingresso, e a operação administrativa de cadastro de espetáculos e sessões.
-
-O escopo é dimensionado para fins didáticos (disciplina de Manutenção e Melhoria
-de Software, 6º semestre de Engenharia de Software, Processo 18).
 
 ## Dentro do escopo
 
@@ -106,8 +106,7 @@ de Software, 6º semestre de Engenharia de Software, Processo 18).
 
 Formalizam os exemplos citados no
 [Acordo de Manutenibilidade](../team/maintainability.md) como condição de
-[Definition of Ready](../team/quality.md). Todos os valores numéricos foram
-aprovados pelo Product Owner em 2026-08-28.
+[Definition of Ready](../team/overview.md#definition-of-ready-dor-pronto-para-desenvolver).
 
 * RN01, limite de ingressos por CPF: aprovada.
 * RN02, política de reembolso: aprovada.
@@ -120,7 +119,7 @@ aprovados pelo Product Owner em 2026-08-28.
 Cada CPF pode adquirir no máximo **6 ingressos por sessão**. Tentativas de
 exceder o limite são bloqueadas na reserva (RF03).
 
-**Status:** aprovada pelo PO em 2026-08-28 (limite de 6 ingressos por sessão).
+**Status:** aprovada.
 
 ### RN02: Política de reembolso
 
@@ -128,15 +127,14 @@ exceder o limite são bloqueadas na reserva (RF03).
 * Entre **48h e 24h** antes: reembolso de **50%**.
 * **Menos de 24h** antes: **sem reembolso**.
 
-**Status:** aprovada pelo PO em 2026-08-28 (prazos de 48h/24h e percentuais de
-100%/50%/0%).
+**Status:** aprovada.
 
 ### RN03: Expiração da reserva
 
 Uma reserva não paga expira em **15 minutos**. Ao expirar, os ingressos retornam
 automaticamente à disponibilidade da sessão.
 
-**Status:** aprovada pelo PO em 2026-08-28 (expiração em 15 minutos).
+**Status:** aprovada.
 
 ### RN04: Meia-entrada
 
@@ -145,14 +143,13 @@ A validação do documento comprobatório de estudante é feita **presencialment
 na entrada do evento e está **fora do escopo do sistema**: a emissão do ingresso
 não exige o número do documento.
 
-**Decisão do PO (2026-08-28).** A ERS original chegou a descrever a
-meia-entrada exigindo o número do documento de estudante. O PO decidiu **alinhar
-à ERS acima**: a emissão do ingresso **não** exige o documento. Como o backend
-ainda não tem código, isso não é débito técnico, é **critério de aceite** da
-funcionalidade `booking-ticket-issuance`: a emissão de meia-entrada não pode
-exigir o número do documento.
+**Decisão.** A ERS original chegou a descrever a meia-entrada exigindo o
+número do documento de estudante; a versão vigente é a de cima, sem esse
+requisito. Como o backend ainda não tem código, isso não é débito técnico, é
+**critério de aceite** da funcionalidade `booking-ticket-issuance`: a emissão
+de meia-entrada não pode exigir o número do documento.
 
-**Status:** aprovada pelo PO em 2026-08-28. Ajuste no backend pendente.
+**Status:** aprovada.
 
 ### RN05: Consistência de disponibilidade
 
@@ -171,6 +168,6 @@ duplicidade" (ver [Critério de sucesso](#critério-de-sucesso) acima).
   física passa a registrar suas vendas nela.
 * O ambiente conteinerizado (Docker) é o padrão de execução local e de pipeline.
 * Os valores numéricos das regras de negócio (limite por CPF, prazos de
-  reembolso, tempo de expiração) foram aprovados pelo PO em 2026-08-28 e valem
-  como critério de Definition of Ready. Ver
-  [regras de negócio](#regras-de-negócio-rn01rn05) acima.
+  reembolso, tempo de expiração) estão aprovados e valem como critério de
+  Definition of Ready. Ver [regras de negócio](#regras-de-negócio-rn01rn05)
+  acima.

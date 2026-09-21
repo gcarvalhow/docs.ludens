@@ -1,6 +1,6 @@
 # Requisitos Funcionais e Não Funcionais
 
-RF01–RF09 e RNF01–RNF06 aprovados pelo PO em 2026-08-28.
+RF01–RF09 e RNF01–RNF06 estão aprovados.
 
 Este documento cobre os **requisitos funcionais** (RF01–RF09), os **requisitos
 não funcionais** (RNF01–RNF06) e o **quadro consolidado de dependências técnicas
@@ -108,9 +108,8 @@ reembolso de um ingresso dentro da política vigente.
 
 ### RF08: Gerenciar espetáculos e sessões
 
-**História de usuário:** Como Product Owner/administrador do teatro, eu quero
-cadastrar, editar e encerrar espetáculos e sessões para manter o catálogo
-atualizado.
+**História de usuário:** Como administrador do teatro, eu quero cadastrar,
+editar e encerrar espetáculos e sessões para manter o catálogo atualizado.
 
 **Critérios de aceitação:**
 
@@ -133,11 +132,10 @@ comprar ingressos e acompanhar meu histórico.
 
 ## Requisitos não funcionais
 
-Seis requisitos não funcionais (RNF01–RNF06), **todos aprovados pelo PO em
-2026-08-28**. As metas numéricas de RNF02–RNF04 (percentis de tempo de resposta,
-disponibilidade mensal, nível WCAG e limite de passos) valem como critério de
-[Definition of Ready](../team/quality.md) a partir dessa data. A data de
-aprovação está registrada no Status de cada requisito abaixo.
+Seis requisitos não funcionais (RNF01–RNF06), **todos aprovados**. As metas
+numéricas de RNF02–RNF04 (percentis de tempo de resposta, disponibilidade
+mensal, nível WCAG e limite de passos) valem como critério de
+[Definition of Ready](../team/overview.md#definition-of-ready-dor-pronto-para-desenvolver).
 
 ### RNF01: Segurança e proteção de dados
 
@@ -154,8 +152,8 @@ aprovação está registrada no Status de cada requisito abaixo.
   ([guia de estilo](../backend/code-style.md)).
 * Todo o tráfego entre cliente e servidor sobre HTTPS.
 
-**Status:** aprovada pelo PO em 2026-08-28, consolida compromissos já firmados
-no Acordo de Manutenibilidade e nos critérios de RF09.
+**Status:** aprovada, consolida compromissos já firmados no Acordo de
+Manutenibilidade e nos critérios de RF09.
 
 ### RNF02: Desempenho
 
@@ -170,7 +168,7 @@ no Acordo de Manutenibilidade e nos critérios de RF09.
 **Métrica / verificação:** medição em ambiente de homologação com volume de dados
 representativo.
 
-**Status:** aprovada pelo PO em 2026-08-28.
+**Status:** aprovada.
 
 ### RNF03: Disponibilidade e confiabilidade
 
@@ -187,8 +185,8 @@ representativo.
   [RN05](overview.md#rn05-consistência-de-disponibilidade) (regra
   vigente).
 
-**Status:** aprovada pelo PO em 2026-08-28. O comportamento de degradação e
-recuperação já é exigido pelos RF/RN citados.
+**Status:** aprovada. O comportamento de degradação e recuperação já é
+exigido pelos RF/RN citados.
 
 ### RNF04: Usabilidade e acessibilidade
 
@@ -207,7 +205,7 @@ recuperação já é exigido pelos RF/RN citados.
 **Métrica / verificação:** verificação de contraste e navegação por teclado nas
 telas de checkout.
 
-**Status:** aprovada pelo PO em 2026-08-28.
+**Status:** aprovada.
 
 ### RNF05: Manutenibilidade
 
@@ -217,12 +215,11 @@ telas de checkout.
 * Monólito modular com fronteiras explícitas entre módulos de domínio (DDD);
   comunicação entre módulos apenas por contrato público.
 * Cerca de **15% do esforço de cada ciclo** reservado para débito técnico
-  ([gestão de débito técnico](../team/tech-debt.md)).
+  ([gestão de débito técnico](../team/overview.md#gestão-de-débito-técnico)).
 
 **Métrica / verificação:** pipeline verde (lint) como portão de merge.
 
-**Status:** aprovada pelo PO em 2026-08-28, consolida os compromissos do Acordo
-de Manutenibilidade.
+**Status:** aprovada, consolida os compromissos do Acordo de Manutenibilidade.
 
 ### RNF06: Portabilidade e operação
 
@@ -236,8 +233,7 @@ de Manutenibilidade.
 **Métrica / verificação:** o job de build da pipeline levanta a aplicação em
 contêiner e executa o roteiro mínimo; falha no build Docker bloqueia o merge.
 
-**Status:** aprovada pelo PO em 2026-08-28, deriva de premissa do escopo e do
-CI/CD vigente.
+**Status:** aprovada, deriva de premissa do escopo e do CI/CD vigente.
 
 ## Dependências técnicas por requisito
 

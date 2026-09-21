@@ -121,3 +121,8 @@ normalmente. Nenhuma reserva paga se perde (o pagamento é durável no banco).
 **Admin cancela a sessão com reservas abertas.** Todas as reservas abertas da
 sessão são canceladas e a disponibilidade deixa de importar (sessão cancelada).
 Reservas já confirmadas viram reembolso (RF07). `[fechada]`
+
+**Trava da linha da sessão é exportada por `catalog`.** `booking` não tem
+acesso direto à tabela de sessões; a trava (`find_by_id_for_update`) precisa
+ser exportada por `catalog/dependencies.py` e coordenada com
+`catalog-session-detail` antes da implementação. `[decisão em aberto]`

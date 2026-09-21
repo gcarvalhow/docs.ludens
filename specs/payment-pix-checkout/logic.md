@@ -104,3 +104,13 @@ ingressos. `[fechada]`
 **Chamada de criação da cobrança demora além do timeout.** O pedido fica
 "pendente"; a tela mostra "não foi possível iniciar o pagamento"; a pessoa tenta
 de novo (novo `gateway_charge_id`), a reserva ainda vale. `[fechada]`
+
+**Formato exato do payload do webhook da AbacatePay.** Ainda não confirmado
+contra a documentação real do gateway; o dedupe por `gateway_charge_id` e a
+verificação de assinatura assumem um formato razoável, mas precisam ser
+revistos contra o payload real na implementação. `[decisão em aberto]`
+
+**Exports de `booking` que este fluxo consome.** Depende de
+`confirm_reservation` e `issue_tickets_for_reservation` existirem em
+`booking/dependencies.py` (ver [`booking-ticket-issuance`](../booking-ticket-issuance/logic.md#4-pontos-de-integração));
+não pode ir ao ar antes dessa feature. `[decisão em aberto]`

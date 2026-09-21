@@ -90,3 +90,12 @@ já existem. `[fechada]`
 **Comprador abre "Minhas compras" logo após reservar, sem pagar.** Não há pedido
 ainda (o pedido nasce no checkout); a reserva aberta não aparece aqui — ela vive
 na tela de checkout. `[fechada]`
+
+**Módulo dono das rotas `/me/orders`.** Ainda não decidido se ficam em
+`payment` (dono do `Order`) ou em `identity`; não bloqueia o frontend, que
+consome pelo contrato independente do módulo. `[decisão em aberto]`
+
+**Última fatia a entrar.** Depende de `payment-pix-checkout` e
+`booking-ticket-issuance` mergeados, e do export em lote de resumo de sessão
+por `catalog` (`get_session_summaries`, coordenar com `catalog-session-detail`
+para evitar N+1 na listagem). `[decisão em aberto]`

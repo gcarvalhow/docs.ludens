@@ -1,12 +1,13 @@
 # Specs de feature
 
-Responsável: PO (Gabriel Carvalho) · Última revisão: 2026-09-01 · Status: vigente
-
-Cada feature do Ludens nasce aqui como uma sequência de artefatos antes de
-qualquer linha de código. O pipeline é operado pelo plugin Claude Code
+Cada feature do Ludens nasceu aqui como uma sequência de artefatos antes de
+qualquer linha de código, gerados pelo pipeline do plugin Claude Code
 [`gcarvalhow/team.ludens`](https://github.com/gcarvalhow/team.ludens) (skills
-`feature-design`, `logic-design`, `feature-implementation-spec`); este diretório
-guarda o resultado.
+`feature-design`, `logic-design`, `feature-implementation-spec`). O plugin foi
+descontinuado e não faz mais parte da estrutura do projeto — este diretório
+guarda o resultado já gerado, como registro histórico; não há mais pipeline
+ativo produzindo specs novas. A convenção de pastas abaixo continua valendo
+como referência de formato.
 
 ## Convenção de pastas
 
@@ -40,11 +41,13 @@ Exemplos: `specs/booking-reservation/`, `specs/catalog-show-search/`,
 | 3 | `integration.md` | skill `feature-implementation-spec` gera o **contrato-alvo**; o responsável de backend atualiza para o **canônico** ao fim da implementação | aprovação do responsável de backend |
 | 4 | `backend.md` + `frontend.md` | skill `feature-implementation-spec` (delegando a `senior-dev`) | nenhuma fatia com bloqueio em aberto |
 
-Depois do artefato 4, cada superfície (Backend / Frontend) vira uma issue no
+Depois do artefato 4, cada superfície (Backend / Frontend) virava uma issue no
 GitHub Project [`@ludens`](https://github.com/orgs/gcarvalhow/projects/2) via
 `/team-ludens:tbd-start` — issue-mãe (`Issue Type = feature`) em `docs.ludens`;
 sub-issues nativas em `api.ludens` (Backend) e `web.ludens` (Frontend), com a
-checklist de arquivos copiada do documento da superfície.
+checklist de arquivos copiada do documento da superfície. Esse comando não
+está mais disponível com o plugin descontinuado; a fatia de feature em issue
+passa a ser manual até um novo processo ser definido.
 
 ## Mapa RF → spec (N1 / MVP)
 

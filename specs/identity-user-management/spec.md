@@ -32,6 +32,15 @@ updated_at: 2026-09-17
 >
 > `logic.md` foi reescrito junto e voltou para `draft`: precisa de nova revisão
 > conjunta de FE/BE antes de valer como `reviewed` outra vez.
+>
+> **Nota de estado real (2026-09-21):** auditoria contra o código encontrou
+> que o backend desta feature **já existe** em `api.ludens`
+> (`identity/api/routers/user_router.py`: edição de perfil, troca de e-mail,
+> exclusão de conta, listagem admin paginada) — só não tinha `backend.md`
+> nem `integration.md` ainda. O frontend segue sem código. Esta pasta ainda
+> não tem esses arquivos; escrevê-los (auditando o código real, mesmo método
+> usado em `identity-auth`) é a próxima tarefa desta linha de trabalho, fora
+> do escopo desta sessão.
 
 ## 1. Visão da feature
 

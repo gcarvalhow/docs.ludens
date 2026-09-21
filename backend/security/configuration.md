@@ -1,7 +1,6 @@
-# Configuração — Variáveis de Ambiente
+# Configuração: Variáveis de Ambiente
 
-> **Status:** proposto — **não há código implementado** · **Última revisão:** 2026-08-28
-> Fixa o **mecanismo** de configuração (igual a um backend privado anterior do
+> Proposto: não há código implementado ainda. Fixa o **mecanismo** de configuração (igual a um backend privado anterior do
 > mesmo autor) e as
 > variáveis **base**. Variáveis específicas de uma funcionalidade (gateway de
 > pagamento, SMTP, prazos de regra de negócio) são adicionadas pela spec da
@@ -18,47 +17,61 @@ ausente. Copie `.env.example` para `.env.local` para começar.
 
 Cada variável carrega uma classificação:
 
-- `SECRET` — nunca commitar no git; nunca logar; rotacionar periodicamente.
-- `SENSITIVE` — contém credenciais; nunca logar; commitar apenas `.env.example`
+* `SECRET`: nunca commitar no git; nunca logar; rotacionar periodicamente.
+* `SENSITIVE`: contém credenciais; nunca logar; commitar apenas `.env.example`
   com valores em branco.
-- `CONFIG` — pode ser versionado em `.env.example` com valores reais de
+* `CONFIG`: pode ser versionado em `.env.example` com valores reais de
   desenvolvimento.
 
 ## Variáveis base
 
-| Variável | Tipo | Classificação | Notas |
-| --- | --- | --- | --- |
-| `ENVIRONMENT` | `development \| staging \| production` (default `development`) | `CONFIG` | Afeta o flag `Secure` do cookie, o CORS e as mensagens de erro expostas. |
-| `DATABASE_URL` | `str` — obrigatória | `SENSITIVE` | `postgresql+asyncpg://<user>:<pass>@<host>:<port>/<db>`. O host é o nome do contêiner na rede Docker, nunca `localhost`. |
-| `JWT_SECRET_KEY` | `str` — obrigatória | `SECRET` | Gerar com `openssl rand -hex 32`. Rotacionar invalida todos os access tokens ativos. |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | `int` (default `30`) | `CONFIG` | TTL do access token. |
-| `REFRESH_TOKEN_EXPIRE_DAYS` | `int` (default `7`) | `CONFIG` | TTL do refresh token. |
-| `ALLOWED_ORIGINS` | `list[str]` (default `["http://localhost:3000"]`) | `CONFIG` | Origens permitidas no CORS. Em produção, o domínio real do `web.ludens` (Next.js roda em :3000 em dev). |
-| `OUTBOX_RELAY_INTERVAL_SECONDS` | `int` (default `2`) | `CONFIG` | Cadência do polling do relay ([ADR 001](../design/001-outbox-in-process.md)). |
+* **`ENVIRONMENT`** (`development | staging | production`, default
+  `development`; `CONFIG`): afeta o flag `Secure` do cookie, o CORS e as
+  mensagens de erro expostas.
+* **`DATABASE_URL`** (`str`, obrigatória; `SENSITIVE`):
+  `postgresql+asyncpg://<user>:<pass>@<host>:<port>/<db>`. O host é o nome do
+  contêiner na rede Docker, nunca `localhost`.
+* **`JWT_SECRET_KEY`** (`str`, obrigatória; `SECRET`): gerar com
+  `openssl rand -hex 32`. Rotacionar invalida todos os access tokens ativos.
+* **`ACCESS_TOKEN_EXPIRE_MINUTES`** (`int`, default `30`; `CONFIG`): TTL do
+  access token.
+* **`REFRESH_TOKEN_EXPIRE_DAYS`** (`int`, default `7`; `CONFIG`): TTL do
+  refresh token.
+* **`ALLOWED_ORIGINS`** (`list[str]`, default `["http://localhost:3000"]`;
+  `CONFIG`): origens permitidas no CORS. Em produção, o domínio real do
+  `web.ludens` (Next.js roda em :3000 em dev).
+* **`OUTBOX_RELAY_INTERVAL_SECONDS`** (`int`, default `2`; `CONFIG`): cadência
+  do polling do relay.
 
 ## Variáveis adicionadas por funcionalidade
 
 Cada spec que precisar de configuração externa registra as suas variáveis aqui.
 
-- **Notificação** (`notification-transactional-email`,
-  [RF05](../../requirements/functional.md#rf05--confirmar-compra-e-emitir-ingresso)/
-  RF09) — decidido em 2026-09-11: **AWS SES**, não SMTP. Ver código completo em
-  `specs/notification-transactional-email/backend.md`.
+**Notificação** (`notification-transactional-email`,
+[RF05](../../product/functional.md#rf05-confirmar-compra-e-emitir-ingresso)/
+RF09), decidido em 2026-09-11: **AWS SES**, não SMTP.
 
-  | Variável | Tipo | Classificação | Notas |
-  | --- | --- | --- | --- |
-  | `EMAIL_BACKEND` | `ses \| console` (default `console`) | `CONFIG` | `console` só loga (dev, sem conta AWS); trocar pra `ses` em produção. |
-  | `EMAIL_FROM_ADDRESS` | `str` | `CONFIG` | Precisa ser um endereço/domínio verificado na conta SES. |
-  | `EMAIL_FROM_NAME` | `str` (default `Ludens`) | `CONFIG` | Nome de exibição do remetente. |
-  | `AWS_REGION` | `str` (default `us-east-1`) | `CONFIG` | Região onde o domínio remetente foi verificado no SES. |
-  | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | `str` | `SECRET` | **Não** entram no `.env` da aplicação nem em `Settings` — o `boto3` resolve por IAM role em produção; só definir manualmente pra testar o adapter SES localmente, nunca commitar. |
-  | `FRONTEND_BASE_URL` | `str` (default `http://localhost:3000`) | `CONFIG` | Base pra montar links de e-mail (ex.: `/redefinir-senha?token=...`). |
+* **`EMAIL_BACKEND`** (`ses | console`, default `console`; `CONFIG`):
+  `console` só loga (dev, sem conta AWS); trocar pra `ses` em produção.
+* **`EMAIL_FROM_ADDRESS`** (`str`; `CONFIG`): precisa ser um
+  endereço/domínio verificado na conta SES.
+* **`EMAIL_FROM_NAME`** (`str`, default `Ludens`; `CONFIG`): nome de exibição
+  do remetente.
+* **`AWS_REGION`** (`str`, default `us-east-1`; `CONFIG`): região onde o
+  domínio remetente foi verificado no SES.
+* **`AWS_ACCESS_KEY_ID`** / **`AWS_SECRET_ACCESS_KEY`** (`str`; `SECRET`):
+  **não** entram no `.env` da aplicação nem em `Settings`; o `boto3` resolve
+  por IAM role em produção. Só definir manualmente pra testar o adapter SES
+  localmente, nunca commitar.
+* **`FRONTEND_BASE_URL`** (`str`, default `http://localhost:3000`; `CONFIG`):
+  base pra montar links de e-mail (ex.: `/redefinir-senha?token=...`).
 
-- **Pagamento** ([RF04](../../requirements/functional.md#rf04--efetuar-pagamento)) —
-  chave de API e URL base da AbacatePay, segredo de webhook. Pendente de spec.
-- **Reserva** ([RN01](../../requirements/business-rules.md#rn01--limite-de-ingressos-por-cpf),
-  [RN03](../../requirements/business-rules.md#rn03--expiração-da-reserva)) —
-  limite de ingressos por CPF e tempo de expiração da reserva. Pendente de spec.
+**Pagamento** ([RF04](../../product/functional.md#rf04-efetuar-pagamento)):
+chave de API e URL base da AbacatePay, segredo de webhook. Pendente de spec.
+
+**Reserva** ([RN01](../../product/overview.md#rn01-limite-de-ingressos-por-cpf),
+[RN03](../../product/overview.md#rn03-expiração-da-reserva)): limite de
+ingressos por CPF e tempo de expiração da reserva. Pendente de spec.
 
 ## Docker Compose (produção)
 

@@ -1,23 +1,18 @@
-# Ludens — Arquitetura da API (`api.ludens`)
+# Ludens: Arquitetura da API (`api.ludens`)
 
-> **Status:** proposto — **não há código implementado** · **Última revisão:** 2026-08-28
-> Este documento fixa apenas a **base** do backend: os padrões e a estrutura
+> Proposto: não há código implementado ainda. Este documento fixa apenas a
+> **base** do backend: os padrões e a estrutura
 > comum que todo módulo vai seguir. O detalhe de cada funcionalidade (rotas,
-> agregados, schema, fluxos) **não é documentado aqui por antecipação** — entra
+> agregados, schema, fluxos) **não é documentado aqui por antecipação**; entra
 > por **spec, uma funcionalidade por vez**, conforme for implementada, e este
 > documento é atualizado junto.
 >
 > Os padrões vêm de um backend privado anterior do mesmo autor, que usa
 > monólito modular + DDD da mesma forma. Diferenças assumidas para o Ludens:
-> **sem Event Sourcing** e **sem broker de mensagens** — ver
-> [ADR 001](design/001-outbox-in-process.md).
+> **sem Event Sourcing** e **sem broker de mensagens**.
 >
-> As **regras de código** que operacionalizam estes padrões vivem na skill
-> `backend-architecture` do plugin
-> [`gcarvalhow/team.ludens`](https://github.com/gcarvalhow/team.ludens) (10
-> arquivos de referência, um por camada). Este documento é a fonte de verdade
-> viva do estado atual; a skill explica o padrão e o porquê e aponta de volta
-> para cá.
+> Este documento é a fonte de verdade viva do estado atual dos padrões do
+> backend.
 
 ## Stack
 
@@ -29,14 +24,13 @@ migrations, `pydantic-settings` para configuração (ver
 
 **Domain-Driven Design (DDD).** Cada área de negócio vive isolada em seu módulo,
 com suas regras. Módulos não importam o `domain`/`infrastructure` interno uns dos
-outros — a comunicação é por evento no outbox ou por dependência pública
-exportada. Ver [ADR 002](design/002-monolito-modular.md).
+outros; a comunicação é por evento no outbox ou por dependência pública
+exportada.
 
 **Outbox in-process.** Um caso de uso nunca chama efeito colateral externo
 (e-mail, estorno) diretamente. O efeito é gravado como um `Event` no PostgreSQL
 na mesma transação que muda o estado; um relay em background lê a tabela `events`
-e chama handlers registrados no próprio processo — sem broker. Ver
-[ADR 001](design/001-outbox-in-process.md).
+e chama handlers registrados no próprio processo, sem broker.
 
 **Sem Event Sourcing e sem CQRS.** O estado de verdade está nas tabelas de
 domínio; `events` é só a fila de saída de efeitos. Não há read model separado.
@@ -57,7 +51,7 @@ class Model(DeclarativeBase):
 ```
 
 Toda tabela herda de `Model`. **Não existe `DELETE` real** em entidade de
-domínio — a remoção é `is_active = False`, e nenhuma leitura da API expõe
+domínio: a remoção é `is_active = False`, e nenhuma leitura da API expõe
 registro inativo.
 
 ### `AggregateRoot`
@@ -92,16 +86,17 @@ camada de API para o status HTTP adequado (ver
 Um módulo por área de negócio (nome em **inglês**, `snake_case`). O conteúdo de
 cada um é definido pela sua spec quando a funcionalidade for construída.
 
-| Módulo | Área | Requisitos que cobre |
-| --- | --- | --- |
-| `identity` | Cadastro e autenticação do comprador | RF06, RF09 |
-| `catalog` | Espetáculos e sessões; disponibilidade | RF01, RF02, RF08 |
-| `booking` | Reserva temporária, controle de estoque, emissão de ingresso | RF03, RF05 · RN01, RN03, RN05 |
-| `payment` | Cobrança Pix (AbacatePay) e pedidos | RF04, RF07 · RN02 |
-| `notification` | E-mails transacionais (handlers de evento; sem agregado) | RF05, RF09 |
+* **`identity`:** cadastro e autenticação do comprador. Requisitos: RF06, RF09.
+* **`catalog`:** espetáculos e sessões; disponibilidade. Requisitos: RF01,
+  RF02, RF08.
+* **`booking`:** reserva temporária, controle de estoque, emissão de
+  ingresso. Requisitos: RF03, RF05, RN01, RN03, RN05.
+* **`payment`:** cobrança Pix (AbacatePay) e pedidos. Requisitos: RF04, RF07,
+  RN02.
+* **`notification`:** e-mails transacionais (handlers de evento; sem
+  agregado). Requisitos: RF05, RF09.
 
-Cada módulo segue a mesma anatomia interna — ver
-[ADR 002](design/002-monolito-modular.md).
+Cada módulo segue a mesma anatomia interna.
 
 ## Estrutura de arquivos (base)
 

@@ -23,8 +23,10 @@ bcrypt, `is_admin: bool`, `security_stamp`), dual-token JWT (access HS256 +
 refresh opaco SHA-256 rotacionado a cada uso), recuperação de senha por token
 de uso único com validade de 1 hora. Duas usecases — `AuthUseCase` (sessão:
 login/refresh/logout/senha) e `UserUseCase` (cadastro e leitura) — expostas em
-dois routers: 6 rotas em `/identity` (tag `01.Identity - Auth`) e 2 em
-`/identity/users` (tag `02.Identity - User`). Dependências
+dois routers: 6 rotas em `/identity/authentication` (tag `01.Identity - Auth`)
+e 8 em `/identity/users` (tag `02.Identity - User` — cresceu além de
+cadastro/leitura: perfil, e-mail, exclusão de conta, listagem; ver §7).
+Dependências
 `get_current_user` / `require_admin` exportadas para os demais módulos.
 **RF:** RF09 · **RN:** — (reforça RNF01) · **Módulo backend:** `identity`
 **Contrato:** `docs.ludens/specs/identity-auth/integration.md`
@@ -55,7 +57,7 @@ dois routers: 6 rotas em `/identity` (tag `01.Identity - Auth`) e 2 em
 > Duas seções inteiras foram **removidas** por não existirem no código real
 > nem terem RF que as sustente: a listagem paginada de usuários (`GET /users`,
 > `PagedUsersResponse`, `list_users` — não há requisito em
-> `requirements/functional.md` que peça isso, e o `UserRepository` real não
+> `product/functional.md` que peça isso, e o `UserRepository` real não
 > tem `list_paginated`) e o envio de e-mail de redefinição de senha via módulo
 > `notification` + `identity/handlers.py` (não existem no código real — o
 > evento `PasswordResetRequested` é levantado pelo aggregate, mas **nenhum
@@ -64,7 +66,7 @@ dois routers: 6 rotas em `/identity` (tag `01.Identity - Auth`) e 2 em
 > isso está **pendente como débito técnico**, não implementado, apesar do
 > `status: done` deste documento referir-se ao fluxo de sessão/cadastro, que
 > está completo. Ver §7.
-
+>
 > **Revisão de 2026-09-17:** os routers do módulo mudaram de prefixo/tag para
 > seguir o novo padrão do backend (`prefix`/`tags` numerados por router).
 > `auth_router.py`: `prefix="/auth", tags=["Identity"]` →
@@ -74,6 +76,14 @@ dois routers: 6 rotas em `/identity` (tag `01.Identity - Auth`) e 2 em
 > mudança (`REFRESH_PATH`: `/auth` → `/identity`). Todas as rotas abaixo estão
 > atualizadas para os novos caminhos; `web.ludens` ainda não foi atualizado —
 > ver débito técnico em `docs.ludens/team/tech-debt.md`.
+>
+> **Revisão de 2026-09-21:** o prefixo mudou de novo — `auth_router.py` real
+> hoje é `prefix="/identity/authentication"` (não `/identity` puro), pra não
+> colidir com `/identity/users` de `user_router.py`. `REFRESH_PATH` real é
+> `/api/identity/authentication` (o `/api` vem do proxy do frontend, ver
+> `catalog-admin-management/frontend.md` §2). Os blocos de código abaixo já
+> foram corrigidos pra esse prefixo; `web.ludens` foi atualizado — o débito
+> técnico da revisão anterior está resolvido.
 
 Este é o primeiro módulo de negócio do repositório. Ele também introduz dois
 arquivos de infraestrutura compartilhada que qualquer feature seguinte
@@ -958,7 +968,7 @@ from fastapi import Response
 from app.config import settings
 
 REFRESH_COOKIE = "refresh_token"
-REFRESH_PATH = "/identity"
+REFRESH_PATH = "/api/identity/authentication"
 
 def set_refresh_cookie(response: Response, raw_refresh: str) -> None:
     response.set_cookie(
@@ -995,7 +1005,7 @@ from app.modules.identity.application.schemas.request import (
 from app.modules.identity.application.schemas.response import TokenResponse
 from app.modules.identity.api.routers.utils.cookies import REFRESH_COOKIE, REFRESH_PATH, set_refresh_cookie
 
-router = APIRouter(prefix="/identity", tags=["01.Identity - Auth"])
+router = APIRouter(prefix="/identity/authentication", tags=["01.Identity - Auth"])
 
 @router.post("/login", response_model=TokenResponse)
 async def login(body: LoginRequest, response: Response, session: AsyncSession = Depends(get_db)) -> TokenResponse:
@@ -1397,26 +1407,40 @@ merge do backend.
 ## 7. Débitos técnicos registrados
 
 O fluxo de sessão/cadastro (login, refresh, logout, troca de senha, cadastro,
-leitura de usuário) está **completo e mergeado**. Dois pedaços do RF09 ficaram
-para trás e não têm código correspondente hoje:
+leitura de usuário) está **completo e mergeado**.
 
-- **Envio do e-mail de redefinição de senha.** O aggregate `User` levanta
-  `PasswordResetRequested` (arquivo 7) e o outbox relay processa a fila de
-  `events`, mas **nenhum handler está registrado** pra esse tipo de evento —
-  não existe módulo `notification`, nem `identity/handlers.py`, nem envio de
-  e-mail real (SMTP) em nenhum lugar do código. O evento fica em
-  `dispatched_at = NULL` indefinidamente. Reconstruir isso quando o e-mail
-  transacional entrar em escopo: criar o handler consumindo
-  `PasswordResetRequested` (usa `payload["token"]`/`payload["email"]` já
-  gravados no evento — não precisa mudar nada no `identity`).
-- **Criação de conta admin.** Não existe `scripts/seed_admin.py` nem qualquer
-  outro mecanismo de bootstrap — a primeira conta `is_admin=True` precisa ser
-  promovida manualmente no banco. Sem isso, `catalog-admin-management` (e
-  qualquer outra rota atrás de `require_admin`) fica inacessível num ambiente
-  novo sem uma intervenção manual.
+**Revisão de 2026-09-21: os dois débitos abaixo (registrados em 2026-09-11)
+já foram resolvidos por fatias seguintes — mantidos aqui só como histórico.**
 
-Nenhum dos dois bloqueia o que já está mergeado — são lacunas a fechar antes
-de depender deles em produção.
+- ~~Envio do e-mail de redefinição de senha~~ **resolvido.** O módulo
+  `notification` existe agora (`notification-transactional-email`) e
+  `notification/handlers.py` registra `@register("PasswordResetRequested")`
+  — o evento que o aggregate `User` levanta é consumido de verdade, o
+  e-mail é enviado. Não fica mais em `dispatched_at = NULL` indefinidamente.
+- ~~Criação de conta admin~~ **resolvido, mas não como planejado.** Existe
+  `src/scripts/seed_admin.py` — um script standalone (não é rota HTTP, não
+  faz parte de módulo/router nenhum) que lê `ADMIN_NAME`/`ADMIN_CPF`/
+  `ADMIN_EMAIL`/`ADMIN_PASSWORD` de variável de ambiente e insere um
+  `User(is_admin=True)` direto via `UserRepository`. Ainda é o único jeito de
+  criar um admin hoje — é exatamente o "script rodado no servidor" que
+  `identity-admin-invite` (spec aprovada, ainda sem código) existe pra
+  substituir.
+
+Também vale registrar (não estava nesta seção antes): `user_router.py`
+ganhou rotas que este documento não cobre — `PATCH /identity/users`
+(atualizar perfil), `POST`/`PATCH /identity/users/email/change` (troca de
+e-mail), `POST`/`DELETE /identity/users/deletion` (exclusão de conta) e
+`GET /identity/users` (**listagem paginada, admin-only — a mesma que a
+revisão de 2026-09-11 registrou como removida/inexistente; foi
+reimplementada depois**, dona agora de `identity-user-management`, não desta
+spec). Como o arquivo é compartilhado, a nota de reescopo no topo deste
+documento (2026-09-11) está desatualizada nesse ponto específico: a
+listagem existe de novo no código real, só não é mais escopo de
+`identity-auth`. `identity-user-management` está **parcialmente
+implementada no backend** (perfil, e-mail, exclusão, listagem) apesar de sua
+própria pasta em `specs/` só ter `spec.md`+`logic.md` — vale a pena uma
+auditoria dedicada a essa spec numa sessão futura, fora do escopo desta
+revisão.
 
 ---
 
@@ -1439,7 +1463,7 @@ real, que agora está `status: canônico`** — incluindo a troca de prefixo par
   snake_case (não `expiresIn`) — contrato inteiro é snake_case, sem exceção.
 - **`is_admin`** no `/identity/users/{id}` e no claim do JWT: `true`/`false` —
   não há `role`/`Role` em nenhum lugar do contrato.
-- **`POST /identity/logout`**: além de 204, envia `Set-Cookie` apagando
+- **`POST /identity/authentication/logout`**: além de 204, envia `Set-Cookie` apagando
   `refresh_token` (`Path=/identity`).
 - **`register` e a leitura de usuário saem da sessão**: `AuthUseCase` fica só
   com sessão (login/refresh/logout/senha); `UserUseCase` cobre cadastro e

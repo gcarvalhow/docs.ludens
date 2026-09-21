@@ -63,7 +63,7 @@ o torna confiável.
 **Posição:** complementar — refina a qualidade de um dado que já existe no
 catálogo (o gênero do espetáculo), não faz parte do caminho crítico do
 problema que o produto resolve (nunca vender o mesmo assento duas vezes,
-ver `product/problem.md`).
+ver `product/overview.md`).
 
 **RF/RN cobertos:** fortalece RF01. Ajusta um detalhe do critério de aceite de
 RF08 — "categoria" deixa de ser um texto digitado livremente e passa a ser

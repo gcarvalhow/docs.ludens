@@ -26,7 +26,7 @@ updated_at: 2026-09-17
 >
 > Origem: decisão do PO em 2026-09-17, ao alinhar as specs de conta com o plano
 > técnico da Workstream B do módulo `identity`.
-
+>
 > **Nota de reescopo (2026-09-11):** esta spec cobria originalmente cadastro +
 > autenticação do comprador. O cadastro (criação de conta) e a consulta de
 > perfil (próprio ou por um administrador) saíram daqui e agora vivem em

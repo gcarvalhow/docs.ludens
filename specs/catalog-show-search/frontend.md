@@ -1,9 +1,9 @@
 ---
-status: draft
+status: done
 spec: catalog-show-search
 surface: frontend
 created_at: 2026-09-10
-updated_at: 2026-09-10
+updated_at: 2026-09-21
 ---
 
 # Busca e filtro de espetáculos — Frontend
@@ -20,12 +20,14 @@ componentes/hooks com estado, handler ou hook de React levam `'use client'`;
 tipo = `z.infer` do schema (nunca `interface` manual para o que vem da API);
 barrel `index.ts` em toda subpasta. Aliases: `@catalog/*`, `@web/*`.
 
-> **Nota de consistência (resolvida em 2026-09-10):** `catalog-admin-management/
-> frontend.md` chegou a assumir `server/services/` (aninhado), schemas em
-> camelCase, um `fetcher.get/post/patch/delete` que devolve `{ data }`, e um
-> registro `API_ENDPOINTS`. Já foi corrigido para `services/` (não aninhado),
-> schemas snake_case, `fetcher<T>` devolvendo `T` direto, e o registro real
-> `endpoints` (minúsculo). Este documento sempre seguiu o código real.
+> **Nota histórica.** `schemas/show.schema.ts`, `services/show.service.ts`,
+> `hooks/queries/query-options.ts` e `endpoints.ts` **não são exclusivos**
+> desta feature: `catalog-genre`, `catalog-session-detail` e
+> `catalog-admin-management` foram implementadas no mesmo arquivo
+> compartilhado (mesma feature `catalog`). Este documento reproduz só a parte
+> relevante à busca (`fetchShows`/`fetchGenres`/filtros); os outros arquivos
+> têm bem mais conteúdo do que o mostrado aqui. Reescrito em 2026-09-21 pra
+> refletir o código real — ver "Ajustes feitos no `integration.md`" ao final.
 
 ---
 
@@ -33,72 +35,52 @@ barrel `index.ts` em toda subpasta. Aliases: `@catalog/*`, `@web/*`.
 
 | # | Camada | Caminho | Novo/Editar |
 | --- | --- | --- | --- |
-| 1 | endpoints | `src/routes/endpoints.ts` | editar — acrescentar grupo `catalog` |
-| 2 | schemas | `src/features/catalog/schemas/show.schema.ts` | novo |
-| 3 | schemas | `src/features/catalog/schemas/index.ts` | novo — barrel |
-| 4 | server/types | `src/features/catalog/server/types/show.types.ts` | novo |
-| 5 | server/types | `src/features/catalog/server/types/index.ts` | novo — barrel |
-| 6 | server | `src/features/catalog/server/index.ts` | novo — barrel |
-| 7 | services | `src/features/catalog/services/show.service.ts` | novo |
-| 8 | services | `src/features/catalog/services/index.ts` | novo — barrel |
-| 9 | queries | `src/features/catalog/hooks/queries/query-options.ts` | novo |
-| 10 | queries | `src/features/catalog/hooks/queries/useCatalogQueries.ts` | novo |
-| 11 | queries | `src/features/catalog/hooks/queries/index.ts` | novo — barrel |
-| 12 | hooks | `src/features/catalog/hooks/useShowFilters.ts` | novo |
-| 13 | hooks | `src/features/catalog/hooks/index.ts` | novo — barrel |
-| 14 | components/ui | `src/features/catalog/components/ui/ShowCard.tsx` | novo — puro |
-| 15 | components/ui | `src/features/catalog/components/ui/Pagination.tsx` | novo — puro |
-| 16 | components/ui | `src/features/catalog/components/ui/index.ts` | novo — barrel |
-| 17 | components | `src/features/catalog/components/ShowFilters.tsx` | novo — `'use client'` |
-| 18 | components | `src/features/catalog/components/ShowGrid.tsx` | novo — `'use client'` |
-| 19 | components | `src/features/catalog/components/index.ts` | novo — barrel |
-| 20 | feature root | `src/features/catalog/index.ts` | novo — API pública |
-| 21 | lib | `src/lib/get-query-client.ts` | novo — QueryClient por request no servidor |
-| 22 | rota | `src/app/page.tsx` | editar — troca o placeholder pela vitrine com *prefetch* |
+| 1 | endpoints | `src/routes/endpoints.ts` | editar — grupo `catalog` (compartilhado com as demais specs de `catalog`) |
+| 2 | schemas | `src/features/catalog/schemas/show.schema.ts` | editar — `showCardSchema`, `pagedShowsSchema`, `genreSchema`, `genreListSchema` |
+| 3 | server/types | `src/features/catalog/server/types/` | editar — `z.infer` dos schemas acima |
+| 4 | services | `src/features/catalog/services/show.service.ts` | editar — `catalogService.fetchShows`/`fetchGenres`, tipo `ShowFilterParams` |
+| 5 | queries | `src/features/catalog/hooks/queries/query-options.ts` | editar — `catalogQueryOptions.showList`/`genreList` |
+| 6 | queries | `src/features/catalog/hooks/queries/useCatalogQueries.ts` | editar |
+| 7 | hooks | `src/features/catalog/hooks/useShowFilters.ts` | novo |
+| 8 | lib | `src/features/catalog/lib/` | editar — `formatPriceBRL` |
+| 9 | components/ui | `src/features/catalog/components/ui/ShowCard.tsx` | novo |
+| 10 | components/ui | `src/features/catalog/components/ui/Pagination.tsx` | novo |
+| 11 | components | `src/features/catalog/components/ShowFilters.tsx` | novo — `'use client'` |
+| 12 | components | `src/features/catalog/components/ShowGrid.tsx` | novo — `'use client'` |
+| 13 | lib | `src/lib/get-query-client.ts` | novo — `QueryClient` por request no servidor |
+| 14 | rota | `src/app/page.tsx` | editar — vitrine com *prefetch* |
 
-Sem alias novo em `tsconfig.json` — `@catalog/*` já existe (registrado desde
-o bootstrap do projeto, antes de qualquer feature de catálogo).
+Sem alias novo em `tsconfig.json` — `@catalog/*` já existe.
 
 ---
 
 ## 2. Código
 
-### `src/routes/endpoints.ts`
-
-Editar o arquivo real (grupos `auth`/`users` já existem — ver
-`identity-auth`). Acrescentar o grupo `catalog`:
+### `src/routes/endpoints.ts` (recorte relevante)
 
 ```ts
-// src/routes/endpoints.ts  — editar
-const AUTH_BASE = '/identity';
-const USERS_BASE = '/identity/users';
+const API_BASE = '/api';
+const CATALOG_BASE = `${API_BASE}/catalog`;
 
 export const endpoints = {
-  auth: {
-    login: `${AUTH_BASE}/login`,
-    refresh: `${AUTH_BASE}/refresh`,
-    logout: `${AUTH_BASE}/logout`,
-    changePassword: `${AUTH_BASE}/password/change`,
-    passwordForgot: `${AUTH_BASE}/password/forgot`,
-    passwordReset: `${AUTH_BASE}/password/reset`,
-  },
-  users: {
-    register: `${USERS_BASE}/register`,
-    byId: (id: string) => `${USERS_BASE}/${id}`,
-  },
+  // ...auth, users (ver identity-auth)
   catalog: {
-    shows: '/shows',
-    genres: '/genres',
+    shows: `${CATALOG_BASE}/shows`,
+    showById: (id: string) => `${CATALOG_BASE}/shows/${id}`,
+    genres: `${CATALOG_BASE}/genres`,
+    genreById: (id: string) => `${CATALOG_BASE}/genres/${id}`,
+    // ...showPublish, showUnpublish, sessions* — ver catalog-admin-management/catalog-session-detail
   },
 } as const;
 ```
 
-### `src/features/catalog/schemas/show.schema.ts`
+Toda rota de `catalog` (pública e administrativa) é a **mesma URL**; o
+backend decide o formato da resposta pelo token do usuário — não existe
+namespace `/admin` separado.
 
-Campos snake_case — mesma grafia do backend (§2 nota de consistência).
+### `src/features/catalog/schemas/show.schema.ts` (recorte relevante)
 
 ```ts
-// src/features/catalog/schemas/show.schema.ts  — novo
 import { z } from 'zod';
 
 export const showCardSchema = z.object({
@@ -106,6 +88,7 @@ export const showCardSchema = z.object({
   title: z.string(),
   synopsis_short: z.string(),
   image_url: z.string(),
+  genre_id: z.string().uuid(),
   genre: z.string(),
   upcoming_dates: z.array(z.coerce.date()),
   price_min: z.number(),
@@ -119,116 +102,97 @@ export const pagedShowsSchema = z.object({
   total: z.number().int(),
 });
 
-export const genreListSchema = z.array(z.string());
+// GET /catalog/genres devolve [{ id, name }] — filtro usa o id (UUID);
+// name é só o texto exibido.
+export const genreSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+});
+
+export const genreListSchema = z.array(genreSchema);
 ```
 
-### `src/features/catalog/schemas/index.ts`
+### `src/features/catalog/services/show.service.ts` (recorte relevante)
+
+`fetcher<T>` não valida a resposta em runtime (contrato da feature); os
+schemas Zod só derivam o tipo (`z.infer`). `ShowFilterParams` é estado de UI
+(filtro/paginação): mantém os nomes internos `fromDate`/`genre` em camelCase,
+mas traduz pro contrato real (`from_date`/`genre_id`) ao montar a query.
 
 ```ts
-// src/features/catalog/schemas/index.ts  — novo
-export * from './show.schema';
-```
-
-### `src/features/catalog/server/types/show.types.ts`
-
-```ts
-// src/features/catalog/server/types/show.types.ts  — novo
-import type { z } from 'zod';
-
-import type { genreListSchema, pagedShowsSchema, showCardSchema } from '@catalog/schemas';
-
-export type ShowCard = z.infer<typeof showCardSchema>;
-export type PagedShows = z.infer<typeof pagedShowsSchema>;
-export type GenreList = z.infer<typeof genreListSchema>;
-```
-
-### `src/features/catalog/server/types/index.ts`
-
-```ts
-// src/features/catalog/server/types/index.ts  — novo
-export * from './show.types';
-```
-
-### `src/features/catalog/server/index.ts`
-
-```ts
-// src/features/catalog/server/index.ts  — novo
-export * from './types';
-```
-
-### `src/features/catalog/services/show.service.ts`
-
-Segue `authService` real (`services/auth.service.ts`): função por operação,
-`fetcher<T>` tipado, sem `.parse()` em runtime — os schemas Zod só derivam o
-tipo (`z.infer`), a validação de contrato é o próprio TypeScript. `ShowFilters`
-é estado de UI (filtro/paginação), não vem da API — por isso é um `type`
-comum, não um `z.infer`.
-
-```ts
-// src/features/catalog/services/show.service.ts  — novo
 import { fetcher } from '@web/lib/fetcher';
 import { endpoints } from '@web/routes/endpoints';
 
-import type { GenreList, PagedShows } from '@catalog/server/types';
+import type { GenreList, PagedShows, ShowCardModel } from '@catalog/server/types';
 
-export type ShowFilters = {
-  fromDate?: string; // yyyy-mm-dd
+export type ShowFilterParams = {
+  fromDate?: string;
   genre?: string;
   page?: number;
   size?: number;
 };
 
-function buildQuery(filters: ShowFilters): string {
+function buildQuery(filters: ShowFilterParams): string {
   const params = new URLSearchParams();
-  if (filters.fromDate) params.set('fromDate', filters.fromDate);
-  if (filters.genre) params.set('genre', filters.genre);
+
+  if (filters.fromDate) {
+    // Contrato real é snake_case (from_date) — GET /catalog/shows.
+    params.set('from_date', filters.fromDate);
+  }
+  if (filters.genre) {
+    // Contrato real é genre_id (UUID) — GET /catalog/shows.
+    params.set('genre_id', filters.genre);
+  }
   params.set('page', String(filters.page ?? 1));
   params.set('size', String(filters.size ?? 12));
+
   return params.toString();
 }
 
+// O fetcher não valida em runtime, então upcoming_dates chega como
+// string[] apesar do tipo dizer Date[] (via z.coerce.date()).
+function reviveShowCard(show: ShowCardModel): ShowCardModel {
+  return { ...show, upcoming_dates: show.upcoming_dates.map((date) => new Date(date)) };
+}
+
 export const catalogService = {
-  fetchShows(filters: ShowFilters = {}) {
-    return fetcher<PagedShows>(`${endpoints.catalog.shows}?${buildQuery(filters)}`, {
+  async fetchShows(filters: ShowFilterParams = {}) {
+    const page = await fetcher<PagedShows>(`${endpoints.catalog.shows}?${buildQuery(filters)}`, {
       method: 'GET',
       skipAuth: true,
     });
+    return { ...page, items: page.items.map(reviveShowCard) };
   },
 
   fetchGenres() {
-    return fetcher<GenreList>(endpoints.catalog.genres, {
-      method: 'GET',
-      skipAuth: true,
-    });
+    return fetcher<GenreList>(endpoints.catalog.genres, { method: 'GET', skipAuth: true });
   },
+
+  // ...createGenre/updateGenre/deleteGenre (catalog-genre), fetchShowById/
+  // fetchSessionById (catalog-session-detail), createShow/updateShow/
+  // publishShow/... (catalog-admin-management) — mesmo arquivo, fora do
+  // escopo deste documento.
 };
 ```
 
-### `src/features/catalog/services/index.ts`
+### `src/features/catalog/hooks/queries/query-options.ts` (recorte relevante)
 
 ```ts
-// src/features/catalog/services/index.ts  — novo
-export * from './show.service';
-```
-
-### `src/features/catalog/hooks/queries/query-options.ts`
-
-```ts
-// src/features/catalog/hooks/queries/query-options.ts  — novo
 import { queryOptions } from '@tanstack/react-query';
 
 import { catalogService } from '@catalog/services';
 
-import type { ShowFilters } from '@catalog/services';
+import type { ShowFilterParams } from '@catalog/services/show.service';
 
 export const catalogQueryKeys = {
   all: ['catalog'] as const,
-  shows: (filters: ShowFilters) => [...catalogQueryKeys.all, 'shows', filters] as const,
+  shows: (filters: ShowFilterParams) => [...catalogQueryKeys.all, 'shows', filters] as const,
   genres: () => [...catalogQueryKeys.all, 'genres'] as const,
+  // ...showDetail, sessionDetail, admin.* — outras specs de catalog
 };
 
 export const catalogQueryOptions = {
-  showList: (filters: ShowFilters) =>
+  showList: (filters: ShowFilterParams) =>
     queryOptions({
       queryKey: catalogQueryKeys.shows(filters),
       queryFn: () => catalogService.fetchShows(filters),
@@ -237,79 +201,50 @@ export const catalogQueryOptions = {
     queryOptions({
       queryKey: catalogQueryKeys.genres(),
       queryFn: () => catalogService.fetchGenres(),
-      // Lista de gêneros muda só quando o admin publica algo novo.
       staleTime: 60_000,
     }),
+  // ...showDetail, sessionDetail, adminShowList, adminShow
 };
-```
-
-### `src/features/catalog/hooks/queries/useCatalogQueries.ts`
-
-Um hook nomeado por consulta — mesmo padrão de `useCurrentUser()` em
-`features/account/hooks/queries/useAccountQueries.ts` (não uma fábrica que
-devolve um objeto de hooks).
-
-```ts
-// src/features/catalog/hooks/queries/useCatalogQueries.ts  — novo
-'use client';
-
-import { useQuery } from '@tanstack/react-query';
-
-import { catalogQueryOptions } from './query-options';
-
-import type { ShowFilters } from '@catalog/services';
-
-export function useShowList(filters: ShowFilters) {
-  return useQuery(catalogQueryOptions.showList(filters));
-}
-
-export function useGenreList() {
-  return useQuery(catalogQueryOptions.genreList());
-}
-```
-
-### `src/features/catalog/hooks/queries/index.ts`
-
-```ts
-// src/features/catalog/hooks/queries/index.ts  — novo
-export * from './query-options';
-export * from './useCatalogQueries';
 ```
 
 ### `src/features/catalog/hooks/useShowFilters.ts`
 
-Estado dos filtros (data, gênero, página) sincronizado com a query string —
-não é query nem mutation nem form, por isso fica na raiz de `hooks/`, não em
-uma das três subpastas.
+Estado dos filtros (data, gênero, página) sincronizado com a query string.
 
 ```ts
-// src/features/catalog/hooks/useShowFilters.ts  — novo
 'use client';
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useMemo } from 'react';
 
-import type { ShowFilters } from '@catalog/services';
+import type { ShowFilterParams } from '@catalog/services';
 
 const DEFAULT_SIZE = 12;
+
+type ShowFilterUpdates = {
+  fromDate?: string | undefined;
+  genre?: string | undefined;
+  page?: number | undefined;
+};
 
 export function useShowFilters() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const filters: ShowFilters = useMemo(
-    () => ({
-      fromDate: searchParams.get('fromDate') ?? undefined,
-      genre: searchParams.get('genre') ?? undefined,
+  const filters: ShowFilterParams = useMemo(() => {
+    const fromDate = searchParams.get('fromDate');
+    const genre = searchParams.get('genre');
+    return {
+      ...(fromDate ? { fromDate } : {}),
+      ...(genre ? { genre } : {}),
       page: Number(searchParams.get('page') ?? '1'),
       size: DEFAULT_SIZE,
-    }),
-    [searchParams],
-  );
+    };
+  }, [searchParams]);
 
   const setFilters = useCallback(
-    (next: Partial<Pick<ShowFilters, 'fromDate' | 'genre' | 'page'>>) => {
+    (next: ShowFilterUpdates) => {
       const params = new URLSearchParams(searchParams.toString());
       const merged = { ...filters, ...next };
 
@@ -319,7 +254,6 @@ export function useShowFilters() {
       if (merged.genre) params.set('genre', merged.genre);
       else params.delete('genre');
 
-      // Trocar data/gênero reseta a página; mudar só a página não.
       if ('page' in next) params.set('page', String(next.page ?? 1));
       else params.delete('page');
 
@@ -332,54 +266,55 @@ export function useShowFilters() {
 }
 ```
 
-### `src/features/catalog/hooks/index.ts`
-
-```ts
-// src/features/catalog/hooks/index.ts  — novo
-export * from './queries';
-export * from './useShowFilters';
-```
-
 ### `src/features/catalog/components/ui/ShowCard.tsx`
 
-Apresentacional puro. `<img>` nativo, não `next/image` — a feature admin
-explicitamente não faz upload/otimização de imagem, só aceita URL (spec
-`catalog-admin-management` §6); usar `next/image` exigiria liberar domínios
-arbitrários em `next.config`, fora de escopo aqui.
+Difere bastante da versão original deste documento: é um `Link` pra rota de
+detalhe (`catalog-session-detail`), usa os componentes de UI do design system
+(`Card`, `Badge`) em vez de HTML puro, e mostra o gênero como badge.
 
 ```tsx
-// src/features/catalog/components/ui/ShowCard.tsx  — novo
-import type { ShowCard as ShowCardModel } from '@catalog/server/types';
+import Link from 'next/link';
+import { CalendarDays } from 'lucide-react';
+
+import { Badge } from '@components/ui/badge';
+import { Card, CardContent } from '@components/ui/card';
+
+import { formatPriceBRL } from '@catalog/lib';
+
+import type { ShowCardModel } from '@catalog/server/types';
 
 interface ShowCardProps {
   show: ShowCardModel;
 }
 
-const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const SHORT_DATE = new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' });
 
 export function ShowCard({ show }: ShowCardProps) {
   const priceLabel =
     show.price_min === show.price_max
-      ? BRL.format(show.price_min)
-      : `${BRL.format(show.price_min)} – ${BRL.format(show.price_max)}`;
+      ? formatPriceBRL(show.price_min)
+      : `${formatPriceBRL(show.price_min)} – ${formatPriceBRL(show.price_max)}`;
 
   return (
-    <article className="flex flex-col overflow-hidden rounded-lg border border-gray-200">
-      <img
-        src={show.image_url}
-        alt={show.title}
-        className="aspect-[3/4] w-full object-cover"
-      />
-      <div className="flex flex-1 flex-col gap-2 p-3">
-        <h3 className="text-base font-semibold">{show.title}</h3>
-        <p className="line-clamp-2 text-sm text-gray-600">{show.synopsis_short}</p>
-        <p className="text-xs text-gray-500">
-          {show.upcoming_dates.slice(0, 3).map((date) => SHORT_DATE.format(date)).join(' · ')}
-        </p>
-        <p className="mt-auto text-sm font-medium">{priceLabel}</p>
-      </div>
-    </article>
+    <Link href={`/espetaculos/${show.id}`} className="block">
+      <Card className="h-full gap-3 border-t-2 border-t-primary/70 transition hover:shadow-md">
+        <img src={show.image_url} alt={show.title} className="aspect-[3/4] w-full object-cover" />
+        <CardContent className="flex flex-1 flex-col gap-2">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="font-heading text-base font-semibold">{show.title}</h3>
+            <Badge variant="outline" className="shrink-0 border-primary/40 text-primary">
+              {show.genre}
+            </Badge>
+          </div>
+          <p className="line-clamp-2 text-sm text-muted-foreground">{show.synopsis_short}</p>
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <CalendarDays className="size-3.5 text-primary" />
+            {show.upcoming_dates.slice(0, 3).map((date) => SHORT_DATE.format(date)).join(' · ')}
+          </p>
+          <p className="mt-auto text-sm font-medium">{priceLabel}</p>
+        </CardContent>
+      </Card>
+    </Link>
   );
 }
 ```
@@ -387,7 +322,8 @@ export function ShowCard({ show }: ShowCardProps) {
 ### `src/features/catalog/components/ui/Pagination.tsx`
 
 ```tsx
-// src/features/catalog/components/ui/Pagination.tsx  — novo
+import { Button } from '@components/ui/button';
+
 interface PaginationProps {
   page: number;
   size: number;
@@ -401,46 +337,37 @@ export function Pagination({ page, size, total, onPageChange }: PaginationProps)
 
   return (
     <div className="flex items-center justify-center gap-3">
-      <button
-        type="button"
-        disabled={page <= 1}
-        onClick={() => onPageChange(page - 1)}
-        className="min-h-11 rounded-md border border-gray-300 px-3 text-sm disabled:opacity-40"
-      >
+      <Button type="button" variant="outline" className="min-h-11 px-3" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
         Anterior
-      </button>
-      <span className="text-sm text-gray-600">
-        Página {page} de {totalPages}
-      </span>
-      <button
-        type="button"
-        disabled={page >= totalPages}
-        onClick={() => onPageChange(page + 1)}
-        className="min-h-11 rounded-md border border-gray-300 px-3 text-sm disabled:opacity-40"
-      >
+      </Button>
+      <span className="text-sm text-muted-foreground">Página {page} de {totalPages}</span>
+      <Button type="button" variant="outline" className="min-h-11 px-3" disabled={page >= totalPages} onClick={() => onPageChange(page + 1)}>
         Próxima
-      </button>
+      </Button>
     </div>
   );
 }
 ```
 
-### `src/features/catalog/components/ui/index.ts`
-
-```ts
-// src/features/catalog/components/ui/index.ts  — novo
-export * from './Pagination';
-export * from './ShowCard';
-```
-
 ### `src/features/catalog/components/ShowFilters.tsx`
 
+Usa `Input`/`Label`/`Select` do design system, não `<input>`/`<select>` puros
+como a versão original do documento — o filtro de gênero é um `Select` do
+shadcn, com `value`/`onValueChange`, indexado por `genre.id`.
+
 ```tsx
-// src/features/catalog/components/ShowFilters.tsx  — novo
 'use client';
+
+import { CalendarDays, Tags } from 'lucide-react';
+
+import { Input } from '@components/ui/input';
+import { Label } from '@components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/ui/select';
 
 import { useGenreList } from '@catalog/hooks/queries';
 import { useShowFilters } from '@catalog/hooks';
+
+const ALL_GENRES = 'all';
 
 export function ShowFilters() {
   const { filters, setFilters } = useShowFilters();
@@ -448,36 +375,41 @@ export function ShowFilters() {
 
   return (
     <div className="flex flex-wrap items-end gap-4">
-      <div className="flex flex-col gap-1">
-        <label htmlFor="filter-from-date" className="text-sm font-medium">
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="filter-from-date" className="gap-1.5">
+          <CalendarDays className="size-3.5 text-primary" />
           A partir de
-        </label>
-        <input
+        </Label>
+        <Input
           id="filter-from-date"
           type="date"
           value={filters.fromDate ?? ''}
           onChange={(event) => setFilters({ fromDate: event.target.value || undefined })}
-          className="min-h-11 rounded-md border border-gray-300 px-3"
+          className="min-h-11 border-primary/30"
         />
       </div>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor="filter-genre" className="text-sm font-medium">
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="filter-genre" className="gap-1.5">
+          <Tags className="size-3.5 text-primary" />
           Gênero
-        </label>
-        <select
-          id="filter-genre"
-          value={filters.genre ?? ''}
-          onChange={(event) => setFilters({ genre: event.target.value || undefined })}
-          className="min-h-11 rounded-md border border-gray-300 px-3"
+        </Label>
+        <Select
+          value={filters.genre ?? ALL_GENRES}
+          onValueChange={(value) => setFilters({ genre: value === ALL_GENRES ? undefined : value })}
         >
-          <option value="">Todos</option>
-          {(genresQuery.data ?? []).map((genre) => (
-            <option key={genre} value={genre}>
-              {genre}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger id="filter-genre" className="min-h-11 w-40 border-primary/30">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_GENRES}>Todos</SelectItem>
+            {(genresQuery.data ?? []).map((genre) => (
+              <SelectItem key={genre.id} value={genre.id}>
+                {genre.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
     </div>
   );
@@ -486,12 +418,19 @@ export function ShowFilters() {
 
 ### `src/features/catalog/components/ShowGrid.tsx`
 
-Orchestration — conecta filtros e a query da lista; trata loading/error/empty;
-pagina.
+Ganhou um cabeçalho ("Espetáculos em cartaz"), skeleton de loading (não texto
+"Carregando...") e um `Alert` do design system pro erro — versão bem mais
+elaborada do que a original deste documento previa.
 
 ```tsx
-// src/features/catalog/components/ShowGrid.tsx  — novo
 'use client';
+
+import { RotateCw } from 'lucide-react';
+
+import { Alert, AlertDescription, AlertTitle } from '@components/ui/alert';
+import { Button } from '@components/ui/button';
+import { Skeleton } from '@components/ui/skeleton';
+import { LogoIcon } from '@components/LogoIcon';
 
 import { Pagination, ShowCard } from '@catalog/components/ui';
 import { useShowFilters } from '@catalog/hooks';
@@ -499,31 +438,58 @@ import { useShowList } from '@catalog/hooks/queries';
 
 import { ShowFilters } from './ShowFilters';
 
+function ShowGridLoadingState() {
+  return (
+    <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      {[0, 1, 2, 3].map((key) => (
+        <div key={key} className="flex flex-col gap-2">
+          <Skeleton className="aspect-[3/4] w-full rounded-xl" />
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-4 w-1/2" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function ShowGrid() {
   const { filters, setFilters } = useShowFilters();
   const query = useShowList(filters);
 
   return (
     <section className="mx-auto max-w-5xl space-y-6 p-6">
+      <div className="flex items-center gap-3 rounded-2xl border border-border border-b-2 border-b-primary bg-card p-6 sm:p-8">
+        <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-[#fae9e9] p-2.5">
+          <LogoIcon className="size-full" />
+        </span>
+        <div>
+          <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl">Espetáculos em cartaz</h1>
+          <p className="text-sm text-muted-foreground sm:text-base">Encontre a próxima sessão do seu espetáculo favorito.</p>
+        </div>
+      </div>
+
       <ShowFilters />
 
       {query.isLoading ? (
-        <p className="text-sm text-gray-500">Carregando espetáculos...</p>
+        <ShowGridLoadingState />
       ) : query.isError ? (
-        <div className="text-sm">
-          <p className="text-red-600">Não foi possível carregar os espetáculos.</p>
-          <button
-            type="button"
-            onClick={() => void query.refetch()}
-            className="mt-2 min-h-11 rounded-md border border-gray-300 px-4"
-          >
-            Tentar de novo
-          </button>
-        </div>
+        <Alert variant="destructive">
+          <AlertTitle>Não foi possível carregar os espetáculos</AlertTitle>
+          <AlertDescription className="flex flex-col gap-3">
+            <span>Verifique sua conexão e tente novamente.</span>
+            <Button type="button" variant="outline" size="sm" className="min-h-11 w-fit" onClick={() => void query.refetch()}>
+              <RotateCw />
+              Tentar de novo
+            </Button>
+          </AlertDescription>
+        </Alert>
       ) : query.data && query.data.items.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-gray-300 p-8 text-center text-sm text-gray-500">
-          Nenhum espetáculo em cartaz para esse filtro.
-        </p>
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border p-10 text-center">
+          <span className="flex size-12 items-center justify-center rounded-full bg-[#fae9e9] p-2.5">
+            <LogoIcon className="size-full" />
+          </span>
+          <p className="text-sm text-muted-foreground">Nenhum espetáculo em cartaz para esse filtro.</p>
+        </div>
       ) : query.data ? (
         <>
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -531,12 +497,7 @@ export function ShowGrid() {
               <ShowCard key={show.id} show={show} />
             ))}
           </div>
-          <Pagination
-            page={query.data.page}
-            size={query.data.size}
-            total={query.data.total}
-            onPageChange={(page) => setFilters({ page })}
-          />
+          <Pagination page={query.data.page} size={query.data.size} total={query.data.total} onPageChange={(page) => setFilters({ page })} />
         </>
       ) : null}
     </section>
@@ -544,38 +505,9 @@ export function ShowGrid() {
 }
 ```
 
-### `src/features/catalog/components/index.ts`
-
-```ts
-// src/features/catalog/components/index.ts  — novo
-export * from './ui';
-export * from './ShowFilters';
-export * from './ShowGrid';
-```
-
-### `src/features/catalog/index.ts`
-
-Segue o barrel real de `features/account/index.ts` (`export *` de cada
-subpasta; sem `contexts` aqui — a vitrine não usa nenhum).
-
-```ts
-// src/features/catalog/index.ts  — novo
-export * from './components';
-export * from './hooks';
-export * from './schemas';
-export * from './server';
-export * from './services';
-```
-
 ### `src/lib/get-query-client.ts`
 
-Primeira rota do repo a fazer *prefetch* no servidor — `Providers.tsx` cria um
-`QueryClient` por sessão de navegador (`useState`), que não serve para o
-servidor. Padrão recomendado pelo TanStack Query para o App Router: um
-`QueryClient` por request, deduplicado com `cache()` do React.
-
 ```ts
-// src/lib/get-query-client.ts  — novo
 import { QueryClient } from '@tanstack/react-query';
 import { cache } from 'react';
 
@@ -584,33 +516,29 @@ export const getQueryClient = cache(() => new QueryClient());
 
 ### `src/app/page.tsx`
 
-Editar — troca o placeholder (`// Vitrine (catalog). As features entram aqui...`)
-pela vitrine real. Server Component; lê `searchParams` (Promise no App Router
-atual — `await`), faz *prefetch* da lista e dos gêneros, hidrata para o
-client.
-
 ```tsx
-// src/app/page.tsx  — editar
 import { dehydrate, HydrationBoundary } from '@tanstack/react-query';
 
 import { ShowGrid } from '@catalog/components';
 import { catalogQueryOptions } from '@catalog/hooks/queries';
-import { getQueryClient } from '@web/lib/get-query-client';
+import type { ShowFilterParams } from '@catalog/services';
 
-import type { ShowFilters } from '@catalog/services';
+import { getQueryClient } from '@web/lib/get-query-client';
 
 interface HomePageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-function toFilters(params: Record<string, string | string[] | undefined>): ShowFilters {
+function toFilters(params: Record<string, string | string[] | undefined>): ShowFilterParams {
   const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
-  return {
-    fromDate: first(params.fromDate),
-    genre: first(params.genre),
-    page: Number(first(params.page) ?? '1'),
-    size: 12,
-  };
+  const filters: ShowFilterParams = { page: Number(first(params.page) ?? '1'), size: 12 };
+
+  const fromDate = first(params.fromDate);
+  const genre = first(params.genre);
+  if (fromDate) filters.fromDate = fromDate;
+  if (genre) filters.genre = genre;
+
+  return filters;
 }
 
 export default async function HomePage({ searchParams }: HomePageProps) {
@@ -634,75 +562,66 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
 ## 3. Contrato consumido
 
-Contrato-alvo: `docs.ludens/specs/catalog-show-search/integration.md`. Sem
+Contrato: `docs.ludens/specs/catalog-show-search/integration.md`. Sem
 dependência de `identity-auth` (frontend) — rota 100% pública, `skipAuth: true`
 em toda chamada.
 
-| Símbolo | Origem | Forma esperada |
-| --- | --- | --- |
-| `fetcher` | `@web/lib/fetcher` | `fetcher<T>(path, options): Promise<T>`; em resposta não-2xx lança `Error('HTTP <status>')` — `ShowGrid` trata isso como `query.isError`, sem ler o corpo do erro (não há regra de negócio a distinguir aqui, é leitura pública) |
-| `endpoints` | `@web/routes/endpoints` | objeto `as const`; grupo `catalog.shows` / `catalog.genres` (path sem parâmetro) |
+* `fetcher<T>(path, options): Promise<T>` — em resposta não-2xx lança
+  `Error('HTTP <status>')`; `ShowGrid` trata isso como `query.isError`, sem
+  ler o corpo do erro (leitura pública, sem regra de negócio a distinguir).
+* `endpoints.catalog.shows` / `endpoints.catalog.genres` — path sem
+  parâmetro, sob `/api/catalog`.
 
 ---
 
 ## 4. Estados assíncronos e mensagens
 
-| Estado | Onde | Mensagem |
-| --- | --- | --- |
-| loading | `ShowGrid` | "Carregando espetáculos..." |
-| error | `ShowGrid` | "Não foi possível carregar os espetáculos." + botão "Tentar de novo" |
-| empty (filtro sem resultado) | `ShowGrid` | "Nenhum espetáculo em cartaz para esse filtro." (logic.md §1.4) |
-| paginação com 1 página só | `Pagination` | componente não renderiza nada |
+* **loading:** `ShowGrid` mostra um grid de `Skeleton` (não texto).
+* **error:** `Alert` "Não foi possível carregar os espetáculos" + "Verifique
+  sua conexão e tente novamente." + botão "Tentar de novo".
+* **empty (filtro sem resultado):** "Nenhum espetáculo em cartaz para esse
+  filtro." (logic.md §1.4), com o ícone da marca.
+* **paginação com 1 página só:** `Pagination` não renderiza nada.
 
 ---
 
 ## 5. Passo a passo TBD (Frontend)
 
+Já mergeado.
+
 ```text
-git checkout master && git pull && git checkout -b feat/<NN>-catalog-show-search
-
-# commit 1 — contrato
-git add src/routes/endpoints.ts src/features/catalog/schemas src/features/catalog/server \
-        src/features/catalog/services
-git commit -m "feat(catalog): endpoints, schemas, tipos e service de busca de espetaculos"
-
-# commit 2 — hooks
-git add src/features/catalog/hooks src/lib/get-query-client.ts
-git commit -m "feat(catalog): queries, filtros por URL e query client de servidor"
-
-# commit 3 — UI + rota
-git add src/features/catalog/components src/app/page.tsx
-git commit -m "feat(catalog): vitrine com filtros e paginacao + prefetch na home"
-
-# commit 4 — barrel da feature
-git add src/features/catalog/index.ts
-git commit -m "chore(catalog): barrel index.ts da feature"
-
-npm run lint && npm run build
+feat(catalog): endpoints, schemas, tipos e service de busca de espetaculos
+feat(catalog): queries, filtros por URL e query client de servidor
+feat(catalog): vitrine com filtros e paginacao + prefetch na home
 ```
-
-Depois: `npm run lint && npm run build` verdes → `/team-ludens:tbd-pr`.
 
 ---
 
 ## 6. Ordem entre as superfícies
 
-Não depende de nenhuma fatia de frontend (nem `identity-auth`) — só do backend
-desta mesma fatia (contra o contrato-alvo, se o backend ainda não tiver
-mergeado). `catalog-session-detail` (frontend) é a fatia seguinte no mesmo
-módulo, e consome `ShowCard`/formatação de preço em comum se fizer sentido na
-hora (avaliar duplicação vs. extrair para `lib/` nessa fatia).
+Não depende de nenhuma fatia de frontend (nem `identity-auth`) — só do
+backend desta mesma fatia. `catalog-session-detail` é a fatia seguinte no
+mesmo módulo (o card já linka pra rota de detalhe dela).
 
 ---
 
-## 7. Bloqueios em aberto
+## 7. Débitos técnicos registrados
 
-Nenhum bloqueio de decisão de produto (spec §9 fechada). Pontos de atenção:
+* `catalogService`, `catalogQueryOptions` e `show.schema.ts` acumulam código
+  de quatro specs diferentes (`catalog-genre`, `catalog-show-search`,
+  `catalog-session-detail`, `catalog-admin-management`) no mesmo arquivo —
+  nenhuma dessas specs tem um arquivo isolado só seu.
 
-- **`catalog-admin-management` (frontend) ainda não mergeado** (spec já
-  corrigida, ver nota no topo) — sem ele não há dado real para a vitrine
-  mostrar (a API responde lista vazia, não erro).
-- **`getQueryClient`/*prefetch* é padrão novo no repo** — nenhuma rota atual
-  faz isso; primeira vez que `HydrationBoundary` aparece no `web.ludens`.
-  Validar no code review que `Providers.tsx` (o `QueryClient` de sessão) não é
-  reaproveitado no servidor.
+## 8. Ajustes feitos no `integration.md`
+
+* Filtro passou de `genre: str` pra `genre_id` (UUID); a UI já enviava o id
+  desde a implementação real, nunca chegou a mandar nome de gênero como
+  texto.
+* Lista de gêneros vem de `GET /catalog/genres` como `{id, name}`, consumida
+  por um `Select` do design system, não um `<select>` puro com `<option>` por
+  string.
+* `ShowCard` ganhou navegação pra rota de detalhe (`/espetaculos/{id}`,
+  `catalog-session-detail`) e um badge de gênero — não previsto na versão
+  original deste documento.
+* Loading/erro/vazio usam os componentes do design system (`Skeleton`,
+  `Alert`, `Button`), não HTML/Tailwind cru.

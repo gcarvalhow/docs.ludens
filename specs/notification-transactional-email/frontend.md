@@ -23,8 +23,8 @@ especificamente para ele.
 
 A tela de "esqueci minha senha" que dispara o e-mail cujo handler este spec
 implementa já existe em `identity-auth/frontend.md` — nenhuma mudança nela é
-necessária por causa desta feature (o contrato `POST /auth/forgot-password`
-não muda).
+necessária por causa desta feature (o contrato
+`POST /api/identity/authentication/password/forgot` não muda).
 
 ## Ordem entre as superfícies
 

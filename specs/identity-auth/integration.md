@@ -136,7 +136,7 @@ limpa o estado e manda para `/login`. Mensagens conforme a tabela de erros.
     `GET /identity/users` (admin) — ver `identity-user-management`.
 - **Frontend ainda não atualizado:** `web.ludens` foi construído contra o
   contrato antigo (`/auth/...`, `/users/...`). Ver
-  [`team/tech-debt.md`](../../team/tech-debt.md) para o débito técnico
-  registrado.
+  [`team/overview.md`](../../team/overview.md#débitos-conhecidos-hoje) para o
+  débito técnico registrado.
 - Se uma convenção global de prefixo/versionamento/erro for adotada depois, ela
   substitui o que está aqui.

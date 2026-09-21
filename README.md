@@ -51,11 +51,10 @@ por quem trabalha no projeto.
 
 ## Time (contexto de repo)
 
-* [Equipe e RACI](team/overview.md): papéis, integrantes, Matriz RACI e o
-  fluxo Trunk-Based Development mapeado a cada papel.
-* [Acordo de Manutenibilidade](team/maintainability.md): registro histórico do acordo assinado do Processo 18 (a versão operacional vive nos links abaixo).
-* [Qualidade: DoR e DoD](team/quality.md): Definition of Ready e Definition of Done.
-* [Gestão de débito técnico](team/tech-debt.md): política de registro, orçamento de ciclo, priorização.
+* [Equipe e RACI](team/overview.md): papéis, integrantes, Matriz RACI,
+  qualidade (DoR/DoD), gestão de débito técnico e o fluxo Trunk-Based
+  Development mapeado a cada papel.
+* [Acordo de Manutenibilidade](team/maintainability.md): registro histórico do acordo assinado do Processo 18 (a versão operacional vive nos links acima).
 * [Templates de issue, PR e commit](team/templates/): usados no fluxo TBD.
 * [Specs de feature](specs/): produto, lógica de negócio e (quando implementada)
   contrato e código de cada feature, uma pasta por `[domínio]-[conceito]`.

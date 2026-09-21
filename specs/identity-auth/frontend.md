@@ -30,7 +30,7 @@ subárvores autenticadas.
 > camelCase; e não existe campo `role` — só o booleano `is_admin`. Este
 > documento e o código já publicado em `web.ludens` ainda assumem a versão
 > antiga (camelCase, `/auth`, `/users`, `role`). Débito técnico registrado em
-> `docs.ludens/team/tech-debt.md` — revisar `web.ludens` contra o
+> `docs.ludens/team/overview.md` — revisar `web.ludens` contra o
 > `integration.md` atualizado antes de confiar nos trechos de código abaixo.
 
 Stack: **Next.js (App Router) + TypeScript estrito**. Arquivos `.ts`/`.tsx`;

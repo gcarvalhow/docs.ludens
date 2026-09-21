@@ -2,7 +2,7 @@
 
 PR pequeno, de uma branch de curta duração (`feature/...` ou `fix/...`) contra
 `master`. Um PR só é aprovado quando bate o
-[Definition of Done](../quality.md#definition-of-done-dod-pronto-para-entrega)
+[Definition of Done](../overview.md#definition-of-done-dod-pronto-para-entrega)
 completo.
 
 ## Issue relacionada
@@ -27,7 +27,7 @@ Passo a passo pra quem for revisar reproduzir o comportamento localmente.
       passando na pipeline.
 * [ ] Lint do frontend sem erro crítico, quando aplicável.
 * [ ] Nenhum atalho técnico assumido sem a issue de
-      [débito técnico](../tech-debt.md#política-de-registro) correspondente.
+      [débito técnico](../overview.md#política-de-registro) correspondente.
 
 ## Screenshots
 

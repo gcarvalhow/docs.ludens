@@ -22,13 +22,13 @@ Ver [`team/overview.md`](overview.md): integrantes e Matriz RACI.
 
 ## 2. Processo e gestão de débito técnico
 
-Ver [`team/tech-debt.md`](tech-debt.md): política de registro, orçamento de
-ciclo (cerca de 15%) e critérios de priorização.
+Ver [`team/overview.md`](overview.md#gestão-de-débito-técnico): política de
+registro, orçamento de ciclo (cerca de 15%) e critérios de priorização.
 
 ## 3. Critérios de qualidade: DoR e DoD
 
-Ver [`team/quality.md`](quality.md): Definition of Ready e Definition of
-Done.
+Ver [`team/overview.md`](overview.md#qualidade-dor-e-dod): Definition of
+Ready e Definition of Done.
 
 ## 4. Estratégia de testabilidade
 

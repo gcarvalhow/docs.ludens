@@ -3,7 +3,7 @@
 Preencha isto antes de abrir a issue no GitHub Project
 [`@ludens`](https://github.com/orgs/gcarvalhow/projects/2). Uma issue só entra
 em desenvolvimento quando bate o
-[Definition of Ready](../quality.md#definition-of-ready-dor-pronto-para-desenvolver)
+[Definition of Ready](../overview.md#definition-of-ready-dor-pronto-para-desenvolver)
 completo.
 
 ## Título
@@ -49,4 +49,4 @@ Campos do Project
   pertence a um módulo específico.
 * `N1` | `N2` | `N3`, nível de entrega da feature, quando aplicável.
 * `débito técnico`, quando a issue registra um atalho assumido conforme a
-  [política de registro](../tech-debt.md#política-de-registro).
+  [política de registro](../overview.md#política-de-registro).

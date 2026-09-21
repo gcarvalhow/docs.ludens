@@ -75,7 +75,7 @@ Dependências
 > tags=["02.Identity - User"]`. O `Path` do cookie de refresh acompanhou a
 > mudança (`REFRESH_PATH`: `/auth` → `/identity`). Todas as rotas abaixo estão
 > atualizadas para os novos caminhos; `web.ludens` ainda não foi atualizado —
-> ver débito técnico em `docs.ludens/team/tech-debt.md`.
+> ver débito técnico em `docs.ludens/team/overview.md`.
 >
 > **Revisão de 2026-09-21:** o prefixo mudou de novo — `auth_router.py` real
 > hoje é `prefix="/identity/authentication"` (não `/identity` puro), pra não

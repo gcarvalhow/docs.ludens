@@ -1,7 +1,7 @@
 # Estratégia de testes automatizados: Backend
 
 > Versão operacional do [Acordo de Manutenibilidade §4](../team/maintainability.md#4-estratégia-de-testabilidade)
-> e do gate de testes do [DoD](../team/quality.md#definition-of-done-dod-pronto-para-entrega).
+> e do gate de testes do [DoD](../team/overview.md#definition-of-done-dod-pronto-para-entrega).
 > Ver também [`code-style.md`](code-style.md) para idioma/formatação e
 > [`conventions.md`](conventions.md) para padrão de arquitetura.
 

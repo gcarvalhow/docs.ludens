@@ -26,6 +26,16 @@ Stack: **Next.js (App Router) + TypeScript estrito**. Segmentos dinâmicos
 > `catalog-admin-management/frontend.md` §2), registro `endpoints`
 > (minúsculo). Este documento edita os arquivos que `catalog-show-search` já
 > cria — não redefine nada, só acrescenta.
+>
+> **Revisão de 2026-09-21:** confirmado que todo arquivo listado em §1 existe
+> de fato no código real (`session.schema.ts`, `session.types.ts`,
+> `ShowSessions.tsx`, `SessionDetail.tsx`, `ShowSessionsView.tsx`,
+> `SessionDetailView.tsx`, rotas `src/app/espetaculos/[showId]` e
+> `src/app/sessoes/[sessionId]`) — não checado nesta revisão. `endpoints`
+> real é plano (`endpoints.catalog.showById`, `sessionById`), sem grupo
+> aninhado, com prefixo `/api` (ver `catalog-admin-management/frontend.md`
+> §2) — os blocos de código abaixo não foram reconferidos campo a campo
+> contra o real; tratar como não totalmente verificado.
 
 ---
 

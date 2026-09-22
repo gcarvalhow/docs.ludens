@@ -66,9 +66,7 @@ regras de senha.
 autenticada imediatamente pelo mesmo mecanismo de sessão usado no login.
 [`notification-transactional-email`](../notification-transactional-email/spec.md)
 — o envio do link de convite por e-mail (decidido em `logic.md`) reaproveita
-esse serviço. **Atenção:** essa spec está aprovada mas ainda não implementada
-no backend (só existem os módulos `catalog` e `identity` hoje) — esta feature
-não pode ir ao ar antes dela.
+esse serviço, já implementado no backend (módulo `notification`).
 
 **O que habilita:** a administração da plataforma deixa de depender de acesso
 à infraestrutura para crescer o time de administradores — abre caminho para o

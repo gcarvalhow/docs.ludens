@@ -11,7 +11,7 @@
   "MD033": false,
 
   // Padrão deliberado do projeto: rótulo em negrito seguido de uma lista de
-  // itens (ver product/scope.md). Não é "emphasis como heading".
+  // itens (ver product/overview.md). Não é "emphasis como heading".
   "MD036": false,
 
   // Mesmo padrão: a lista logo abaixo de um rótulo em negrito não precisa de

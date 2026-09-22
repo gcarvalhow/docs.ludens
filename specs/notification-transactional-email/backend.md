@@ -3,6 +3,7 @@ status: draft
 spec: notification-transactional-email
 surface: backend
 created_at: 2026-09-11
+updated_at: 2026-09-21
 ---
 
 # E-mails transacionais — Backend
@@ -42,8 +43,7 @@ backend:** `notification` (novo módulo)
 `POST /identity/password/forgot`); não há `integration.md` novo além do que
 já existe aqui.
 **Carregar antes:** skill `backend-architecture`,
-`docs.ludens/backend/overview.md`, `docs.ludens/backend/conventions.md`,
-`docs.ludens/backend/design/001-outbox-in-process.md`.
+`docs.ludens/backend/overview.md`, `docs.ludens/backend/conventions.md`.
 
 **Resumo:** módulo `notification` sem aggregate — só infraestrutura de envio.
 Uma interface `EmailService` (RNF06: trocável por configuração) com dois
@@ -62,18 +62,20 @@ sem handler — e enviam o e-mail correspondente via `EmailService`.
 | # | Camada | Caminho | Novo/Editar |
 | --- | --- | --- | --- |
 | 1 | pacotes | `src/app/modules/notification/**/__init__.py` (vazios) | novo |
-| 2 | infrastructure | `src/app/modules/notification/infrastructure/services/email_service.py` | novo |
-| 3 | infrastructure | `src/app/modules/notification/infrastructure/services/acs_email_service.py` | novo |
-| 4 | infrastructure | `src/app/modules/notification/infrastructure/services/smtp_email_service.py` | novo |
-| 5 | infrastructure | `src/app/modules/notification/infrastructure/services/factory.py` | novo |
-| 6 | infrastructure | `src/app/modules/notification/infrastructure/services/__init__.py` | novo |
-| 7 | infrastructure | `src/app/modules/notification/infrastructure/templates.py` | novo |
-| 8 | outbox | `src/app/modules/notification/handlers.py` | novo |
-| 9 | api | `src/app/main.py` | editar |
-| 10 | config | `src/app/config.py` | editar |
-| 11 | config | `.env.example` / `.env.local` | editar |
-| 12 | config | `pyproject.toml` | editar |
-| 13 | infra dev | `docker/docker-compose.Development.yml` | editar (serviço `mailpit`) |
+| 2 | shared | `src/app/modules/notification/shared/errors.py` | novo — `EmailServiceError` |
+| 3 | shared | `src/app/modules/notification/shared/templates.py` | novo |
+| 4 | shared | `src/app/modules/notification/shared/__init__.py` | novo — barrel |
+| 5 | infrastructure | `src/app/modules/notification/infrastructure/services/email_service.py` | novo — só o Protocol `EmailService` |
+| 6 | infrastructure | `src/app/modules/notification/infrastructure/services/acs_email_service.py` | novo |
+| 7 | infrastructure | `src/app/modules/notification/infrastructure/services/smtp_email_service.py` | novo |
+| 8 | infrastructure | `src/app/modules/notification/infrastructure/services/factory.py` | novo |
+| 9 | infrastructure | `src/app/modules/notification/infrastructure/services/__init__.py` | novo |
+| 10 | outbox | `src/app/modules/notification/handlers.py` | novo |
+| 11 | api | `src/app/main.py` | editar |
+| 12 | config | `src/app/config.py` | editar |
+| 13 | config | `.env.example` / `.env.local` | editar |
+| 14 | config | `pyproject.toml` | editar |
+| 15 | infra dev | `docker/docker-compose.Development.yml` | editar (serviço `mailpit`) |
 
 Não há `domain/`, `application/`, `api/routers/` nem migration — o módulo não
 tem aggregate nem estado próprio (`notification` = "handlers de evento; sem
@@ -93,15 +95,48 @@ agregado", `docs.ludens/backend/overview.md`), e não expõe rota HTTP.
 # src/app/modules/notification/infrastructure/__init__.py — novo
 ```
 
-### 2. `src/app/modules/notification/infrastructure/services/email_service.py` — novo
+### `src/app/modules/notification/shared/errors.py` — novo
+
+```python
+class EmailServiceError(Exception):
+    pass
+```
+
+### `src/app/modules/notification/shared/__init__.py` — novo
+
+```python
+from .errors import EmailServiceError
+from .templates import (
+    account_deletion_requested_email,
+    email_change_requested_email,
+    email_changed_courtesy_email,
+    password_reset_email,
+)
+
+__all__ = [
+    "EmailServiceError",
+    "account_deletion_requested_email",
+    "email_change_requested_email",
+    "email_changed_courtesy_email",
+    "password_reset_email",
+]
+```
+
+`EmailServiceError` e os templates vivem em `shared/`, não em
+`infrastructure/` — é o que os dois adapters (`acs_email_service.py`,
+`smtp_email_service.py`) e `handlers.py` importam, via
+`app.modules.notification.shared`.
+
+### `src/app/modules/notification/infrastructure/services/email_service.py` — novo
 
 ```python
 from typing import Protocol
 
-class EmailServiceError(Exception):
-    pass
-
 class EmailService(Protocol):
+    """Interface estrutural (structural typing) para envio de e-mail — sem
+    lógica própria. Implementações reais: AcsEmailService (prod) e
+    SmtpEmailService (dev), escolhidas em factory.py::get_email_service()."""
+
     async def send(self, to: str, subject: str, html_body: str) -> None:
         ...
 ```
@@ -121,7 +156,7 @@ from azure.core.exceptions import AzureError
 
 from app.config import settings
 
-from app.modules.notification.infrastructure.services.email_service import EmailServiceError
+from app.modules.notification.shared import EmailServiceError
 
 class AcsEmailService:
     async def send(self, to: str, subject: str, html_body: str) -> None:
@@ -176,8 +211,7 @@ import aiosmtplib
 from email.message import EmailMessage
 
 from app.config import settings
-
-from app.modules.notification.infrastructure.services.email_service import EmailServiceError
+from app.modules.notification.shared import EmailServiceError
 
 class SmtpEmailService:
     async def send(self, to: str, subject: str, html_body: str) -> None:
@@ -225,18 +259,18 @@ def get_email_service() -> EmailService:
 chamada, ver item 3), cachear a instância aqui é só pra não recriar o objeto
 Python à toa, não pra reaproveitar conexão.
 
-### 6. `src/app/modules/notification/infrastructure/services/__init__.py` — novo
+### `src/app/modules/notification/infrastructure/services/__init__.py` — novo
 
 ```python
-from .email_service import EmailService, EmailServiceError
+from .email_service import EmailService
 from .acs_email_service import AcsEmailService
 from .smtp_email_service import SmtpEmailService
 from .factory import get_email_service
 
-__all__ = ["EmailService", "EmailServiceError", "AcsEmailService", "SmtpEmailService", "get_email_service"]
+__all__ = ["EmailService", "AcsEmailService", "SmtpEmailService", "get_email_service"]
 ```
 
-### 7. `src/app/modules/notification/infrastructure/templates.py` — novo
+### `src/app/modules/notification/shared/templates.py` — novo
 
 ```python
 def password_reset_email(reset_url: str) -> tuple[str, str]:
@@ -296,14 +330,14 @@ evento que não existe. `email_changed_courtesy_email` não recebe URL — é
 puramente informativo, sem link nem ação (ver `identity-user-management/logic.md`
 §1, "aviso de cortesia enviado ao endereço novo depois da troca confirmada").
 
-### 8. `src/app/modules/notification/handlers.py` — novo
+### `src/app/modules/notification/handlers.py` — novo
 
 ```python
 from app.config import settings
 from app.outbox.registry import register
 
 from app.modules.notification.infrastructure.services import get_email_service
-from app.modules.notification.infrastructure.templates import (
+from app.modules.notification.shared import (
     account_deletion_requested_email,
     email_change_requested_email,
     email_changed_courtesy_email,
@@ -344,7 +378,7 @@ frontend ainda não implementadas em `web.ludens`
 (`/confirmar-troca-de-email`, `/confirmar-exclusao-de-conta`) — a página
 recebe o `token` via query string no `GET` e chama, via JS, o
 `PATCH`/`DELETE` real do backend (mesmo padrão de `/redefinir-senha`); ver
-débito em `docs.ludens/team/tech-debt.md`. Nenhum handler trata exceção — se
+débito em `docs.ludens/team/overview.md`. Nenhum handler trata exceção — se
 `EmailService.send` levantar `EmailServiceError`, ela sobe pro relay
 (`app/outbox/relay.py`), que já loga e deixa `dispatched_at` sem marcar,
 retentando no próximo ciclo. Não duplicar essa lógica aqui.
@@ -507,7 +541,7 @@ rotas de `identity` que emitem esses eventos já existem e não mudam). QA
 documento. Há, porém, um débito de frontend **fora** desta feature: as
 páginas que os links de `EmailChangeRequested`/`AccountDeletionRequested`
 apontam (`/confirmar-troca-de-email`, `/confirmar-exclusao-de-conta`) ainda
-não existem em `web.ludens` — ver `docs.ludens/team/tech-debt.md`.
+não existem em `web.ludens` — ver `docs.ludens/team/overview.md`.
 
 ---
 
@@ -524,7 +558,7 @@ não existem em `web.ludens` — ver `docs.ludens/team/tech-debt.md`.
 - **Páginas de frontend pra abrir os links de confirmação** (troca de e-mail,
   exclusão de conta) ainda não existem em `web.ludens` — só o backend está
   pronto; sem essas páginas, o link do e-mail não tem pra onde ir. Ver
-  `docs.ludens/team/tech-debt.md`.
+  `docs.ludens/team/overview.md`.
 - **Verificação de domínio remetente e provisionamento do recurso ACS** são
   passos de infraestrutura que este documento não executa — são
   pré-requisito de deploy, listados em §4, cobertos pela Workstream de

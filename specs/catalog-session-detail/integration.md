@@ -1,30 +1,40 @@
 ---
-status: alvo
+status: canônico
 spec: catalog-session-detail
-updated_at: 2026-09-10
+updated_at: 2026-09-21
 responsavel: Igor (Backend)
 ---
 
 # Integration Contract — Detalhe da sessão
 
-**Status:** alvo. **Módulo backend:** `catalog`.
+**Status:** canônico — reflete o código real já mergeado, ver
+`catalog-admin-management/backend.md` (mesmos arquivos/classes). **Módulo
+backend:** `catalog`.
 
 ## Rotas
 
+Sem prefixo solto — as duas rotas vivem nos mesmos routers que
+`catalog-admin-management` já documenta, sob `/catalog/shows`/
+`/catalog/sessions`:
+
 | Método | Caminho | Auth | Sucesso |
 | --- | --- | --- | --- |
-| GET | `/shows/{show_id}` | pública | 200 |
-| GET | `/sessions/{session_id}` | pública | 200 |
+| GET | `/catalog/shows/{show_id}` | opcional (`is_admin` muda a resposta) | 200 |
+| GET | `/catalog/sessions/{session_id}` | opcional (`is_admin` muda a resposta) | 200 |
 
 ## Response
 
 Campos em **snake_case** — mesma grafia do contrato de `identity-auth` e de
-`catalog-show-search`.
+`catalog-show-search`. Resposta pública abaixo (`is_admin=false`); com token
+de admin, a mesma rota devolve `AdminShow`/`AdminSession` — ver
+`catalog-admin-management/integration.md`.
 
-- `GET /shows/{show_id}` → `ShowDetail`: `{ id, title, synopsis, image_url,
-  genre, sessions: [SessionSummary] }` (`sessions` só as futuras à venda).
-  `SessionSummary`: `{ id, starts_at, venue }`.
-- `GET /sessions/{session_id}` → `SessionDetail`:
+- `GET /catalog/shows/{show_id}` → `ShowDetail`: `{ id, title, synopsis,
+  image_url, genre_id, genre, sessions: [SessionSummary] }` (`genre_id` desde
+  `catalog-genre`; `sessions` só as futuras). `SessionSummary`:
+  `{ id, starts_at, venue, capacity, available_count, status }` — carrega
+  disponibilidade e status por sessão, não só `{id, starts_at, venue}`.
+- `GET /catalog/sessions/{session_id}` → `SessionDetail`:
   `{ id, show: { id, title }, starts_at, venue, capacity, available_count,
   status: "on_sale"|"sold_out"|"closed"|"cancelled",
   ticket_types: [{ type: "full"|"half", price }] }`.
@@ -32,10 +42,13 @@ Campos em **snake_case** — mesma grafia do contrato de `identity-auth` e de
 ## Regras aplicadas no servidor
 
 `available_count = capacity − confirmados − reservas abertas não vencidas`
-(via `SeatCountsRepository`, compartilhado com `catalog-admin-management`;
-0 enquanto `booking` não existe); `status` derivado de cancelamento →
-horário → disponibilidade, nessa ordem; `price` de `half` = 50% de `full`
-(vem pronto do aggregate `Session`, nunca recalculado aqui).
+(`Session.available_count`, domain). **Hoje sempre `0`**: a contagem real
+(`SeatCounts`) é `(0, 0)` fixo em todo lugar — não existe repositório/SQL
+fazendo essa conta ainda (ver `catalog-admin-management/backend.md` §7), não
+só "enquanto `booking` não existe". `status` derivado de cancelamento →
+horário → disponibilidade, nessa ordem (`Session.status_at`); `price` de
+`half` = 50% de `full` (vem pronto do aggregate `Session`, nunca recalculado
+aqui).
 
 ## Erros
 
@@ -52,7 +65,9 @@ estado.
 
 ## Contrato interno (para o módulo `booking`)
 
-`catalog/dependencies.py` exporta:
+**Ainda não existe no código real** — `catalog/dependencies.py` nunca foi
+criado, porque `booking-reservation` (o consumidor) não mergeou. O que segue
+é planejamento, não contrato canônico; exporta (quando criado):
 
 - `lock_session_for_update(session, session_id) -> SessionRef | None` —
   `SELECT ... FOR UPDATE` na linha da sessão, via

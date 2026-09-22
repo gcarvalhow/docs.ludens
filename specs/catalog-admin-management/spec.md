@@ -55,7 +55,7 @@ o cancelamento de sessão dispara `payment-cancellation-refund` (RF07).
   nesta entrega. Cada espetáculo recebe automaticamente uma imagem de um
   pool padrão (alinhado ao visual da plataforma) na criação; o admin não
   escolhe nem edita. Upload real fica como **débito técnico registrado**
-  (issue "Débito Técnico" no Project, por `team/tech-debt.md`).
+  (issue "Débito Técnico" no Project, por `team/overview.md`).
 - **Não inclui** setores com layout visual — o "mapa" do N1 é a capacidade
   numérica (setores A/B/C são rótulos, não geometria).
 - **Não inclui** múltiplos administradores com permissões diferentes — papel

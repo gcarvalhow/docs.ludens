@@ -1,9 +1,9 @@
 ---
-status: draft
+status: done
 spec: catalog-session-detail
 surface: backend
 created_at: 2026-09-10
-updated_at: 2026-09-11
+updated_at: 2026-09-21
 ---
 
 # Detalhe da sessão — Backend
@@ -40,6 +40,25 @@ merge).
 > `Session.half_price` (nome de antes da remoção do VO `Money`) enquanto o
 > código já usava `half_price_cents` corretamente — ver linha "RF02 — meia =
 > 50% da inteira" abaixo.
+>
+> **Revisão de 2026-09-21 (código real, já mergeado):** o `SessionQueryUseCase`
+> descrito abaixo nunca chegou a existir como classe própria. O read-path
+> público acabou implementado direto em `ShowUseCase.get_show_detail`/`search`
+> e `SessionUseCase.get_session_detail` (as mesmas classes que
+> `catalog-admin-management` já cria), cada método `is_admin`-aware —
+> resposta de admin ou pública no mesmo método, não um usecase separado.
+> `show_router.py`/`session_router.py` também não ganharam rota nova "à
+> parte": o `GET /{show_id}`/`GET /{session_id}` foram acrescentados aos
+> mesmos arquivos de `catalog-admin-management`, sob `/catalog/shows` e
+> `/catalog/sessions` (sem prefixo solto `/shows`/`/sessions`). O código
+> completo real desses dois usecases e routers já está reproduzido em
+> `catalog-admin-management/backend.md` §2 — não duplicado aqui. `SeatCounts`
+> continua sem repositório real (ver `catalog-admin-management/backend.md`
+> §7): `available_count`/`status` desta fatia também usam `SeatCounts(0, 0)`
+> fixo, não uma contagem de fato. `catalog/dependencies.py` (§2, export pra
+> `booking`) **ainda não existe** — `booking-reservation` não mergeou, então
+> essa parte do documento continua sendo planejamento, não código real; o
+> resto desta revisão descreve o que já está implementado.
 
 ---
 
@@ -48,12 +67,12 @@ merge).
 | # | Camada | Caminho | Novo/Editar |
 | --- | --- | --- | --- |
 | 1 | application | `src/app/modules/catalog/application/schemas/response.py` | editar — acrescentar `SessionSummaryResponse`, `ShowDetailResponse`, `TicketTypeResponse`, `SessionShowRef`, `SessionDetailResponse` |
-| 2 | application | `src/app/modules/catalog/application/usecases/session_query_usecase.py` | novo |
+| 2 | application | `application/usecases/show_usecase.py` / `session_usecase.py` | editar — **não** `session_query_usecase.py` (não existe); `get_show_detail`/`get_session_detail` entram nas classes de `catalog-admin-management` |
 | 3 | infrastructure | `src/app/modules/catalog/infrastructure/repositories/session_repository.py` | — (`find_by_id_for_update` já existe, criado por `catalog-admin-management`) |
-| 4 | api | `src/app/modules/catalog/api/routers/show_router.py` | editar — acrescentar `GET /shows/{show_id}` |
-| 5 | api | `src/app/modules/catalog/api/routers/session_router.py` | novo — `GET /sessions/{session_id}` |
-| 6 | api | `src/app/modules/catalog/router.py` | editar — incluir `session_router` |
-| 7 | api | `src/app/modules/catalog/dependencies.py` | novo — exports para `booking` |
+| 4 | api | `src/app/modules/catalog/api/routers/show_router.py` | editar — acrescentar `GET /catalog/shows/{show_id}` |
+| 5 | api | `src/app/modules/catalog/api/routers/session_router.py` | editar — acrescentar `GET /catalog/sessions/{session_id}` (arquivo já existe, não é novo) |
+| 6 | api | `src/app/modules/catalog/router.py` | — (`session_router` já incluído por `catalog-admin-management`) |
+| 7 | api | `src/app/modules/catalog/dependencies.py` | **ainda não criado** — só quando `booking-reservation` começar |
 
 Sem migration nova. Sem variável de ambiente nova.
 
@@ -66,6 +85,13 @@ Sem migration nova. Sem variável de ambiente nova.
 Acrescentar ao arquivo que `catalog-admin-management` cria e
 `catalog-show-search` já editou.
 
+`SessionSummaryResponse` real carrega mais que `{id, starts_at, venue}`: cada
+sessão na lista do espetáculo já vem com `capacity`/`available_count`/`status`
+próprios — a vitrine de detalhe do espetáculo não precisa de uma segunda
+chamada pra saber se uma sessão específica esgotou. `ShowDetailResponse`
+ganhou `genre_id` ao lado de `genre` (de `catalog-genre`, resolvido pelo
+usecase).
+
 ```python
 from typing import Literal
 
@@ -73,12 +99,16 @@ class SessionSummaryResponse(BaseModel):
     id: UUID
     starts_at: datetime
     venue: str
+    capacity: int
+    available_count: int
+    status: Literal["on_sale", "sold_out", "closed", "cancelled"]
 
 class ShowDetailResponse(BaseModel):
     id: UUID
     title: str
     synopsis: str
     image_url: str
+    genre_id: UUID
     genre: str
     sessions: list[SessionSummaryResponse]
 
@@ -112,160 +142,75 @@ Nenhuma edição aqui — `find_by_id_for_update` já é criado por
 `session_usecase.py::_lock`). Este documento só reusa via
 `catalog/dependencies.py`, abaixo.
 
-### `src/app/modules/catalog/application/usecases/session_query_usecase.py`
+### Não existe `session_query_usecase.py` no código real
 
-Reusa `SeatCountsRepository` de `catalog-admin-management` (já resolve
-`tickets_sold` + `reserved_open`, com fallback a 0 enquanto `booking` não
-existe) em vez de recalcular disponibilidade com uma query própria.
+Não há uma classe `SessionQueryUseCase` separada. `get_show_detail` (com
+`is_admin`) vive em `ShowUseCase`, e `get_session_detail` (com `is_admin`)
+vive em `SessionUseCase` — as mesmas duas classes que
+`catalog-admin-management` já cria, no mesmo arquivo. A disponibilidade
+(`available_count`) e o status derivado (`status_at`) viraram métodos do
+próprio aggregate `Session` (`domain/aggregates/session.py`), não uma função
+solta `_public_status` no usecase:
 
 ```python
-from datetime import datetime, timezone
-from uuid import UUID
+# domain/aggregates/session.py — já reproduzido em catalog-admin-management/backend.md §2
+def available_count(self, counts: SeatCounts) -> int:
+    return max(0, self.capacity - counts.tickets_sold - counts.reserved_open)
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.core.domain import NotFoundError
-from app.modules.catalog.application.schemas.response import (
-    SessionDetailResponse,
-    SessionShowRef,
-    SessionSummaryResponse,
-    ShowDetailResponse,
-    TicketTypeResponse,
-)
-from app.modules.catalog.domain.aggregates.session import Session
-from app.modules.catalog.domain.enumerations.session_status import SessionStatus
-from app.modules.catalog.domain.enumerations.show_status import ShowStatus
-from app.modules.catalog.infrastructure.repositories import (
-    SeatCountsRepository,
-    SessionRepository,
-    ShowRepository,
-)
-
-def _public_status(session: Session, available: int, now: datetime) -> str:
-    if session.status is SessionStatus.CANCELLED:
+def status_at(self, now: datetime, counts: SeatCounts) -> str:
+    if self.status is SessionStatus.CANCELLED:
         return "cancelled"
-    if session.starts_at <= now:
+    if self.starts_at <= now:
         return "closed"
-    if available <= 0:
+    if self.available_count(counts) <= 0:
         return "sold_out"
     return "on_sale"
-
-class SessionQueryUseCase:
-    def __init__(self, session: AsyncSession) -> None:
-        self._show_repository = ShowRepository(session)
-        self._session_repository = SessionRepository(session)
-        self._seat_counts_repository = SeatCountsRepository(session)
-
-    async def get_show_detail(self, show_id: UUID) -> ShowDetailResponse:
-        show = await self._show_repository.find_by("id", show_id)
-        # Espetáculo despublicado não é navegável por link direto.
-        if show is None or show.status is not ShowStatus.PUBLISHED:
-            raise NotFoundError("Espetáculo não encontrado.")
-
-        now = datetime.now(timezone.utc)
-        sessions = await self._session_repository.find_all_for_shows([show.id])
-        upcoming = [
-            s for s in sessions if s.status is SessionStatus.ON_SALE and s.starts_at > now
-        ]
-        return ShowDetailResponse(
-            id=show.id,
-            title=show.title,
-            synopsis=show.synopsis,
-            image_url=show.image_url,
-            genre=show.genre,
-            sessions=[
-                SessionSummaryResponse(id=s.id, starts_at=s.starts_at, venue=s.venue)
-                for s in upcoming
-            ],
-        )
-
-    async def get_session_detail(self, session_id: UUID) -> SessionDetailResponse:
-        session = await self._session_repository.find_by("id", session_id)
-        if session is None:
-            raise NotFoundError("Sessão não encontrada.")
-
-        show = await self._show_repository.find_by("id", session.show_id)
-        if show is None or show.status is not ShowStatus.PUBLISHED:
-            raise NotFoundError("Sessão não encontrada.")
-
-        counts = (await self._seat_counts_repository.for_sessions([session.id]))[session.id]
-        available = max(session.capacity - counts.tickets_sold - counts.reserved_open, 0)
-        now = datetime.now(timezone.utc)
-
-        return SessionDetailResponse(
-            id=session.id,
-            show=SessionShowRef(id=show.id, title=show.title),
-            starts_at=session.starts_at,
-            venue=session.venue,
-            capacity=session.capacity,
-            available_count=available,
-            status=_public_status(session, available, now),
-            ticket_types=[
-                TicketTypeResponse(type="full", price=session.full_price_cents / 100),
-                TicketTypeResponse(type="half", price=session.half_price_cents / 100),
-            ],
-        )
 ```
 
-### `src/app/modules/catalog/api/routers/show_router.py`
+O código completo real de `ShowUseCase.get_show_detail` e
+`SessionUseCase.get_session_detail` (incluindo a resposta pública vs. admin)
+já está em `catalog-admin-management/backend.md` §2 — não duplicado aqui.
+Diferença de comportamento real que vale registrar: a checagem "espetáculo
+despublicado não é navegável" (`NotFoundError`) é igual à descrita abaixo,
+mas `get_show_detail` real filtra sessões futuras (`s.starts_at > now`) sem
+exigir `status is ON_SALE` — uma sessão `on_sale` mas já esgotada (`sold_out`)
+ainda aparece na lista, só marcada como esgotada.
 
-Editar o arquivo que `catalog-show-search` cria: acrescentar
-`GET /shows/{show_id}`.
+### `src/app/modules/catalog/api/routers/show_router.py` e `session_router.py`
 
-```python
-from uuid import UUID
-
-from app.modules.catalog.application.schemas.response import ShowDetailResponse
-from app.modules.catalog.application.usecases.session_query_usecase import SessionQueryUseCase
-
-@router.get("/shows/{show_id}", response_model=ShowDetailResponse)
-async def get_show(show_id: UUID, session: AsyncSession = Depends(get_db)) -> ShowDetailResponse:
-    return await SessionQueryUseCase(session).get_show_detail(show_id)
-```
-
-(`UUID`, `AsyncSession`, `Depends`, `get_db` já importados no topo do arquivo
-real por `list_shows`/`list_genres`; não duplicar import.)
-
-### `src/app/modules/catalog/api/routers/session_router.py`
-
-```python
-from uuid import UUID
-
-from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.dependencies import get_db
-from app.modules.catalog.application.schemas.response import SessionDetailResponse
-from app.modules.catalog.application.usecases.session_query_usecase import SessionQueryUseCase
-
-router = APIRouter(tags=["Catalog"])
-
-@router.get("/sessions/{session_id}", response_model=SessionDetailResponse)
-async def get_session(
-    session_id: UUID, session: AsyncSession = Depends(get_db)
-) -> SessionDetailResponse:
-    return await SessionQueryUseCase(session).get_session_detail(session_id)
-```
+`GET /catalog/shows/{show_id}` e `GET /catalog/sessions/{session_id}` reais
+são as rotas `get` que já aparecem em `catalog-admin-management/backend.md`
+§2 — no mesmo arquivo, mesmo `APIRouter`, sem `require_admin` (autenticação
+opcional via `get_current_user_optional`, resposta muda por `is_admin`).
+Não existe rota solta `/shows/{id}`/`/sessions/{id}` fora do prefixo
+`/catalog/shows`/`/catalog/sessions`, e `session_router.py` não é um arquivo
+"novo": já existe desde `catalog-admin-management` (dono do write-path).
 
 ### `src/app/modules/catalog/router.py`
+
+Sem `admin_catalog_router` (não existe — ver
+`catalog-admin-management/backend.md`). Já reproduzido lá:
 
 ```python
 from fastapi import APIRouter
 
-from app.modules.catalog.api.routers.admin_catalog_router import router as admin_catalog_router
+from app.modules.catalog.api.routers.genre_router import router as genre_router
 from app.modules.catalog.api.routers.session_router import router as session_router
 from app.modules.catalog.api.routers.show_router import router as show_router
 
 router = APIRouter()
-router.include_router(admin_catalog_router)
+router.include_router(genre_router)
 router.include_router(show_router)
 router.include_router(session_router)
 ```
 
 ### `src/app/modules/catalog/dependencies.py`
 
-Contrato interno para `booking-reservation`. `SessionRef` nunca expõe o
-aggregate `Session` — só os campos que `booking` precisa.
+**Ainda não existe no código real** — `booking-reservation` não mergeou, e é
+o consumidor deste arquivo. O que segue é planejamento (contrato interno
+proposto), não descrição de código já implementado; criar quando
+`booking-reservation` começar. `SessionRef` nunca deve expor o aggregate
+`Session` — só os campos que `booking` precisa.
 
 ```python
 from dataclasses import dataclass
@@ -313,9 +258,9 @@ async def count_confirmed_tickets_for_session(session: AsyncSession, session_id:
 
 | Regra | Arquivo · função | Como |
 | --- | --- | --- |
-| RN05 (leitura) — disponível = capacidade − confirmados − reservas abertas | `session_query_usecase.py` · `get_session_detail` | `available = capacity - counts.tickets_sold - counts.reserved_open`, via `SeatCountsRepository` (reuso, não recálculo) |
-| RF02 — esgotado quando disponível ≤ 0 | `session_query_usecase.py` · `_public_status` | `available <= 0` → `"sold_out"`, antes de checar `on_sale` |
-| RF02 — sessão encerrada/cancelada bloqueia | `session_query_usecase.py` · `_public_status` | `status is CANCELLED` → `"cancelled"`; `starts_at <= now` → `"closed"` (checados antes de `sold_out`) |
+| RN05 (leitura) — disponível = capacidade − confirmados − reservas abertas | `domain/aggregates/session.py` · `Session.available_count` | `max(0, capacity - counts.tickets_sold - counts.reserved_open)` — hoje sempre `SeatCounts(0, 0)`, ver nota de revisão acima |
+| RF02 — esgotado quando disponível ≤ 0 | `domain/aggregates/session.py` · `Session.status_at` | `available_count(counts) <= 0` → `"sold_out"`, antes de checar `on_sale` |
+| RF02 — sessão encerrada/cancelada bloqueia | `domain/aggregates/session.py` · `Session.status_at` | `status is CANCELLED` → `"cancelled"`; `starts_at <= now` → `"closed"` (checados antes de `sold_out`) |
 | RF02 — meia = 50% da inteira | `domain/aggregates/session.py` · `Session.half_price_cents` (já existe) | `ticket_types` usa `session.full_price_cents`/`session.half_price_cents` direto, nunca recalcula |
 | RN05 — trava de linha para `booking` | `session_repository.py` · `find_by_id_for_update` + `dependencies.py` · `lock_session_for_update` | `SELECT ... FOR UPDATE`; exportado, nunca chamado pelo próprio `catalog` fora de `catalog-admin-management` |
 | logic.md §5 — espetáculo despublicado não é navegável | `session_query_usecase.py` · `get_show_detail`/`get_session_detail` | `show.status is not PUBLISHED` → `NotFoundError` (decisão de implementação, mesma inferência de `catalog-show-search`) |

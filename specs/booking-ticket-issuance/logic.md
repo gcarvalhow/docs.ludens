@@ -89,3 +89,11 @@ limite rígido no N1. `[fechada]`
 **Meia-entrada sem documento.** É o comportamento correto: o ingresso é emitido
 com `type=half` e nenhum campo de documento. A checagem do documento é na porta,
 manual. `[fechada]`
+
+**Ordem de entrega.** Depende de `booking-reservation` mergeado e precisa sair
+antes de `payment-pix-checkout`, que consome
+`confirm_reservation`/`issue_tickets_for_reservation`. `[fechada]`
+
+**Onde mora a rota de reenvio de e-mail do ingresso.** Ainda não decidido se
+`POST /orders/{id}/resend-ticket` vive em `payment` ou em `identity` (fatia de
+RF06, junto de `identity-order-history`). `[decisão em aberto]`

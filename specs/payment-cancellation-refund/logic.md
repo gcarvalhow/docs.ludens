@@ -103,3 +103,10 @@ gateway, ajusta para 100%; se já foi, o teatro complementa manualmente.
 **Sessão começa enquanto o comprador está na tela de cancelamento.** A
 confirmação revalida "sessão futura"; se já começou, recusa com "a sessão já
 começou". `[fechada]`
+
+**Payload de estorno/consulta da AbacatePay.** Ainda não confirmado contra a
+documentação real do gateway. `[decisão em aberto]`
+
+**Última fatia de `payment`.** Depende de `payment-pix-checkout` e
+`booking-ticket-issuance` mergeados (consome `invalidate_tickets_for_order` de
+`booking/dependencies.py`). `[decisão em aberto]`

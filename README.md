@@ -10,7 +10,7 @@
   </p>
 </p>
 
-**Ludens** é a plataforma web de venda de ingressos de um teatro comunitário —
+**Ludens** é a plataforma web de venda de ingressos de um teatro comunitário:
 busca de espetáculos, reserva, compra e confirmação de ingressos. É o projeto
 acadêmico do **Processo/Grupo 18** da disciplina de **Manutenção e Melhoria de
 Software** (6º semestre do curso de Engenharia de Software) do Centro
@@ -22,52 +22,47 @@ código têm READMEs curtos que apontam para cá.
 
 ## Repositórios
 
-| Repositório | Papel | Conteúdo |
-| --- | --- | --- |
-| [`gcarvalhow/docs.ludens`](https://github.com/gcarvalhow/docs.ludens) | Fonte de entrada | Este repositório — produto, requisitos, RACI, padrões de engenharia |
-| [`gcarvalhow/api.ludens`](https://github.com/gcarvalhow/api.ludens) | Backend | API FastAPI (monólito modular + DDD), Postgres, Docker |
-| [`gcarvalhow/web.ludens`](https://github.com/gcarvalhow/web.ludens) | Frontend | Aplicação Next.js (App Router, TypeScript) |
-| [`gcarvalhow/team.ludens`](https://github.com/gcarvalhow/team.ludens) | Ferramentaria | Plugin Claude Code — papéis do time, pipeline de spec, fluxo TBD |
+* [`gcarvalhow/docs.ludens`](https://github.com/gcarvalhow/docs.ludens): fonte de entrada. Este repositório, produto, requisitos, RACI, padrões de engenharia.
+* [`gcarvalhow/api.ludens`](https://github.com/gcarvalhow/api.ludens): backend. API FastAPI (monólito modular + DDD), Postgres, Docker.
+* [`gcarvalhow/web.ludens`](https://github.com/gcarvalhow/web.ludens): frontend. Aplicação Next.js (App Router, TypeScript).
 
-## Produto
+## Publicado vs. contexto de repo
 
-- [Problema](product/problem.md) — por que a plataforma existe (ingresso vendido em duplicidade na bilheteria e no site) e o que define sucesso
-- [Escopo](product/scope.md) — o que está dentro e fora; níveis de entrega N1 (MVP) / N2 / N3; premissas
+`product/` e `backend/` são a **documentação publicada** (site Mintlify).
+`team/` é **contexto de repo**: markdown normal, não navegável no site, usado
+por quem trabalha no projeto.
 
-## Requisitos
+## Produto (publicado)
 
-- [Visão geral da ERS](requirements/overview.md) — objetivo, escopo e índice das seções da especificação
-- [Requisitos funcionais e não funcionais](requirements/functional.md) — RF01–RF09 (histórias de usuário e critérios de aceitação), RNF01–RNF06 e o quadro consolidado de dependências técnicas
-- [Regras de negócio](requirements/business-rules.md) — RN01–RN05, cada uma com status de aprovação
+* [Visão geral do produto](product/overview.md): por que a plataforma existe,
+  critério de sucesso, escopo, regras de negócio (RN01–RN05) e premissas.
+* [Requisitos funcionais e não funcionais](product/functional.md): RF01–RF09
+  (histórias de usuário e critérios de aceitação), RNF01–RNF06 e o quadro
+  consolidado de dependências técnicas.
 
-## Specs de feature
+## Arquitetura, backend `api.ludens` (publicado)
 
-- [Pipeline de specs](specs/README.md) — como cada feature vai de ideia a issues
-  para a equipe: `spec.md` → `logic.md` → `integration.md` →
-  `backend.md` + `frontend.md`, operado pelo plugin
-  [`gcarvalhow/team.ludens`](https://github.com/gcarvalhow/team.ludens)
+* [Visão geral da arquitetura](backend/overview.md): módulos, fluxos e schema (desenho, ainda não implementado).
+* [Segurança](backend/security/): autenticação (JWT + refresh) e variáveis de ambiente.
+* [Guia de estilo e código](backend/code-style.md): PEP 8, idioma do código, boas práticas de manutenibilidade.
+* [Convenções de arquitetura](backend/conventions.md): padrão de código que não é formatação.
+* [Estratégia de testes](backend/testing.md): o que e como testamos no backend.
+* [Template de contrato de integração](backend/integration/_template.md): modelo backend → frontend.
 
-## Backend (`api.ludens`)
+## Time (contexto de repo)
 
-- [Visão geral da arquitetura](backend/overview.md) — módulos, fluxos e schema (desenho, ainda não implementado)
-- [Decisões de design (ADRs)](backend/design/) — outbox in-process, monólito modular
-- [Segurança](backend/security/) — autenticação (JWT + refresh) e variáveis de ambiente
-- [Guia de estilo e código](backend/code-style.md) — PEP 8, idioma do código, boas práticas de manutenibilidade
-- [Template de contrato de integração](backend/integration/_template.md) — modelo backend → frontend
-
-## Time
-
-- [Equipe e RACI](team/overview.md) — papéis, integrantes, Matriz RACI, contatos GitHub
-- [Acordo de Manutenibilidade](team/maintainability.md) — o acordo assinado do Processo 18 (registro da entrega; a versão operacional vive em `backend/` e `team/`)
-- [Qualidade — DoR e DoD](team/quality.md) — Definition of Ready e Definition of Done
-- [Gestão de débito técnico](team/tech-debt.md) — política de registro, orçamento de ciclo, priorização
-- [Ambiente de desenvolvimento](team/development.md) — como subir o projeto localmente
-
----
+* [Equipe e RACI](team/overview.md): papéis, integrantes, Matriz RACI,
+  qualidade (DoR/DoD), gestão de débito técnico e o fluxo Trunk-Based
+  Development mapeado a cada papel.
+* [Acordo de Manutenibilidade](team/maintainability.md): registro histórico do acordo assinado do Processo 18 (a versão operacional vive nos links acima).
+* [Templates de issue, PR e commit](team/templates/): usados no fluxo TBD.
+* [Specs de feature](specs/): produto, lógica de negócio e (quando implementada)
+  contrato e código de cada feature, uma pasta por `[domínio]-[conceito]`.
+  Convenção em [`specs/README.md`](specs/README.md).
 
 **Convenção.** Este repositório descreve o projeto; o código real e o
 comportamento observado têm prioridade sobre o que está escrito aqui se
-divergirem. Ao encontrar uma divergência, corrija o documento — não repita a
+divergirem. Ao encontrar uma divergência, corrija o documento, não repita a
 informação desatualizada. Toda mudança em documento vigente entra por Pull
 Request com revisão, igual a código. Os arquivos `.docx`/`.xlsx` originais das
 entregas da disciplina estão preservados em [`archive/`](archive/)

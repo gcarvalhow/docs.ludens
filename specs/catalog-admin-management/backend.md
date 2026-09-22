@@ -1,9 +1,9 @@
 ---
-status: draft
+status: done
 spec: catalog-admin-management
 surface: backend
 created_at: 2026-09-03
-updated_at: 2026-09-10
+updated_at: 2026-09-21
 ---
 
 # Gestão de espetáculos e sessões (admin) — Backend
@@ -40,6 +40,27 @@ de domínio `SessionCancelled` que, pelo Outbox, aciona o reembolso em massa
 > `catalog-session-detail` (as duas fatias seguintes do módulo) já foram
 > escritas contra o código real — esta revisão só alinha esta fatia à mesma
 > base.
+>
+> **Revisão de 2026-09-21:** o código evoluiu ainda mais desde então, pelas
+> fatias seguintes. `Show.genre` (string livre) virou `Show.genre_id` (UUID,
+> FK pra `genres.id`) — mudança da migração `0004_catalog_genre.py`, dona de
+> `catalog-genre`; a migração `0002_catalog_admin.py` abaixo continua exata
+> como registro histórico do schema original. `admin_catalog_router.py` não
+> existe mais: as rotas de admin de `Show`/`Session` foram divididas em
+> `show_router.py` (prefixo `/catalog/shows`) e `session_router.py` (prefixo
+> `/catalog/sessions`), e cada um desses arquivos passou a acumular também as
+> rotas de leitura pública (`GET .../{id}` e a busca paginada), com resposta
+> diferente conforme `is_admin` — o `router.py` do módulo hoje monta
+> `genre_router` + `show_router` + `session_router`. `SeatCountsRepository`
+> (com SQL real contra `tickets`/`reservations`) nunca foi implementado: hoje
+> todo usecase usa `SeatCounts(0, 0)` fixo (ver §7). O `Session.cancel()`/
+> `Session.deactivate()` reais não têm mais guarda própria de estado — a
+> checagem (`já cancelada`, `tem ingresso vendido`) virou responsabilidade do
+> usecase, não do aggregate. Esta revisão corrige o código desta fatia
+> (write-path de admin, que continua dona deste doc); o read-path público
+> (busca, detalhe) é código real também, mas descrito com detalhe em
+> `catalog-show-search/backend.md` e `catalog-session-detail/backend.md`, que
+> o possuem — não duplicado aqui.
 
 ---
 
@@ -49,27 +70,28 @@ de domínio `SessionCancelled` que, pelo Outbox, aciona o reembolso em massa
 dependem dos repositórios, não o contrário. `repositories/__init__.py`
 reexporta as três classes do pacote (um só import em vez de três).
 
-| #   | Camada         | Caminho                                                                         | Novo/Editar                                                    |
-| --- | -------------- | ------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| 1   | domain         | `src/app/modules/catalog/**/__init__.py` (pacotes)                              | novo                                                           |
-| 2   | domain         | `src/app/modules/catalog/domain/enumerations/show_status.py`                    | novo                                                           |
-| 3   | domain         | `src/app/modules/catalog/domain/enumerations/session_status.py`                 | novo                                                           |
-| 4   | domain         | `src/app/modules/catalog/domain/events/domain_events.py`                        | novo                                                           |
-| 5   | domain         | `src/app/modules/catalog/domain/aggregates/show.py`                             | novo                                                           |
-| 6   | domain         | `src/app/modules/catalog/domain/aggregates/session.py`                          | novo                                                           |
-| 7   | infrastructure | `src/app/modules/catalog/infrastructure/repositories/show_repository.py`        | novo                                                           |
-| 8   | infrastructure | `src/app/modules/catalog/infrastructure/repositories/session_repository.py`     | novo — inclui `find_by_id_for_update` (ver §2 e nota)          |
-| 9   | infrastructure | `src/app/modules/catalog/infrastructure/repositories/seat_counts_repository.py` | novo                                                           |
-| 10  | infrastructure | `src/app/modules/catalog/infrastructure/repositories/__init__.py`               | novo                                                           |
-| 11  | application    | `src/app/modules/catalog/application/schemas/request.py`                        | novo                                                           |
-| 12  | application    | `src/app/modules/catalog/application/schemas/response.py`                       | novo                                                           |
-| 13  | application    | `src/app/modules/catalog/application/usecases/show_usecase.py`                  | novo — inclui `_show_response`/`_session_response` (ver §2)    |
-| 14  | application    | `src/app/modules/catalog/application/usecases/session_usecase.py`               | novo — inclui `_cents_from_reais`/`_session_response` (ver §2) |
-| 15  | api            | `src/app/modules/catalog/api/routers/admin_catalog_router.py`                   | novo                                                           |
-| 16  | api            | `src/app/modules/catalog/router.py`                                             | novo                                                           |
-| 17  | api            | `src/app/main.py`                                                               | editar (arquivo real já existe — só acrescentar)               |
-| 18  | migration      | `src/migrations/env.py`                                                         | editar (arquivo real já existe — só acrescentar imports)       |
-| 19  | migration      | `src/migrations/versions/0002_catalog_admin.py`                                 | novo                                                           |
+| #   | Camada         | Caminho                                                                     | Novo/Editar                                                                                             |
+| --- | -------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| 1   | domain         | `src/app/modules/catalog/**/__init__.py` (pacotes)                          | novo                                                                                                    |
+| 2   | domain         | `src/app/modules/catalog/domain/enumerations/show_status.py`                | novo                                                                                                    |
+| 3   | domain         | `src/app/modules/catalog/domain/enumerations/session_status.py`             | novo                                                                                                    |
+| 4   | domain         | `src/app/modules/catalog/domain/events/domain_events.py`                    | novo                                                                                                    |
+| 5   | domain         | `src/app/modules/catalog/domain/aggregates/show.py`                         | novo                                                                                                    |
+| 6   | domain         | `src/app/modules/catalog/domain/aggregates/session.py`                      | novo                                                                                                    |
+| 7   | infrastructure | `src/app/modules/catalog/infrastructure/repositories/show_repository.py`    | novo                                                                                                    |
+| 8   | infrastructure | `src/app/modules/catalog/infrastructure/repositories/session_repository.py` | novo — inclui `find_by_id_for_update` (ver §2 e nota)                                                   |
+| 9   | infrastructure | ~~`seat_counts_repository.py`~~                                             | **não existe no código real** (ver §7) — não criar                                                      |
+| 10  | infrastructure | `src/app/modules/catalog/infrastructure/repositories/__init__.py`           | novo                                                                                                    |
+| 11  | application    | `src/app/modules/catalog/application/schemas/request.py`                    | novo                                                                                                    |
+| 12  | application    | `src/app/modules/catalog/application/schemas/response.py`                   | novo                                                                                                    |
+| 13  | application    | `src/app/modules/catalog/application/usecases/show_usecase.py`              | novo — inclui `_show_response`/`_session_response` (ver §2)                                             |
+| 14  | application    | `src/app/modules/catalog/application/usecases/session_usecase.py`           | novo — inclui `_cents_from_reais`/`_session_response` (ver §2)                                          |
+| 15  | api            | `src/app/modules/catalog/api/routers/show_router.py`                        | novo — write-path admin desta fatia; read-path público acrescentado depois por `catalog-show-search`    |
+| 15b | api            | `src/app/modules/catalog/api/routers/session_router.py`                     | novo — write-path admin desta fatia; read-path público acrescentado depois por `catalog-session-detail` |
+| 16  | api            | `src/app/modules/catalog/router.py`                                         | novo                                                                                                    |
+| 17  | api            | `src/app/main.py`                                                           | editar (arquivo real já existe — só acrescentar)                                                        |
+| 18  | migration      | `src/migrations/env.py`                                                     | editar (arquivo real já existe — só acrescentar imports)                                                |
+| 19  | migration      | `src/migrations/versions/0002_catalog_admin.py`                             | novo                                                                                                    |
 
 Não há variável de ambiente nova — a subseção **DevOps** não se aplica. Sem
 edição de `pyproject.toml`: o projeto não tem `[tool.ruff]` configurado (Ruff
@@ -159,7 +181,7 @@ class ShowCreated(DomainEvent):
     title: str = field(kw_only=True)
     synopsis: str = field(kw_only=True)
     image_url: str = field(kw_only=True)
-    genre: str = field(kw_only=True)
+    genre_id: UUID = field(kw_only=True)
 
 @dataclass(frozen=True)
 class ShowUpdated(DomainEvent):
@@ -167,7 +189,7 @@ class ShowUpdated(DomainEvent):
     title: str = field(kw_only=True)
     synopsis: str = field(kw_only=True)
     image_url: str = field(kw_only=True)
-    genre: str = field(kw_only=True)
+    genre_id: UUID = field(kw_only=True)
 
 @dataclass(frozen=True)
 class ShowPublished(DomainEvent):
@@ -215,9 +237,9 @@ class SessionDeactivated(DomainEvent):
 ```python
 from __future__ import annotations
 
-from uuid import uuid4
+from uuid import UUID, uuid4
 
-from sqlalchemy import Enum as SAEnum, String
+from sqlalchemy import Enum as SAEnum, ForeignKey, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.domain import AggregateRoot, DomainEvent, Model
@@ -237,7 +259,7 @@ class Show(AggregateRoot, Model):
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     synopsis: Mapped[str] = mapped_column(String(5000), nullable=False)
     image_url: Mapped[str] = mapped_column(String(2048), nullable=False)
-    genre: Mapped[str] = mapped_column(String(80), nullable=False)
+    genre_id: Mapped[UUID] = mapped_column(Uuid(), ForeignKey("genres.id"), nullable=False, index=True)
     status: Mapped[ShowStatus] = mapped_column(
         SAEnum(ShowStatus, native_enum=False, length=20),
         nullable=False,
@@ -245,24 +267,24 @@ class Show(AggregateRoot, Model):
     )
 
     @classmethod
-    def create(cls, *, title: str, synopsis: str, image_url: str, genre: str) -> "Show":
+    def create(cls, *, title: str, synopsis: str, image_url: str, genre_id: UUID) -> "Show":
         show = cls()
         show.id = uuid4()
 
         show.raise_event(
             lambda v: ShowCreated(
                 version=v, id=show.id, title=title, synopsis=synopsis,
-                image_url=image_url, genre=genre,
+                image_url=image_url, genre_id=genre_id,
             )
         )
 
         return show
 
-    def update(self, *, title: str, synopsis: str, image_url: str, genre: str) -> None:
+    def update(self, *, title: str, synopsis: str, image_url: str, genre_id: UUID) -> None:
         self.raise_event(
             lambda v: ShowUpdated(
                 version=v, id=self.id, title=title, synopsis=synopsis,
-                image_url=image_url, genre=genre,
+                image_url=image_url, genre_id=genre_id,
             )
         )
 
@@ -290,7 +312,7 @@ class Show(AggregateRoot, Model):
         self.title = e.title
         self.synopsis = e.synopsis
         self.image_url = e.image_url
-        self.genre = e.genre
+        self.genre_id = e.genre_id
         self.status = ShowStatus.DRAFT
         self.is_active = True
 
@@ -298,7 +320,7 @@ class Show(AggregateRoot, Model):
         self.title = e.title
         self.synopsis = e.synopsis
         self.image_url = e.image_url
-        self.genre = e.genre
+        self.genre_id = e.genre_id
 
     def _when_ShowPublished(self, _event: ShowPublished) -> None:
         self.status = ShowStatus.PUBLISHED
@@ -321,7 +343,7 @@ from datetime import datetime, timezone
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import DateTime, Enum as SAEnum, ForeignKey, Integer, String, Uuid
 
-from app.core.domain import AggregateRoot, ConflictError, DomainError, DomainEvent, Model
+from app.core.domain import AggregateRoot, DomainEvent, Model
 
 from app.modules.catalog.domain.enumerations.session_status import SessionStatus
 from app.modules.catalog.domain.events.domain_events import (
@@ -331,6 +353,10 @@ from app.modules.catalog.domain.events.domain_events import (
     SessionUpdated,
 )
 
+# O aggregate real não guarda mais estado por si (sem DomainError/ConflictError
+# aqui) — "data futura", "capacidade > 0", "sessão já cancelada" e "tem
+# ingresso vendido" viraram checagem do usecase (§2, session_usecase.py), não
+# invariante do domínio. Manter assim: o aggregate só registra o evento.
 class Session(AggregateRoot, Model):
     __tablename__ = "sessions"
 
@@ -363,14 +389,7 @@ class Session(AggregateRoot, Model):
         venue: str,
         capacity: int,
         full_price_cents: int,
-        now: datetime,
     ) -> "Session":
-        if starts_at <= now:
-            raise DomainError("A data da sessão deve ser futura.")
-
-        if capacity <= 0:
-            raise DomainError("A capacidade deve ser maior que zero.")
-
         session = cls()
         session.id = uuid4()
 
@@ -390,18 +409,7 @@ class Session(AggregateRoot, Model):
         venue: str,
         capacity: int,
         full_price_cents: int,
-        committed: int,
-        now: datetime,
     ) -> None:
-        if self.status is SessionStatus.CANCELLED:
-            raise ConflictError("Não é possível editar uma sessão cancelada.")
-
-        if starts_at <= now:
-            raise DomainError("A data da sessão deve ser futura.")
-
-        if capacity < committed:
-            raise ConflictError("Já há ingressos comprometidos nesta sessão.")
-
         self.raise_event(
             lambda v: SessionUpdated(
                 version=v, id=self.id, starts_at=starts_at, venue=venue,
@@ -410,9 +418,6 @@ class Session(AggregateRoot, Model):
         )
 
     def cancel(self) -> None:
-        if self.status is SessionStatus.CANCELLED:
-            raise ConflictError("A sessão já está cancelada.")
-
         self.raise_event(
             lambda v: SessionCancelled(
                 version=v, id=self.id, show_id=self.show_id,
@@ -420,11 +425,7 @@ class Session(AggregateRoot, Model):
             )
         )
 
-    def deactivate(self, *, tickets_sold: int) -> None:
-        # RF08: sessão com ingresso vendido não se apaga, só cancela.
-        if tickets_sold > 0:
-            raise ConflictError("Cancele a sessão em vez de excluir.")
-
+    def deactivate(self) -> None:
         self.raise_event(lambda v: SessionDeactivated(version=v, id=self.id))
 
     def _apply(self, event: DomainEvent) -> None:
@@ -471,29 +472,24 @@ linha, e este módulo é o primeiro a precisar (concorrência ao editar/cancelar
 excluir sessão). `catalog-session-detail` e, mais tarde, `booking` **reusam**
 este método via `catalog/dependencies.py` — não recriar lá.
 
+`find_all_for_shows` não existe no código real: pra listar as sessões de um
+espetáculo, o usecase usa o `find_all_by(show_id=..., order_by=[...])`
+genérico que já vem de `AggregateRepository` — não precisou de um método
+próprio.
+
 ```python
 from uuid import UUID
 from sqlalchemy import select
 
-from app.modules.catalog.domain.aggregates.session import Session
+from app.modules.catalog.domain.aggregates import Session
 from app.core.infrastructure.repositories import AggregateRepository
 
 class SessionRepository(AggregateRepository[Session]):
     model = Session
 
-    async def find_all_for_shows(self, show_ids: list[UUID]) -> list[Session]:
-        if not show_ids:
-            return []
-
-        result = await self._session.execute(
-            select(Session)
-            .where(Session.show_id.in_(show_ids), Session.is_active.is_(True))
-            .order_by(Session.starts_at.asc())
-        )
-
-        return list(result.scalars().all())
-
     async def find_by_id_for_update(self, session_id: UUID) -> Session | None:
+        # SELECT ... FOR UPDATE: trava a linha até o fim da transação — RN05,
+        # necessário ao editar/cancelar/excluir uma sessão sob concorrência.
         result = await self._session.execute(
             select(Session)
             .where(Session.id == session_id, Session.is_active.is_(True))
@@ -503,82 +499,28 @@ class SessionRepository(AggregateRepository[Session]):
         return result.scalar_one_or_none()
 ```
 
-### `src/app/modules/catalog/infrastructure/repositories/seat_counts_repository.py`
+### `SeatCounts` — nunca virou um repositório real (ver §7)
 
-```python
-import logging
-from uuid import UUID
-from typing import NamedTuple
-
-from sqlalchemy import bindparam, text
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.exc import OperationalError, ProgrammingError
-
-logger = logging.getLogger(__name__)
-
-class SeatCounts(NamedTuple):
-    tickets_sold: int
-    reserved_open: int
-
-_SOLD_SQL = text(
-    """
-    SELECT session_id, COUNT(*) AS total
-    FROM tickets
-    WHERE session_id IN :ids AND is_active = true AND status = 'valid'
-    GROUP BY session_id
-    """
-).bindparams(bindparam("ids", expanding=True))
-
-_OPEN_SQL = text(
-    """
-    SELECT session_id, COALESCE(SUM(quantity), 0) AS total
-    FROM reservations
-    WHERE session_id IN :ids AND is_active = true
-      AND status = 'open' AND expires_at > now()
-    GROUP BY session_id
-    """
-).bindparams(bindparam("ids", expanding=True))
-
-class SeatCountsRepository:
-    def __init__(self, session: AsyncSession) -> None:
-        self._session = session
-
-    async def for_sessions(self, session_ids: list[UUID]) -> dict[UUID, SeatCounts]:
-        base: dict[UUID, SeatCounts] = {sid: SeatCounts(0, 0) for sid in session_ids}
-        if not session_ids:
-            return base
-
-        ids = [str(sid) for sid in session_ids]
-        try:
-            async with self._session.begin_nested():
-                sold_rows = (await self._session.execute(_SOLD_SQL, {"ids": ids})).all()
-                open_rows = (await self._session.execute(_OPEN_SQL, {"ids": ids})).all()
-        except (ProgrammingError, OperationalError) as exc:
-            logger.warning(
-                "catalog: contagem de assentos indisponível (%s) — assumindo 0",
-                exc.__class__.__name__,
-            )
-
-            return base
-
-        sold = {UUID(str(row[0])): int(row[1]) for row in sold_rows}
-        held = {UUID(str(row[0])): int(row[1]) for row in open_rows}
-
-        return {sid: SeatCounts(sold.get(sid, 0), held.get(sid, 0)) for sid in session_ids}
-```
+Esta seção descrevia um `seat_counts_repository.py` com SQL real contra
+`tickets`/`reservations`. **Esse arquivo não existe no código real.** O que
+existe é só um `NamedTuple` `SeatCounts(tickets_sold, reserved_open)`,
+definido direto em `domain/aggregates/session.py` (não em `infrastructure/`),
+e todo usecase de `catalog` (admin, busca, detalhe) usa `SeatCounts(0, 0)`
+fixo — nenhuma contagem real ainda acontece, porque `booking` (dono das
+tabelas `tickets`/`reservations`) não foi mergeado. Ver §7 pra o que isso
+implica em runtime.
 
 ### `src/app/modules/catalog/infrastructure/repositories/__init__.py`
 
 ```python
-from app.modules.catalog.infrastructure.repositories.seat_counts_repository import (
-    SeatCounts,
-    SeatCountsRepository,
-)
 from app.modules.catalog.infrastructure.repositories.session_repository import SessionRepository
 from app.modules.catalog.infrastructure.repositories.show_repository import ShowRepository
 
-__all__ = ["SeatCounts", "SeatCountsRepository", "SessionRepository", "ShowRepository"]
+__all__ = ["SessionRepository", "ShowRepository"]
 ```
+
+(`genre_repository.py` acrescenta `GenreRepository` a este mesmo `__init__.py`
+depois — é código real, mas dono/documentado em `catalog-genre/backend.md`.)
 
 ### `src/app/modules/catalog/application/schemas/request.py`
 
@@ -588,16 +530,24 @@ __all__ = ["SeatCounts", "SeatCountsRepository", "SessionRepository", "ShowRepos
 parcial. Por isso um único schema serve criação e edição de cada aggregate
 (nada de `Create*`/`Update*` separados com campos opcionais).
 
+`genre` (string) virou `genre_id` (UUID, FK) na `ShowRequest` desde
+`catalog-genre`. `SessionRequest` ganhou `show_id` no corpo — a criação de
+sessão não é mais aninhada em `/catalog/shows/{show_id}/sessions`, é
+`POST /catalog/sessions/` com `show_id` no payload; em `PUT` o campo é
+ignorado (a sessão não muda de espetáculo depois de criada).
+
 ```python
+from uuid import UUID
 from datetime import datetime
 from pydantic import BaseModel, Field, field_validator
 
 class ShowRequest(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     synopsis: str = Field(min_length=1, max_length=5000)
-    genre: str = Field(min_length=1, max_length=80)
+    genre_id: UUID
 
 class SessionRequest(BaseModel):
+    show_id: UUID = Field(description="Ignorado em PUT — sessão não muda de show após criada.")
     starts_at: datetime
     venue: str = Field(min_length=1, max_length=200)
     capacity: int = Field(gt=0, le=100_000)
@@ -634,19 +584,30 @@ class AdminSessionResponse(BaseModel):
     reserved_open: int
     can_delete: bool
 
-class AdminShowResponse(BaseModel):
+class AdminShowSummaryResponse(BaseModel):
     id: UUID
     title: str
     synopsis: str
     image_url: str
+    genre_id: UUID
     genre: str
     status: Literal["draft", "published"]
+
+class AdminShowResponse(AdminShowSummaryResponse):
     sessions: list[AdminSessionResponse]
 ```
 
-> `catalog-show-search` e `catalog-session-detail` acrescentam mais classes a
-> este mesmo arquivo (`ShowCardResponse`, `SessionDetailResponse` etc.) —
-> conferir o que já existe antes de duplicar import/classe.
+`genre` (nome resolvido) veio junto de `genre_id` desde `catalog-genre` — o
+usecase busca o `Genre` e monta os dois campos, nunca só o id.
+`AdminShowResponse` virou uma extensão de `AdminShowSummaryResponse` (a
+versão sem `sessions`, usada na busca paginada de admin) em vez de uma classe
+solta.
+
+> `catalog-show-search`, `catalog-session-detail` e `catalog-genre`
+> acrescentam mais classes a este mesmo arquivo (`ShowCardResponse`,
+> `SessionDetailResponse`, `GenreResponse`, `SessionSummaryResponse`,
+> `ShowDetailResponse`, `TicketTypeResponse`, `SessionShowRef` etc.) — código
+> real, mas descrito com detalhe nos docs dessas specs, não duplicado aqui.
 
 ### `src/app/modules/catalog/application/usecases/show_usecase.py`
 
@@ -659,27 +620,42 @@ resposta direto no usecase (mesmo padrão de `user_usecase.py` — sem módulo
 repete aqui e em `session_usecase.py` — duplicar 3 linhas puras é mais
 simples do que um módulo compartilhado entre os dois agregados.
 
+`SeatCountsRepository` não existe (ver nota acima) — todo `SeatCounts` abaixo
+é `SeatCounts(0, 0)` fixo. `list_shows` (endpoint solto) virou `search`
+(paginado, `is_admin`-aware) — não há mais uma rota de listagem de admin
+separada da busca pública; as duas são o mesmo endpoint com resposta
+diferente. `get_show_detail` (também `is_admin`-aware) é novo: não existia
+nesta fatia, é o que `catalog-show-search`/`catalog-session-detail` chamam de
+"detalhe". Reprodução fiel do arquivo real (inclui `search`/`get_show_detail`,
+que tecnicamente pertencem ao read-path público — mantidos aqui porque vivem
+no mesmo arquivo e usecase que o write-path admin desta fatia):
+
 ```python
+from __future__ import annotations
+
 import random
 from uuid import UUID
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.catalog.domain.aggregates.show import Show
-from app.modules.catalog.domain.aggregates.session import Session
-from app.modules.catalog.domain.enumerations.session_status import SessionStatus
+from app.core.shared import Page, PaginationParams
+from app.core.domain.errors import ConflictError, NotFoundError
 
-from app.core.domain import ConflictError, NotFoundError
 from app.modules.catalog.application.schemas.request import ShowRequest
-from app.modules.catalog.application.schemas.response import AdminSessionResponse, AdminShowResponse
-
-from app.modules.catalog.infrastructure.repositories import (
-    SeatCounts,
-    ShowRepository,
-    SessionRepository,
-    SeatCountsRepository,
+from app.modules.catalog.domain.aggregates import Genre, SeatCounts, Session, Show
+from app.modules.catalog.application.schemas.response import (
+    AdminShowResponse,
+    AdminShowSummaryResponse,
+    ShowCardResponse,
+    SessionSummaryResponse,
+    ShowDetailResponse,
 )
+from app.modules.catalog.application.usecases.utils import floor_from
+from app.modules.catalog.application.mappers import card_response, session_response
+
+from app.modules.catalog.infrastructure.queries import ShowSearchQuery
+from app.modules.catalog.infrastructure.repositories import GenreRepository, SessionRepository, ShowRepository
 
 # Débito técnico: upload real de imagem não existe nesta entrega. Sorteado
 # a cada criação, sem repetir preferência — arquivos estáticos de web.ludens.
@@ -692,38 +668,24 @@ _DEFAULT_SHOW_IMAGES = [
     "/images/show-placeholders/6.jpg",
 ]
 
-def _session_response(session: Session, counts: SeatCounts, now: datetime) -> AdminSessionResponse:
-    if session.status is SessionStatus.CANCELLED:
-        status = "cancelled"
-    elif session.starts_at <= now:
-        status = "closed"
-    else:
-        status = "on_sale"
-
-    return AdminSessionResponse(
-        id=session.id,
-        show_id=session.show_id,
-        starts_at=session.starts_at,
-        venue=session.venue,
-        capacity=session.capacity,
-        full_price=session.full_price_cents / 100,
-        half_price=session.half_price_cents / 100,
-        status=status,
-        tickets_sold=counts.tickets_sold,
-        reserved_open=counts.reserved_open,
-        can_delete=counts.tickets_sold == 0,
-    )
-
-def _show_response(show: Show, sessions: list[Session], counts_map: dict[UUID, SeatCounts], now: datetime) -> AdminShowResponse:
-    return AdminShowResponse(
+def _show_summary(show: Show, genre_name: str) -> AdminShowSummaryResponse:
+    return AdminShowSummaryResponse(
         id=show.id,
         title=show.title,
         synopsis=show.synopsis,
         image_url=show.image_url,
-        genre=show.genre,
+        genre_id=show.genre_id,
+        genre=genre_name,
         status=show.status.value,
+    )
+
+def _show_response(
+    show: Show, genre_name: str, sessions: list[Session], counts_map: dict[UUID, SeatCounts], now: datetime
+) -> AdminShowResponse:
+    return AdminShowResponse(
+        **_show_summary(show, genre_name).model_dump(),
         sessions=[
-            _session_response(s, counts_map.get(s.id, SeatCounts(0, 0)), now) for s in sessions
+            session_response(s, counts_map.get(s.id, SeatCounts(0, 0)), now) for s in sessions
         ],
     )
 
@@ -731,39 +693,29 @@ class ShowUseCase:
     def __init__(self, session: AsyncSession) -> None:
         self._show_repository = ShowRepository(session)
         self._session_repository = SessionRepository(session)
-        self._seat_counts_repository = SeatCountsRepository(session)
-
-    async def list_shows(self) -> list[AdminShowResponse]:
-        shows = await self._show_repository.find_all(order_by=["-created_at"])
-        sessions = await self._session_repository.find_all_for_shows([s.id for s in shows])
-        counts = await self._seat_counts_repository.for_sessions([s.id for s in sessions])
-
-        now = datetime.now(timezone.utc)
-        grouped: dict[UUID, list[Session]] = {}
-
-        for sess in sessions:
-            grouped.setdefault(sess.show_id, []).append(sess)
-
-        return [_show_response(show, grouped.get(show.id, []), counts, now) for show in shows]
+        self._genre_repository = GenreRepository(session)
+        self._show_search_query = ShowSearchQuery(session)
 
     async def create_show(self, req: ShowRequest) -> AdminShowResponse:
+        genre = await self._require_genre(req.genre_id)
         show = Show.create(
             title=req.title,
             synopsis=req.synopsis,
             image_url=random.choice(_DEFAULT_SHOW_IMAGES),
-            genre=req.genre,
+            genre_id=genre.id,
         )
 
         await self._show_repository.save(show)
-        return _show_response(show, [], {}, datetime.now(timezone.utc))
+        return _show_response(show, genre.name, [], {}, datetime.now(timezone.utc))
 
     async def update_show(self, show_id: UUID, req: ShowRequest) -> AdminShowResponse:
         show = await self._require_show(show_id)
+        genre = await self._require_genre(req.genre_id)
         show.update(
             title=req.title,
             synopsis=req.synopsis,
             image_url=show.image_url,
-            genre=req.genre,
+            genre_id=genre.id,
         )
 
         await self._show_repository.save(show)
@@ -783,8 +735,8 @@ class ShowUseCase:
 
     async def delete_show(self, show_id: UUID) -> None:
         show = await self._require_show(show_id)
-        sessions = await self._session_repository.find_all_for_shows([show.id])
-        counts = await self._seat_counts_repository.for_sessions([s.id for s in sessions])
+        sessions = await self._session_repository.find_all_by(show_id=show.id, order_by=["starts_at"])
+        counts = {s.id: SeatCounts(0, 0) for s in sessions}
 
         if any(counts.get(s.id, SeatCounts(0, 0)).tickets_sold > 0 for s in sessions):
             raise ConflictError(
@@ -794,6 +746,67 @@ class ShowUseCase:
         show.deactivate()
         await self._show_repository.save(show)
 
+    async def search(
+        self, *, from_date: date | None, genre_id: UUID | None, pagination: PaginationParams, is_admin: bool
+    ) -> Page[AdminShowSummaryResponse] | Page[ShowCardResponse]:
+        # Documentado em detalhe por catalog-show-search/backend.md.
+        if is_admin:
+            shows, total = await self._show_repository.find_all_paginated(
+                order_by=["-created_at"], page=pagination.page, size=pagination.size
+            )
+            genres = await self._genre_repository.find_all_by_ids([s.genre_id for s in shows])
+            names = {g.id: g.name for g in genres}
+
+            return Page(
+                items=[_show_summary(s, names.get(s.genre_id, "")) for s in shows],
+                page=pagination.page,
+                size=pagination.size,
+                total=total,
+            )
+
+        floor = floor_from(from_date)
+        rows, total = await self._show_search_query.search_with_upcoming(
+            floor=floor, genre_id=genre_id, page=pagination.page, size=pagination.size
+        )
+
+        return Page(
+            items=[card_response(row) for row in rows],
+            page=pagination.page,
+            size=pagination.size,
+            total=total,
+        )
+
+    async def get_show_detail(self, show_id: UUID, *, is_admin: bool) -> AdminShowResponse | ShowDetailResponse:
+        # Documentado em detalhe por catalog-session-detail/backend.md.
+        show = await self._require_show(show_id)
+
+        if is_admin:
+            return await self._view_for(show)
+
+        if not show.is_published:
+            raise NotFoundError("Espetáculo não encontrado.")
+        now = datetime.now(timezone.utc)
+
+        sessions = [
+            s
+            for s in await self._session_repository.find_all_by(show_id=show.id, order_by=["starts_at"])
+            if s.starts_at > now
+        ]
+        counts = {s.id: SeatCounts(0, 0) for s in sessions}
+        genre = await self._require_genre(show.genre_id)
+
+        return ShowDetailResponse(
+            id=show.id,
+            title=show.title,
+            synopsis=show.synopsis,
+            image_url=show.image_url,
+            genre_id=show.genre_id,
+            genre=genre.name,
+            sessions=[
+                session_response(s, counts.get(s.id, SeatCounts(0, 0)), now) for s in sessions
+            ],
+        )
+
     async def _require_show(self, show_id: UUID) -> Show:
         show = await self._show_repository.find_by("id", show_id)
         if show is None:
@@ -801,11 +814,19 @@ class ShowUseCase:
 
         return show
 
-    async def _view_for(self, show: Show) -> AdminShowResponse:
-        sessions = await self._session_repository.find_all_for_shows([show.id])
-        counts = await self._seat_counts_repository.for_sessions([s.id for s in sessions])
+    async def _require_genre(self, genre_id: UUID) -> Genre:
+        genre = await self._genre_repository.find_by("id", genre_id)
+        if genre is None:
+            raise NotFoundError("Gênero não encontrado.")
 
-        return _show_response(show, sessions, counts, datetime.now(timezone.utc))
+        return genre
+
+    async def _view_for(self, show: Show) -> AdminShowResponse:
+        sessions = await self._session_repository.find_all_by(show_id=show.id, order_by=["starts_at"])
+        counts = {s.id: SeatCounts(0, 0) for s in sessions}
+        genre = await self._require_genre(show.genre_id)
+
+        return _show_response(show, genre.name, sessions, counts, datetime.now(timezone.utc))
 ```
 
 ### `src/app/modules/catalog/application/usecases/session_usecase.py`
@@ -814,104 +835,142 @@ Sem "Admin" no nome, mesmo raciocínio de `show_usecase.py` — `Session` é
 módulo/aggregate independente de `Show`, não um apêndice dele; o que muda por
 perfil é a rota, não a identidade do usecase.
 
+`show_id` agora vem no corpo (`SessionRequest`), não na URL — `create_session`
+não recebe mais `show_id` como parâmetro separado. `update`/`cancel`/`delete`
+fazem a checagem de estado (sessão cancelada, capacidade abaixo do
+comprometido, ingresso vendido) aqui no usecase, não no aggregate — o
+aggregate (`Session.update`/`cancel`/`deactivate`) só registra o evento.
+`get_session_detail` (`is_admin`-aware) é o read-path público, documentado em
+detalhe por `catalog-session-detail/backend.md`; reproduzido aqui porque vive
+no mesmo arquivo/usecase que o write-path admin desta fatia:
+
 ```python
+from __future__ import annotations
+
 from uuid import UUID
 from datetime import datetime, timezone
-from decimal import ROUND_HALF_UP, Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.domain import NotFoundError
-from app.modules.catalog.domain.aggregates.session import Session
+from app.core.domain.errors import ConflictError, DomainError, NotFoundError
+
+from app.modules.catalog.domain.enumerations import SessionStatus
+from app.modules.catalog.domain.aggregates import SeatCounts, Session
 from app.modules.catalog.application.schemas.request import SessionRequest
-from app.modules.catalog.domain.enumerations.session_status import SessionStatus
-from app.modules.catalog.application.schemas.response import AdminSessionResponse
-
-from app.modules.catalog.infrastructure.repositories import (
-    SeatCounts,
-    SeatCountsRepository,
-    SessionRepository,
-    ShowRepository,
+from app.modules.catalog.application.schemas.response import (
+    AdminSessionResponse,
+    SessionDetailResponse,
+    SessionShowRef,
+    TicketTypeResponse,
 )
-
-def _cents_from_reais(value: float) -> int:
-    return int((Decimal(str(value)) * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
-
-def _session_response(session: Session, counts: SeatCounts, now: datetime) -> AdminSessionResponse:
-    if session.status is SessionStatus.CANCELLED:
-        status = "cancelled"
-    elif session.starts_at <= now:
-        status = "closed"
-    else:
-        status = "on_sale"
-
-    return AdminSessionResponse(
-        id=session.id,
-        show_id=session.show_id,
-        starts_at=session.starts_at,
-        venue=session.venue,
-        capacity=session.capacity,
-        full_price=session.full_price_cents / 100,
-        half_price=session.half_price_cents / 100,
-        status=status,
-        tickets_sold=counts.tickets_sold,
-        reserved_open=counts.reserved_open,
-        can_delete=counts.tickets_sold == 0,
-    )
+from app.modules.catalog.application.mappers import session_response
+from app.modules.catalog.application.utils import cents_from_reais, reais_from_cents
+from app.modules.catalog.infrastructure.repositories import SessionRepository, ShowRepository
 
 class SessionUseCase:
     def __init__(self, session: AsyncSession) -> None:
         self._show_repository = ShowRepository(session)
         self._session_repository = SessionRepository(session)
-        self._seat_counts_repository = SeatCountsRepository(session)
 
-    async def create_session(self, show_id: UUID, req: SessionRequest) -> AdminSessionResponse:
-        show = await self._show_repository.find_by("id", show_id)
+    async def create_session(self, req: SessionRequest) -> AdminSessionResponse:
+        show = await self._show_repository.find_by("id", req.show_id)
         if show is None:
             raise NotFoundError("Espetáculo não encontrado.")
 
         now = datetime.now(timezone.utc)
+        if req.starts_at <= now:
+            raise DomainError("A data da sessão deve ser futura.")
+        if req.capacity <= 0:
+            raise DomainError("A capacidade deve ser maior que zero.")
+
         session = Session.create(
             show_id=show.id,
             starts_at=req.starts_at,
             venue=req.venue,
             capacity=req.capacity,
-            full_price_cents=_cents_from_reais(req.full_price),
-            now=now,
+            full_price_cents=cents_from_reais(req.full_price),
         )
 
         await self._session_repository.save(session)
-        return _session_response(session, SeatCounts(0, 0), now)
+        return session_response(session, SeatCounts(0, 0), now)
 
     async def update_session(self, session_id: UUID, req: SessionRequest) -> AdminSessionResponse:
         session = await self._lock(session_id)
-        counts = (await self._seat_counts_repository.for_sessions([session.id]))[session.id]
+        if session.status is SessionStatus.CANCELLED:
+            raise ConflictError("Não é possível editar uma sessão cancelada.")
+
+        counts = SeatCounts(0, 0)
         now = datetime.now(timezone.utc)
+
+        if req.starts_at <= now:
+            raise DomainError("A data da sessão deve ser futura.")
+
+        committed = counts.tickets_sold + counts.reserved_open
+        if req.capacity < committed:
+            raise ConflictError("Já há ingressos comprometidos nesta sessão.")
 
         session.update(
             starts_at=req.starts_at,
             venue=req.venue,
             capacity=req.capacity,
-            full_price_cents=_cents_from_reais(req.full_price),
-            committed=counts.tickets_sold + counts.reserved_open,
-            now=now,
+            full_price_cents=cents_from_reais(req.full_price),
         )
 
         await self._session_repository.save(session)
-        return _session_response(session, counts, now)
+        return session_response(session, counts, now)
 
     async def cancel_session(self, session_id: UUID) -> None:
         session = await self._lock(session_id)
-        session.cancel()
+        if session.status is SessionStatus.CANCELLED:
+            raise ConflictError("A sessão já está cancelada.")
 
+        session.cancel()
         await self._session_repository.save(session)
 
     async def delete_session(self, session_id: UUID) -> None:
         session = await self._lock(session_id)
-        counts = (await self._seat_counts_repository.for_sessions([session.id]))[session.id]
+        counts = SeatCounts(0, 0)
 
-        session.deactivate(tickets_sold=counts.tickets_sold)
+        if counts.tickets_sold > 0:
+            raise ConflictError("Cancele a sessão em vez de excluir.")
+
+        session.deactivate()
         await self._session_repository.save(session)
+
+    async def get_session_detail(self, session_id: UUID, *, is_admin: bool) -> AdminSessionResponse | SessionDetailResponse:
+        # Documentado em detalhe por catalog-session-detail/backend.md.
+        session = await self._session_repository.find_by("id", session_id)
+        if session is None:
+            raise NotFoundError("Sessão não encontrada.")
+
+        show = await self._show_repository.find_by("id", session.show_id)
+        if show is None:
+            raise NotFoundError("Espetáculo não encontrado.")
+
+        now = datetime.now(timezone.utc)
+        counts = SeatCounts(0, 0)
+
+        if is_admin:
+            return session_response(session, counts, now)
+
+        if not show.is_published:
+            raise NotFoundError("Espetáculo não encontrado.")
+
+        available = session.available_count(counts)
+
+        return SessionDetailResponse(
+            id=session.id,
+            show=SessionShowRef(id=show.id, title=show.title),
+            starts_at=session.starts_at,
+            venue=session.venue,
+            capacity=session.capacity,
+            available_count=available,
+            status=session.status_at(now, counts),
+            ticket_types=[
+                TicketTypeResponse(type="full", price=reais_from_cents(session.full_price_cents)),
+                TicketTypeResponse(type="half", price=reais_from_cents(session.half_price_cents)),
+            ],
+        )
 
     async def _lock(self, session_id: UUID) -> Session:
         session = await self._session_repository.find_by_id_for_update(session_id)
@@ -921,72 +980,102 @@ class SessionUseCase:
         return session
 ```
 
-### `src/app/modules/catalog/api/routers/admin_catalog_router.py`
+`session_response` (o mapper usado acima) monta `AdminSessionResponse` a
+partir de `Session` + `SeatCounts` + `now` — mesma forma que a antiga
+`_session_response` local descrita nas revisões anteriores deste doc, só que
+hoje vive em `application/mappers/`, compartilhada entre `show_usecase.py` e
+`session_usecase.py` (não duplicada nos dois arquivos como a versão anterior
+deste doc descrevia).
+
+### `src/app/modules/catalog/api/routers/show_router.py` e `session_router.py`
+
+Não existe `admin_catalog_router.py` nem prefixo `/admin` — cada aggregate
+tem seu próprio router, montado direto em `/catalog/shows` e
+`/catalog/sessions`. `require_admin` vira `dependencies=[Depends(require_admin)]`
+**por rota** (não no `APIRouter` inteiro), porque o mesmo router mistura
+rotas de escrita (admin) com as duas rotas de leitura pública que
+`catalog-show-search`/`catalog-session-detail` acrescentaram (`GET` por id e
+`GET` de busca, ambas sem `require_admin`, com resposta que varia por
+`is_admin` via `get_current_user_optional`). Abaixo, só as rotas de escrita
+que esta fatia é dona; o `GET`/busca completo está em
+`catalog-show-search/backend.md` e `catalog-session-detail/backend.md`.
 
 ```python
+# src/app/modules/catalog/api/routers/show_router.py — rotas de escrita (admin)
 from uuid import UUID
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter, Depends, Response
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_db
-from app.modules.catalog.application.schemas.request import ShowRequest, SessionRequest
-from app.modules.catalog.application.schemas.response import AdminSessionResponse, AdminShowResponse
-
 from app.modules.identity.dependencies import require_admin
+from app.modules.catalog.application.schemas.request import ShowRequest
+from app.modules.catalog.application.schemas.response import AdminShowResponse
 from app.modules.catalog.application.usecases.show_usecase import ShowUseCase
-from app.modules.catalog.application.usecases.session_usecase import SessionUseCase
 
-router = APIRouter(
-    prefix="/admin",
-    tags=["Catalog (admin)"],
-    dependencies=[Depends(require_admin)],
-)
+router = APIRouter(prefix="/catalog/shows", tags=["01.Catalog - Show"])
 
-@router.get("/shows", response_model=list[AdminShowResponse])
-async def list_shows(session: AsyncSession = Depends(get_db)) -> list[AdminShowResponse]:
-    return await ShowUseCase(session).list_shows()
-
-@router.post("/shows", response_model=AdminShowResponse, status_code=201)
-async def create_show(body: ShowRequest, session: AsyncSession = Depends(get_db)) -> AdminShowResponse:
+@router.post("", response_model=AdminShowResponse, status_code=201, dependencies=[Depends(require_admin)])
+async def create(body: ShowRequest, session: AsyncSession = Depends(get_db)) -> AdminShowResponse:
     return await ShowUseCase(session).create_show(body)
 
-@router.put("/shows/{show_id}", response_model=AdminShowResponse)
-async def update_show(show_id: UUID, body: ShowRequest, session: AsyncSession = Depends(get_db)) -> AdminShowResponse:
+@router.put("/{show_id}", response_model=AdminShowResponse, dependencies=[Depends(require_admin)])
+async def update(show_id: UUID, body: ShowRequest, session: AsyncSession = Depends(get_db)) -> AdminShowResponse:
     return await ShowUseCase(session).update_show(show_id, body)
 
-@router.post("/shows/{show_id}/publish", status_code=204)
-async def publish_show(show_id: UUID, session: AsyncSession = Depends(get_db)) -> Response:
+@router.post("/{show_id}/publish", status_code=204, dependencies=[Depends(require_admin)])
+async def publish(show_id: UUID, session: AsyncSession = Depends(get_db)) -> Response:
     await ShowUseCase(session).publish_show(show_id)
     return Response(status_code=204)
 
-@router.post("/shows/{show_id}/unpublish", status_code=204)
-async def unpublish_show(show_id: UUID, session: AsyncSession = Depends(get_db)) -> Response:
+@router.post("/{show_id}/unpublish", status_code=204, dependencies=[Depends(require_admin)])
+async def unpublish(show_id: UUID, session: AsyncSession = Depends(get_db)) -> Response:
     await ShowUseCase(session).unpublish_show(show_id)
     return Response(status_code=204)
 
-@router.delete("/shows/{show_id}", status_code=204)
-async def delete_show(show_id: UUID, session: AsyncSession = Depends(get_db)) -> Response:
+@router.delete("/{show_id}", status_code=204, dependencies=[Depends(require_admin)])
+async def delete(show_id: UUID, session: AsyncSession = Depends(get_db)) -> Response:
     await ShowUseCase(session).delete_show(show_id)
     return Response(status_code=204)
 
-@router.post("/shows/{show_id}/sessions", response_model=AdminSessionResponse, status_code=201)
-async def create_session(show_id: UUID, body: SessionRequest, session: AsyncSession = Depends(get_db)) -> AdminSessionResponse:
-    return await SessionUseCase(session).create_session(show_id, body)
+# GET /{show_id} (detalhe) e GET "" (busca) — ver catalog-session-detail/backend.md
+# e catalog-show-search/backend.md.
+```
 
-@router.put("/sessions/{session_id}", response_model=AdminSessionResponse)
-async def update_session(session_id: UUID, body: SessionRequest, session: AsyncSession = Depends(get_db)) -> AdminSessionResponse:
+```python
+# src/app/modules/catalog/api/routers/session_router.py — rotas de escrita (admin)
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, Response
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.dependencies import get_db
+from app.modules.identity.dependencies import require_admin
+from app.modules.catalog.application.schemas.request import SessionRequest
+from app.modules.catalog.application.schemas.response import AdminSessionResponse
+from app.modules.catalog.application.usecases.session_usecase import SessionUseCase
+
+router = APIRouter(prefix="/catalog/sessions", tags=["02.Catalog - Session"])
+
+@router.post("/", response_model=AdminSessionResponse, status_code=201, dependencies=[Depends(require_admin)])
+async def create(body: SessionRequest, session: AsyncSession = Depends(get_db)) -> AdminSessionResponse:
+    return await SessionUseCase(session).create_session(body)
+
+@router.put("/{session_id}", response_model=AdminSessionResponse, dependencies=[Depends(require_admin)])
+async def update(session_id: UUID, body: SessionRequest, session: AsyncSession = Depends(get_db)) -> AdminSessionResponse:
     return await SessionUseCase(session).update_session(session_id, body)
 
-@router.post("/sessions/{session_id}/cancel", status_code=202)
-async def cancel_session(session_id: UUID, session: AsyncSession = Depends(get_db)) -> Response:
+@router.post("/{session_id}/cancel", status_code=202, dependencies=[Depends(require_admin)])
+async def cancel(session_id: UUID, session: AsyncSession = Depends(get_db)) -> Response:
     await SessionUseCase(session).cancel_session(session_id)
     return Response(status_code=202)
 
-@router.delete("/sessions/{session_id}", status_code=204)
-async def delete_session(session_id: UUID, session: AsyncSession = Depends(get_db)) -> Response:
+@router.delete("/{session_id}", status_code=204, dependencies=[Depends(require_admin)])
+async def delete(session_id: UUID, session: AsyncSession = Depends(get_db)) -> Response:
     await SessionUseCase(session).delete_session(session_id)
     return Response(status_code=204)
+
+# GET /{session_id} (detalhe) — ver catalog-session-detail/backend.md.
 ```
 
 ### `src/app/modules/catalog/router.py`
@@ -994,14 +1083,17 @@ async def delete_session(session_id: UUID, session: AsyncSession = Depends(get_d
 ```python
 from fastapi import APIRouter
 
-from app.modules.catalog.api.routers.admin_catalog_router import router as admin_catalog_router
+from app.modules.catalog.api.routers.genre_router import router as genre_router
+from app.modules.catalog.api.routers.session_router import router as session_router
+from app.modules.catalog.api.routers.show_router import router as show_router
 
 router = APIRouter()
-router.include_router(admin_catalog_router)
+router.include_router(genre_router)
+router.include_router(show_router)
+router.include_router(session_router)
 ```
 
-`catalog-show-search` e `catalog-session-detail` editam este arquivo depois
-para incluir `show_router`/`session_router`.
+`genre_router` é código real, dono/documentado em `catalog-genre/backend.md`.
 
 ### `src/app/main.py`
 
@@ -1189,19 +1281,19 @@ de `identity-auth` em `api.ludens` — não é mais uma suposição.)
 
 ## 3. Onde cada regra de negócio entra
 
-| Regra                                                       | Arquivo · função                                                                                                                     | Como                                                                                                                                                                                                                              |
-| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| RF08 — CRUD exige `user.is_admin`                           | `api/routers/admin_catalog_router.py` · `APIRouter(dependencies=[Depends(require_admin)])`                                           | Todas as 10 rotas herdam `require_admin` (403 quando `is_admin` é `False`)                                                                                                                                                        |
-| RF08 — sessão vendida NÃO se apaga, só cancela              | `domain/aggregates/session.py` · `Session.deactivate(tickets_sold)`                                                                  | `tickets_sold > 0` → `ConflictError("Cancele a sessão em vez de excluir.")` (409, mapeado em `main.py`). O usecase `delete_session` passa a contagem real                                                                         |
-| RF07 / RN02 — cancelar dispara reembolso em massa           | `domain/aggregates/session.py` · `Session.cancel()`                                                                                  | Levanta `SessionCancelled`; `AggregateRepository.save` grava a linha `Event` na mesma transação → o relay entrega ao handler de `payment` (aplica RN02 a partir do cancelamento; o admin não define valor) e ao de `notification` |
-| RF08 — capacidade nunca abaixo do comprometido              | `domain/aggregates/session.py` · `Session.update(committed, ...)`                                                                    | `capacity < committed` → `ConflictError("Já há ingressos comprometidos nesta sessão.")` (409). `committed = tickets_sold + reserved_open`, contado no usecase após `find_by_id_for_update`                                        |
-| RF08 — data de sessão sempre futura na criação              | `domain/aggregates/session.py` · `Session.create(now=...)`                                                                           | `starts_at <= now` → `DomainError("A data da sessão deve ser futura.")` (422, default). A forma (tz-aware) é validada em `SessionRequest`                                                                                         |
-| RN04 — meia = 50% da inteira, derivada                      | `domain/aggregates/session.py` · `Session.half_price_cents`                                                                          | `full_price_cents // 2`; nunca digitado. `AdminSessionResponse.half_price` é sempre derivado                                                                                                                                      |
-| RN05 (adjacente) — recontar sob concorrência                | `application/usecases/session_usecase.py` · `_lock()`                                                                                | `find_by_id_for_update` na `Session` antes de recontar/validar capacidade em `update`/`cancel`/`delete`                                                                                                                           |
-| logic.md §4 — `is_on_sale` derivado                         | `domain/aggregates/session.py` · `Session.is_on_sale(now)`; resposta admin deriva o mesmo em `_session_response` (nos dois usecases) | `status == ON_SALE and starts_at > now`; a parte "espetáculo publicado" fica na leitura (o admin vê o `status` do `Show` no `AdminShowResponse`)                                                                                  |
-| spec §8 — publicar espetáculo sem sessão futura é permitido | `application/usecases/show_usecase.py` · `publish_show`                                                                              | Nenhuma checagem de sessão — só não aparece na vitrine (regra de `catalog-show-search`)                                                                                                                                           |
-| Padronização — sem `PATCH`, só `PUT` com corpo completo     | `application/schemas/request.py` (`ShowRequest`/`SessionRequest`, sem `Create*`/`Update*`); `api/routers/admin_catalog_router.py`    | Mesmo schema para `POST` e `PUT`; `update_show`/`update_session` não fazem merge parcial (`exclude_unset`) — usam `req.*` direto                                                                                                  |
-| Espetáculo/sessão não encontrado                            | `_require_show`, `_lock` (ambos usecases)                                                                                            | `NotFoundError("...")` → 404, mapeado em `main.py` (nunca `DomainError(..., status_code=...)`, que não existe)                                                                                                                    |
+| Regra                                                       | Arquivo · função                                                                                                                             | Como                                                                                                                                                                                                                              |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| RF08 — CRUD exige `user.is_admin`                           | `api/routers/show_router.py` e `session_router.py` · `dependencies=[Depends(require_admin)]` por rota                                        | As 9 rotas de escrita (5 de show, 4 de session) levam `require_admin` (403 quando `is_admin` é `False`); as rotas `GET` de leitura pública não levam                                                                              |
+| RF08 — sessão vendida NÃO se apaga, só cancela              | `domain/aggregates/session.py` · `Session.deactivate(tickets_sold)`                                                                          | `tickets_sold > 0` → `ConflictError("Cancele a sessão em vez de excluir.")` (409, mapeado em `main.py`). O usecase `delete_session` passa a contagem real                                                                         |
+| RF07 / RN02 — cancelar dispara reembolso em massa           | `domain/aggregates/session.py` · `Session.cancel()`                                                                                          | Levanta `SessionCancelled`; `AggregateRepository.save` grava a linha `Event` na mesma transação → o relay entrega ao handler de `payment` (aplica RN02 a partir do cancelamento; o admin não define valor) e ao de `notification` |
+| RF08 — capacidade nunca abaixo do comprometido              | `domain/aggregates/session.py` · `Session.update(committed, ...)`                                                                            | `capacity < committed` → `ConflictError("Já há ingressos comprometidos nesta sessão.")` (409). `committed = tickets_sold + reserved_open`, contado no usecase após `find_by_id_for_update`                                        |
+| RF08 — data de sessão sempre futura na criação              | `domain/aggregates/session.py` · `Session.create(now=...)`                                                                                   | `starts_at <= now` → `DomainError("A data da sessão deve ser futura.")` (422, default). A forma (tz-aware) é validada em `SessionRequest`                                                                                         |
+| RN04 — meia = 50% da inteira, derivada                      | `domain/aggregates/session.py` · `Session.half_price_cents`                                                                                  | `full_price_cents // 2`; nunca digitado. `AdminSessionResponse.half_price` é sempre derivado                                                                                                                                      |
+| RN05 (adjacente) — recontar sob concorrência                | `application/usecases/session_usecase.py` · `_lock()`                                                                                        | `find_by_id_for_update` na `Session` antes de recontar/validar capacidade em `update`/`cancel`/`delete`                                                                                                                           |
+| logic.md §4 — `is_on_sale` derivado                         | `domain/aggregates/session.py` · `Session.is_on_sale(now)`; resposta admin deriva o mesmo em `_session_response` (nos dois usecases)         | `status == ON_SALE and starts_at > now`; a parte "espetáculo publicado" fica na leitura (o admin vê o `status` do `Show` no `AdminShowResponse`)                                                                                  |
+| spec §8 — publicar espetáculo sem sessão futura é permitido | `application/usecases/show_usecase.py` · `publish_show`                                                                                      | Nenhuma checagem de sessão — só não aparece na vitrine (regra de `catalog-show-search`)                                                                                                                                           |
+| Padronização — sem `PATCH`, só `PUT` com corpo completo     | `application/schemas/request.py` (`ShowRequest`/`SessionRequest`, sem `Create*`/`Update*`); `api/routers/show_router.py`/`session_router.py` | Mesmo schema para `POST` e `PUT`; `update_show`/`update_session` não fazem merge parcial (`exclude_unset`) — usam `req.*` direto                                                                                                  |
+| Espetáculo/sessão não encontrado                            | `_require_show`, `_lock` (ambos usecases)                                                                                                    | `NotFoundError("...")` → 404, mapeado em `main.py` (nunca `DomainError(..., status_code=...)`, que não existe)                                                                                                                    |
 
 ---
 
@@ -1258,16 +1350,16 @@ Backend começa a partir do
 Nenhum bloqueio de decisão de produto (spec §9 e logic.md fechados). Pontos de
 atenção de implementação — não impedem abrir a issue:
 
-- **`booking` ainda não mergeado.** `tickets_sold` / `reserved_open` vêm de
-  `SeatCountsRepository`, que lê as tabelas `tickets` / `reservations` do módulo
-  `booking`. Enquanto `booking` não entra, essas tabelas não existem e a
-  contagem é **0** (aviso no log, sem silenciar) — na prática a regra
-  "não exclui sessão vendida" fica permissiva em runtime até `booking` entrar.
-  O invariante de domínio (`Session.deactivate` / `Session.update`) já está
-  pronto. Ao mergear `booking`, revisar os
-  nomes de coluna/status no SQL de `seat_counts_repository.py`
-  (`tickets.status = 'valid'`, `reservations.status = 'open'`), que seguem a
-  spec de `booking` mas não foram validados contra código.
+- **`booking` ainda não mergeado — e a contagem real nem foi implementada
+  ainda.** O plano original era um `SeatCountsRepository` com SQL real contra
+  `tickets`/`reservations` e degradação suave pra 0 se as tabelas não
+  existissem. O que existe hoje é mais simples: `SeatCounts(0, 0)` fixo,
+  direto no código dos dois usecases, sem repositório e sem SQL nenhum — na
+  prática a regra "não exclui sessão vendida" fica permissiva em runtime até
+  `booking` entrar **e** até essa contagem virar uma consulta real. O
+  invariante de domínio (`Session.deactivate`, chamado pelo usecase só depois
+  de checar `tickets_sold > 0`) já está pronto para receber a contagem real
+  quando ela existir.
 - **`_DEFAULT_SHOW_IMAGES` aponta para arquivos que ainda não existem.**
   `web.ludens/public/images/show-placeholders/{1..6}.jpg` precisam ser
   fornecidos (design/PO) antes de implementar — não é algo que o backend gera.

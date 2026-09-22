@@ -1,35 +1,45 @@
 ---
-status: alvo
+status: canônico
 spec: catalog-admin-management
-updated_at: 2026-09-11
+updated_at: 2026-09-21
 responsavel: Igor (Backend)
 ---
 
 # Integration Contract — Gestão de espetáculos e sessões
 
-**Status:** alvo (vira `canônico` quando o backend implementar). **Módulo
-backend:** `catalog`. **Auth:** todas as rotas exigem `require_admin` (403
-quando `user.is_admin` é `False`), aplicado no `APIRouter` de `/admin`.
+**Status:** canônico — reflete o código real já mergeado, ver `backend.md`.
+**Módulo backend:** `catalog`. **Auth:** as rotas de escrita exigem
+`require_admin` (403 quando `user.is_admin` é `False`), aplicado por rota, não
+no router inteiro — o mesmo router acumula rotas de leitura pública sem
+`require_admin` (ver abaixo).
 
 ## Rotas
 
-| Método | Caminho                       | Sucesso | Corpo de sucesso | Descrição                                                                               |
-| ------ | ----------------------------- | ------- | ---------------- | --------------------------------------------------------------------------------------- |
-| GET    | `/admin/shows`                | 200     | `AdminShowSummary[]` | Lista resumida (inclui rascunhos), sem sessões — ver §Semântica de leitura |
-| GET    | `/admin/shows/{id}`           | 200     | `AdminShow`      | Detalhe de um espetáculo, com `sessions: AdminSession[]`, `tickets_sold`, `reserved_open` e `can_delete` por sessão |
-| POST   | `/admin/shows`                | 201     | `AdminShow`      | Cria espetáculo (nasce `draft`)                                                         |
-| PUT    | `/admin/shows/{id}`           | 200     | `AdminShow`      | Edita — corpo completo, sem `PATCH` (padronização)                                      |
-| POST   | `/admin/shows/{id}/publish`   | 204     | —                | Publica                                                                                 |
-| POST   | `/admin/shows/{id}/unpublish` | 204     | —                | Despublica                                                                              |
-| DELETE | `/admin/shows/{id}`           | 204     | —                | Exclui (recusa se alguma sessão tem venda)                                              |
-| POST   | `/admin/shows/{id}/sessions`  | 201     | `AdminSession`   | Cria sessão                                                                             |
-| PUT    | `/admin/sessions/{id}`        | 200     | `AdminSession`   | Edita sessão — corpo completo, sem `PATCH` (padronização)                               |
-| DELETE | `/admin/sessions/{id}`        | 204     | —                | Exclui sessão (recusa se `tickets_sold > 0`)                                            |
-| POST   | `/admin/sessions/{id}/cancel` | 202     | —                | Cancela sessão (emite `SessionCancelled`)                                               |
+Sem prefixo `/admin`: as rotas vivem direto em `/catalog/shows` e
+`/catalog/sessions`, e o mesmo router mistura escrita (admin) com leitura
+(pública ou admin, conforme quem está autenticado). Esta spec documenta o
+write-path, que é dela; o `GET`/busca (`GET /catalog/shows`,
+`GET /catalog/shows/{id}`, `GET /catalog/sessions/{id}`) é código real também,
+mas contrato completo em `catalog-show-search/integration.md` e
+`catalog-session-detail/integration.md`.
+
+| Método | Caminho                         | Auth            | Sucesso | Corpo de sucesso     | Descrição                                                 |
+| ------ | ------------------------------- | --------------- | ------- | -------------------- | --------------------------------------------------------- |
+| POST   | `/catalog/shows`                | `require_admin` | 201     | `AdminShow`          | Cria espetáculo (nasce `draft`), `sessions` vazio         |
+| PUT    | `/catalog/shows/{id}`           | `require_admin` | 200     | `AdminShow`          | Edita — corpo completo, sem `PATCH` (padronização)        |
+| POST   | `/catalog/shows/{id}/publish`   | `require_admin` | 204     | —                    | Publica                                                   |
+| POST   | `/catalog/shows/{id}/unpublish` | `require_admin` | 204     | —                    | Despublica                                                |
+| DELETE | `/catalog/shows/{id}`           | `require_admin` | 204     | —                    | Exclui (recusa se alguma sessão tem venda)                |
+| POST   | `/catalog/sessions/`            | `require_admin` | 201     | `AdminSession`       | Cria sessão — `show_id` vai no corpo, não na URL          |
+| PUT    | `/catalog/sessions/{id}`        | `require_admin` | 200     | `AdminSession`       | Edita sessão — corpo completo, sem `PATCH`                |
+| DELETE | `/catalog/sessions/{id}`        | `require_admin` | 204     | —                    | Exclui sessão (recusa se `tickets_sold > 0`)              |
+| POST   | `/catalog/sessions/{id}/cancel` | `require_admin` | 202     | —                    | Cancela sessão (emite `SessionCancelled`)                 |
+| GET    | `/catalog/shows`                | opcional        | 200     | `Page[...]`, varia   | Busca/listagem — ver `catalog-show-search/integration.md` |
+| GET    | `/catalog/shows/{id}`           | opcional        | 200     | varia por `is_admin` | Detalhe — ver `catalog-session-detail/integration.md`     |
+| GET    | `/catalog/sessions/{id}`        | opcional        | 200     | varia por `is_admin` | Detalhe — ver `catalog-session-detail/integration.md`     |
 
 Prefixo/base path e versionamento: `<a definir globalmente>` — ver
-`docs.ludens/backend/integration/_template.md`. As rotas acima já assumem o
-prefixo `/admin` dentro do módulo `catalog`.
+`docs.ludens/backend/integration/_template.md`.
 
 ## Shapes
 
@@ -37,15 +47,14 @@ Todos os campos em **snake_case** na entrada e na saída — mesma convenção d
 contrato real de `identity-auth` (`UserResponse`, `RegisterRequest`). Não há
 `CamelModel`/alias camelCase no backend real.
 
-- **AdminShowSummary** (`GET /admin/shows`, lista): `{ id, title, synopsis,
-  image_url, genre, status: "draft" | "published" }` — sem `sessions`. Pensada
-  pra tela de listagem, onde o admin ainda não entrou num espetáculo
-  específico (revisão 2026-09-11, ver notas abaixo).
-- **AdminShow** (`GET /admin/shows/{id}`, `POST /admin/shows`,
-  `PUT /admin/shows/{id}`): `{ id, title, synopsis, image_url, genre,
-  status: "draft" | "published", sessions: AdminSession[] }` — mesmos campos
-  de `AdminShowSummary` mais `sessions`. Em `POST`, `sessions` sempre vem
-  vazio (o espetáculo acabou de nascer); em `PUT`, vem com as sessões atuais.
+- **AdminShowSummary** (`GET /catalog/shows` como admin, sem sessões):
+  `{ id, title, synopsis, image_url, genre_id, genre, status: "draft" |
+  "published" }`. `genre_id` (UUID) e `genre` (nome já resolvido) sempre
+  juntos — desde `catalog-genre`; não é mais um campo de texto livre.
+- **AdminShow** (`POST /catalog/shows`, `PUT /catalog/shows/{id}`, e o
+  detalhe admin de `GET /catalog/shows/{id}`): mesmos campos de
+  `AdminShowSummary` mais `sessions: AdminSession[]`. Em `POST`, `sessions`
+  sempre vem vazio; em `PUT`/detalhe, vem com as sessões atuais.
   `image_url` é sempre atribuída pelo servidor (pool padrão) — nunca vem do
   request de criação/edição (débito técnico: sem upload real nesta entrega).
 - **AdminSession:** `{ id, show_id, starts_at, venue, capacity, full_price,
@@ -58,15 +67,19 @@ contrato real de `identity-auth` (`UserResponse`, `RegisterRequest`). Não há
   - `status`: derivado — `"cancelled"` se cancelada; senão `"closed"` se
     `starts_at` já passou; senão `"on_sale"`. (O estado `draft`/`published` é do
     espetáculo, não da sessão.)
-  - `can_delete`: `true` só quando `tickets_sold == 0`.
-- **Criar espetáculo (POST /admin/shows) e editar (PUT /admin/shows/{id}):**
-  mesmo corpo nos dois — `{ title, synopsis, genre }`, os três sempre
-  obrigatórios (é `PUT`: substitui o registro inteiro, nunca parcial). Sem
-  `image_url` no corpo em nenhum dos dois — não é editável nesta entrega.
-- **Criar sessão (POST /admin/shows/{id}/sessions) e editar
-  (PUT /admin/sessions/{id}):** mesmo corpo nos dois — `{ starts_at, venue,
-  capacity, full_price }`, os quatro sempre obrigatórios (`starts_at` com
-  offset e futuro; `capacity` > 0; `full_price` > 0).
+  - `can_delete`: `true` só quando `tickets_sold == 0`. **Hoje `tickets_sold`
+    é sempre `0`** — a contagem real ainda não foi implementada (ver
+    `backend.md` §7); `can_delete` fica sempre `true` na prática.
+- **Criar espetáculo (POST) e editar (PUT):** mesmo corpo nos dois —
+  `{ title, synopsis, genre_id }`, os três sempre obrigatórios (é `PUT`:
+  substitui o registro inteiro, nunca parcial). `genre_id` precisa existir
+  (404 "Gênero não encontrado." senão). Sem `image_url` no corpo em nenhum dos
+  dois — não é editável nesta entrega.
+- **Criar sessão (POST /catalog/sessions/) e editar (PUT
+  /catalog/sessions/{id}):** mesmo corpo nos dois — `{ show_id, starts_at,
+  venue, capacity, full_price }`. Em `PUT`, `show_id` vai no corpo mas é
+  **ignorado** (a sessão não muda de espetáculo depois de criada) — só existe
+  ali porque o schema é compartilhado entre criação e edição.
 
 ## Erros esperados
 
@@ -76,20 +89,22 @@ lista central em `main.py`); **`{ "detail": [ { "field", "message" } ] }`**
 para 422 de forma (validação de schema). O frontend (`apiErrorMessage`, via
 `ApiError` — `frontend.md` §2) lê as duas formas.
 
-| Status | Quando                                                                      | Mensagem (`detail`)                                                           |
-| ------ | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| 403    | usuário autenticado não é admin (`is_admin=false`), ou sem token            | (produzida por `require_admin` de `identity-auth`)                            |
-| 404    | `show_id` / `session_id` inexistente ou inativo (inclui `GET /admin/shows/{id}`) | "Espetáculo não encontrado." / "Sessão não encontrada."           |
-| 409    | `DELETE /admin/sessions/{id}` com `tickets_sold > 0`                        | "Cancele a sessão em vez de excluir."                                         |
-| 409    | `DELETE /admin/shows/{id}` com sessão vendida                               | "Cancele as sessões com ingressos vendidos antes de excluir o espetáculo."    |
-| 409    | `PUT` de sessão com `capacity < tickets_sold + reserved_open`               | "Já há ingressos comprometidos nesta sessão."                                 |
-| 409    | `cancel` de sessão já cancelada / `PUT` de sessão cancelada                 | "A sessão já está cancelada." / "Não é possível editar uma sessão cancelada." |
-| 422    | `starts_at` no passado (na criação ou edição)                               | "A data da sessão deve ser futura."                                           |
-| 422    | `starts_at` sem offset, `capacity <= 0`, `full_price <= 0`, campo em branco | lista `{ field, message }`                                                    |
+| Status | Quando                                                                                 | Mensagem (`detail`)                                                           |
+| ------ | -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| 403    | usuário autenticado não é admin (`is_admin=false`), ou sem token, numa rota de escrita | (produzida por `require_admin` de `identity-auth`)                            |
+| 404    | `show_id` / `session_id` inexistente ou inativo                                        | "Espetáculo não encontrado." / "Sessão não encontrada."                       |
+| 404    | `genre_id` inexistente ou inativo, em `POST`/`PUT` de espetáculo                       | "Gênero não encontrado."                                                      |
+| 409    | `DELETE /catalog/sessions/{id}` com `tickets_sold > 0`                                 | "Cancele a sessão em vez de excluir."                                         |
+| 409    | `DELETE /catalog/shows/{id}` com sessão vendida                                        | "Cancele as sessões com ingressos vendidos antes de excluir o espetáculo."    |
+| 409    | `PUT` de sessão com `capacity < tickets_sold + reserved_open`                          | "Já há ingressos comprometidos nesta sessão."                                 |
+| 409    | `cancel` de sessão já cancelada / `PUT` de sessão cancelada                            | "A sessão já está cancelada." / "Não é possível editar uma sessão cancelada." |
+| 422    | `starts_at` no passado (na criação ou edição)                                          | "A data da sessão deve ser futura."                                           |
+| 422    | `capacity <= 0`, na criação                                                            | "A capacidade deve ser maior que zero."                                       |
+| 422    | `starts_at` sem offset, `capacity <= 0`/`> 100000`, `full_price <= 0`, campo em branco | lista `{ field, message }`                                                    |
 
 ## Eventos
 
-`POST /admin/sessions/{id}/cancel` → **202** e emite `SessionCancelled`
+`POST /catalog/sessions/{id}/cancel` → **202** e emite `SessionCancelled`
 (payload: `id`, `show_id`, `starts_at`, `cancelled_at`), gravado na tabela
 `events` na mesma transação. Consumido por `payment` (reembolso em massa —
 RF07, política RN02 aplicada a partir do momento do cancelamento; o admin não
@@ -102,18 +117,15 @@ e-mail de aviso fica em `notification-transactional-email`.
 
 ## Semântica de leitura
 
-- `GET /admin/shows` devolve **array de resumo** (`AdminShowSummary`, sem
-  `sessions`), não paginado nesta fatia, ordenado por `created_at` desc,
-  incluindo rascunhos. Pra ver ou gerenciar as sessões de um espetáculo
-  específico, o frontend busca `GET /admin/shows/{id}` — mesmo padrão de
-  navegação lista→detalhe do catálogo público (RF01→RF02), aplicado aqui à
-  área do admin (revisão 2026-09-11).
-- `GET /admin/shows/{id}` devolve o espetáculo com `sessions` — futuras e
-  passadas, sem filtro (diferente da vitrine pública, que só mostra sessões
-  futuras à venda; aqui o admin precisa ver o histórico completo pra
-  gerenciar).
-- `is_on_sale` (usado pela vitrine, não exposto aqui): espetáculo `published` E
-  sessão `on_sale` E `starts_at` futura.
+A listagem admin deixou de ser um `GET /admin/shows` próprio: virou o mesmo
+`GET /catalog/shows` que a vitrine pública usa, com resposta paginada
+(`Page[AdminShowSummary]` para admin, `Page[ShowCardResponse]` para
+visitante/comprador) conforme `is_admin`. Contrato completo, filtros e
+paginação em `catalog-show-search/integration.md`. `GET /catalog/shows/{id}`
+e `GET /catalog/sessions/{id}` seguem o mesmo princípio (resposta varia por
+`is_admin`; admin vê `sessions`/histórico completo, sem filtro de data;
+visitante só vê sessões futuras à venda) — contrato completo em
+`catalog-session-detail/integration.md`.
 
 ## Notas desta revisão (2026-09-10)
 
@@ -159,9 +171,29 @@ detalhe), o mesmo que o RF01→RF02 já estabelece pro visitante.
   (não mergeado) — a tela de listagem do admin (que hoje já busca sessões
   embutidas) precisa ser ajustada pra esse novo shape antes do merge.
 
+## Notas desta revisão (2026-09-21)
+
+Reconciliação com o código real, já mergeado, das fatias seguintes:
+
+- **Sem prefixo `/admin`:** as rotas vivem em `/catalog/shows` e
+  `/catalog/sessions`; `require_admin` é aplicado por rota, não no router
+  inteiro (o router acumula leitura pública sem essa exigência).
+- **`GET /admin/shows` e `GET /admin/shows/{id}` (da revisão de 2026-09-11)
+  nunca chegaram a existir como rotas próprias de admin** — o read-path virou
+  o mesmo endpoint que a vitrine pública usa (`catalog-show-search`,
+  `catalog-session-detail`), com resposta que varia por `is_admin`.
+- **`genre` (string) virou `genre_id` (UUID, FK)** em `ShowRequest` e em todo
+  shape que carrega gênero — mudança de `catalog-genre`.
+- **Criar sessão não é mais aninhado em `/shows/{id}/sessions`:** é
+  `POST /catalog/sessions/` com `show_id` no corpo.
+- **`tickets_sold`/`reserved_open` continuam sempre `0`** — não só porque
+  `booking` não mergeou, mas porque a contagem real (`SeatCountsRepository`)
+  nunca chegou a ser implementada (ver `backend.md` §7). `can_delete` fica
+  sempre `true` na prática, por enquanto.
+
 ## Lacunas / decisões em aberto
 
 - Prefixo/base path e versionamento de API — `<a definir globalmente>`.
-- `tickets_sold` / `reserved_open` dependem das tabelas de `booking`
-  (`tickets` / `reservations`); enquanto `booking` não é mergeado, retornam `0`
-  (ver `backend.md` §7).
+- `tickets_sold` / `reserved_open` dependem de uma contagem real que ainda
+  não existe (nem o repositório, nem as tabelas de `booking`); enquanto isso
+  não muda, sempre retornam `0` (ver `backend.md` §7).

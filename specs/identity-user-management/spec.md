@@ -32,6 +32,17 @@ updated_at: 2026-09-17
 >
 > `logic.md` foi reescrito junto e voltou para `draft`: precisa de nova revisão
 > conjunta de FE/BE antes de valer como `reviewed` outra vez.
+>
+> **Nota de estado real (2026-09-21):** auditoria contra o código encontrou
+> que o backend desta feature **já existe** em `api.ludens`
+> (`identity/api/routers/user_router.py`: edição de perfil, troca de e-mail,
+> exclusão de conta, listagem admin paginada); `backend.md` e
+> `integration.md` foram escritos a partir dessa auditoria e já estão nesta
+> pasta. Eles registram uma violação de RNF01 em produção (a listagem
+> administrativa expõe CPF e não expõe data de criação, o oposto do que
+> `logic.md` §3 fecha) como o item mais urgente a corrigir. O frontend segue
+> sem código; `frontend.md` desta pasta é a especificação do que falta
+> construir, não uma feature pronta.
 
 ## 1. Visão da feature
 

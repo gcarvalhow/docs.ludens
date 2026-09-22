@@ -39,6 +39,30 @@ apresentacional puro; barrel `index.ts` em toda subpasta. Aliases: `@catalog/*`,
 > dois (ver §2, primeiro item). `catalog-show-search` e `catalog-session-detail`
 > já foram escritas contra o código real; esta revisão alinha esta fatia à
 > mesma base.
+>
+> **Revisão de 2026-09-21:** o código real (já mergeado) foi além desta
+> revisão. `genre` (texto livre) virou `genre_id` (UUID) em todo formulário e
+> schema, com um `<select>` populado por `useGenreList()` — não um campo de
+> texto (`catalog-genre`). O registro `endpoints` real é **plano**, não
+> aninhado em `catalog.admin.shows.*`/`catalog.admin.sessions.*`: é
+> `endpoints.catalog.shows`, `showById`, `showPublish`, `showUnpublish`,
+> `sessions`, `sessionById`, `sessionCancel`, e todos levam o prefixo
+> `/api` (`API_BASE = '/api'`) — não existe namespace `/admin` separado, o
+> backend unificou leitura pública/admin na mesma URL (ver
+> `catalog-admin-management/integration.md`). `AdminShowSummaryResponse` virou
+> `adminShowSummarySchema`/`adminShowSchema` (extend), acompanhando o backend.
+> `AdminCatalogManager.tsx`, `ShowForm.tsx`, `SessionForm.tsx`, `SessionRow.tsx`,
+> `ShowList.tsx`, `RequireAdmin.tsx`, `ConfirmCancelSessionDialog.tsx`,
+> `admin.schema.ts`, `show.service.ts`, `useAdminCatalogMutations.ts` existem
+> como planejado abaixo. O módulo `catalog` ganhou bem mais componentes desde
+> então (`AdminGenreManager.tsx`, `AdminHub.tsx`, `GenreForm.tsx`,
+> `GenreTable.tsx`, `ShowSessionsPanel.tsx` e outros) — são código real, mas
+> donos/documentados por `catalog-genre`/`catalog-show-search`/
+> `catalog-session-detail`, não reproduzidos aqui. Esta revisão corrige só os
+> três blocos de código abaixo com o fato mais concreto (endpoints, schema de
+> gênero, campo de gênero no `ShowForm`); o resto deste documento (mutations,
+> `AdminCatalogManager`, `ShowList`, `SessionRow`, fluxo de cancelar/excluir)
+> não foi reconferido linha a linha nesta revisão.
 
 ---
 
@@ -159,32 +183,35 @@ wildcards `@catalog/*`/`@account/*` já existem desde o bootstrap do projeto.
 
 ### `src/routes/endpoints.ts`
 
-Editar o registro real (`endpoints`, minúsculo — ver `identity-auth`). O
-grupo `catalog` pode já existir (criado por `catalog-show-search`/
-`catalog-session-detail`, com `shows`/`showById`/`genres`/`sessionById`) —
-só acrescentar `admin` dentro dele; se nenhuma das outras fatias mergeou
-ainda, criar o grupo `catalog` só com `admin`.
+Sem grupo `admin` aninhado, e sem namespace `/admin`: o backend unificou
+leitura pública e admin na mesma URL (decide o formato da resposta pelo
+token), então o registro real é **plano**, com prefixo `/api`, e é
+compartilhado por esta fatia e por `catalog-show-search`/
+`catalog-session-detail`/`catalog-genre`.
 
 ```ts
-// src/routes/endpoints.ts  — editar (dentro do objeto endpoints)
-catalog: {
-  // ...shows, showById, genres, sessionById, se já existirem...
-  admin: {
-    shows: {
-      list: '/admin/shows',
-      create: '/admin/shows',
-      byId: (id: string) => `/admin/shows/${id}`,
-      publish: (id: string) => `/admin/shows/${id}/publish`,
-      unpublish: (id: string) => `/admin/shows/${id}/unpublish`,
-      sessions: (id: string) => `/admin/shows/${id}/sessions`,
-    },
-    sessions: {
-      byId: (id: string) => `/admin/sessions/${id}`,
-      cancel: (id: string) => `/admin/sessions/${id}/cancel`,
-    },
+// src/routes/endpoints.ts  — real (trecho relevante a esta fatia)
+const API_BASE = '/api';
+const CATALOG_BASE = `${API_BASE}/catalog`;
+
+export const endpoints = {
+  // ...auth, users...
+  catalog: {
+    shows: `${CATALOG_BASE}/shows`,
+    showById: (id: string) => `${CATALOG_BASE}/shows/${id}`,
+    showPublish: (id: string) => `${CATALOG_BASE}/shows/${id}/publish`,
+    showUnpublish: (id: string) => `${CATALOG_BASE}/shows/${id}/unpublish`,
+    genres: `${CATALOG_BASE}/genres`,
+    genreById: (id: string) => `${CATALOG_BASE}/genres/${id}`,
+    sessions: `${CATALOG_BASE}/sessions/`,
+    sessionById: (id: string) => `${CATALOG_BASE}/sessions/${id}`,
+    sessionCancel: (id: string) => `${CATALOG_BASE}/sessions/${id}/cancel`,
   },
-},
+} as const;
 ```
+
+Criar sessão é `POST` em `endpoints.catalog.sessions` (com `show_id` no
+corpo, não na URL) — não existe `.../shows/{id}/sessions`.
 
 ### `src/features/catalog/schemas/admin.schema.ts`
 
@@ -213,25 +240,33 @@ export const adminSessionSchema = z.object({
   can_delete: z.boolean(),
 });
 
-export const adminShowSchema = z.object({
+export const adminShowSummarySchema = z.object({
   id: z.string().uuid(),
   title: z.string(),
   synopsis: z.string(),
   image_url: z.string(),
+  genre_id: z.string().uuid(),
   genre: z.string(),
   status: showStatusEnum,
+});
+
+// GET /catalog/shows/{id} (com token admin), POST e PUT — detalhe completo,
+// com sessions. GET /catalog/shows (lista/busca, mesmo endpoint do público)
+// devolve só o resumo acima, sem sessions.
+export const adminShowSchema = adminShowSummarySchema.extend({
   sessions: z.array(adminSessionSchema),
 });
 
-export const adminShowListSchema = z.array(adminShowSchema);
+export const adminShowSummaryListSchema = z.array(adminShowSummarySchema);
 
 // ---- Request DTO (guia do formulário) ----
 // Sem image_url: a imagem é atribuída pelo backend na criação (spec.md §6,
-// débito técnico de upload real).
+// débito técnico de upload real). genre_id vem de um <select> alimentado por
+// useGenreList() (catalog-genre) — não é mais um campo de texto livre.
 export const showFormSchema = z.object({
   title: z.string().min(1, 'Informe o título').max(200),
   synopsis: z.string().min(1, 'Informe a sinopse').max(5000),
-  genre: z.string().min(1, 'Informe a categoria').max(80),
+  genre_id: z.string().uuid('Selecione um gênero'),
 });
 
 export const sessionFormSchema = z.object({
@@ -302,17 +337,32 @@ fatias — um serviço por feature (padrão real de `authService`), não um
 objeto por área. Sem `.parse()` em runtime (mesma decisão de
 `catalog-show-search`: os schemas Zod só derivam o tipo).
 
+Sem grupo `admin` no service, igual aos endpoints (ver §2 acima): um único
+`catalogService`, compartilhado com `catalog-show-search`/
+`catalog-session-detail`/`catalog-genre`. `listAdminShows` busca
+`GET /catalog/shows?size=48` (o endpoint público, que devolve
+`Page<AdminShowSummary>` quando o token é de admin) e devolve só `items` —
+sem paginação na UI desta fatia ainda. Criar/editar sessão sempre passa
+`show_id` no corpo (`toSessionPayload` recebe `showId` mesmo em edição,
+porque o schema é compartilhado e o campo é obrigatório, ainda que o backend
+o ignore em `PUT`). Abaixo, só o subconjunto admin (write-path) real;
+`fetchShows`/`fetchGenres`/`fetchShowById`/`fetchSessionById` são código
+real também, mas donos de `catalog-show-search`/`catalog-session-detail`/
+`catalog-genre`, não reproduzidos aqui:
+
 ```ts
-// src/features/catalog/services/show.service.ts  — novo (ou editar)
+// src/features/catalog/services/show.service.ts — real, subconjunto admin
 import { fetcher } from '@web/lib/fetcher';
 import { endpoints } from '@web/routes/endpoints';
 
-import type { AdminSession, AdminShow, SessionFormValues, ShowFormValues } from '@catalog/server/types';
+import type { AdminSession, AdminShow, AdminShowSummary, SessionFormValues, ShowFormValues } from '@catalog/server/types';
 
 // O <input type="datetime-local"> devolve hora local sem fuso; o backend
-// exige ISO 8601 com offset. `toISOString()` resolve para UTC (sufixo Z).
-function toSessionPayload(values: SessionFormValues) {
+// exige ISO 8601 com offset. show_id vai no corpo (SessionRequest) — não
+// existe rota aninhada /shows/{id}/sessions.
+function toSessionPayload(showId: string, values: SessionFormValues) {
   return {
+    show_id: showId,
     starts_at: new Date(values.starts_at).toISOString(),
     venue: values.venue,
     capacity: values.capacity,
@@ -320,60 +370,77 @@ function toSessionPayload(values: SessionFormValues) {
   };
 }
 
-export const catalogService = {
-  // ...fetchShows, fetchGenres, fetchShowById, fetchSessionById, se já
-  // existirem (catalog-show-search / catalog-session-detail)...
+function reviveSession(session: AdminSession): AdminSession {
+  return { ...session, starts_at: new Date(session.starts_at) };
+}
 
-  listAdminShows() {
-    return fetcher<AdminShow[]>(endpoints.catalog.admin.shows.list, { method: 'GET' });
+function reviveShow(show: AdminShow): AdminShow {
+  return { ...show, sessions: show.sessions.map(reviveSession) };
+}
+
+export const catalogService = {
+  async listAdminShows() {
+    const page = await fetcher<{ items: AdminShowSummary[] }>(`${endpoints.catalog.shows}?size=48`, {
+      method: 'GET',
+    });
+    return page.items;
   },
 
-  createShow(values: ShowFormValues) {
-    return fetcher<AdminShow>(endpoints.catalog.admin.shows.create, {
+  async getAdminShow(id: string) {
+    const show = await fetcher<AdminShow>(endpoints.catalog.showById(id), { method: 'GET' });
+    return reviveShow(show);
+  },
+
+  async createShow(values: ShowFormValues) {
+    const show = await fetcher<AdminShow>(endpoints.catalog.shows, {
       method: 'POST',
       body: JSON.stringify(values),
     });
+    return reviveShow(show);
   },
 
-  updateShow(id: string, values: ShowFormValues) {
-    return fetcher<AdminShow>(endpoints.catalog.admin.shows.byId(id), {
+  async updateShow(id: string, values: ShowFormValues) {
+    const show = await fetcher<AdminShow>(endpoints.catalog.showById(id), {
       method: 'PUT',
       body: JSON.stringify(values),
     });
+    return reviveShow(show);
   },
 
   publishShow(id: string) {
-    return fetcher<void>(endpoints.catalog.admin.shows.publish(id), { method: 'POST' });
+    return fetcher<void>(endpoints.catalog.showPublish(id), { method: 'POST' });
   },
 
   unpublishShow(id: string) {
-    return fetcher<void>(endpoints.catalog.admin.shows.unpublish(id), { method: 'POST' });
+    return fetcher<void>(endpoints.catalog.showUnpublish(id), { method: 'POST' });
   },
 
   deleteShow(id: string) {
-    return fetcher<void>(endpoints.catalog.admin.shows.byId(id), { method: 'DELETE' });
+    return fetcher<void>(endpoints.catalog.showById(id), { method: 'DELETE' });
   },
 
-  createSession(showId: string, values: SessionFormValues) {
-    return fetcher<AdminSession>(endpoints.catalog.admin.shows.sessions(showId), {
+  async createSession(showId: string, values: SessionFormValues) {
+    const session = await fetcher<AdminSession>(endpoints.catalog.sessions, {
       method: 'POST',
-      body: JSON.stringify(toSessionPayload(values)),
+      body: JSON.stringify(toSessionPayload(showId, values)),
     });
+    return reviveSession(session);
   },
 
-  updateSession(sessionId: string, values: SessionFormValues) {
-    return fetcher<AdminSession>(endpoints.catalog.admin.sessions.byId(sessionId), {
+  async updateSession(sessionId: string, showId: string, values: SessionFormValues) {
+    const session = await fetcher<AdminSession>(endpoints.catalog.sessionById(sessionId), {
       method: 'PUT',
-      body: JSON.stringify(toSessionPayload(values)),
+      body: JSON.stringify(toSessionPayload(showId, values)),
     });
+    return reviveSession(session);
   },
 
   cancelSession(sessionId: string) {
-    return fetcher<void>(endpoints.catalog.admin.sessions.cancel(sessionId), { method: 'POST' });
+    return fetcher<void>(endpoints.catalog.sessionCancel(sessionId), { method: 'POST' });
   },
 
   deleteSession(sessionId: string) {
-    return fetcher<void>(endpoints.catalog.admin.sessions.byId(sessionId), { method: 'DELETE' });
+    return fetcher<void>(endpoints.catalog.sessionById(sessionId), { method: 'DELETE' });
   },
 };
 ```
@@ -689,7 +756,7 @@ import { showFormSchema } from '@catalog/schemas';
 
 import type { AdminShow, ShowFormValues } from '@catalog/server/types';
 
-const EMPTY: ShowFormValues = { title: '', synopsis: '', genre: '' };
+const EMPTY: ShowFormValues = { title: '', synopsis: '', genre_id: '' };
 
 export function useShowForm(editing: AdminShow | null) {
   const form = useForm<ShowFormValues>({
@@ -703,7 +770,7 @@ export function useShowForm(editing: AdminShow | null) {
       form.reset({
         title: editing.title,
         synopsis: editing.synopsis,
-        genre: editing.genre,
+        genre_id: editing.genre_id,
       });
     } else {
       form.reset(EMPTY);
@@ -878,14 +945,31 @@ export * from './ConfirmCancelSessionDialog';
 
 ### `src/features/catalog/components/admin/ShowForm.tsx`
 
-Formulário visual — recebe `form`, `onSubmit`, `isPending`; não conhece mutation.
+Formulário visual — recebe `form`, `onSubmit`, `isPending`; não conhece
+mutation. **shadcn/ui entrou no repo** desde a revisão original deste
+documento (contradiz a nota do §7 abaixo, que dizia o contrário) — o
+componente real usa `Form`/`FormField`/`Select` do design system, não
+elementos nativos com Tailwind cru, e o gênero é um `<Select>` alimentado por
+`useGenreList()` (`catalog-genre`), não um campo de texto. Reprodução fiel do
+componente real:
 
 ```tsx
-// src/features/catalog/components/admin/ShowForm.tsx  — novo
+// src/features/catalog/components/admin/ShowForm.tsx — real
 'use client';
 
+import Link from 'next/link';
+
+import { Sparkles } from 'lucide-react';
 import type { FormEventHandler } from 'react';
 import type { UseFormReturn } from 'react-hook-form';
+
+import { Button } from '@components/ui/button';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@components/ui/form';
+import { Input } from '@components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@components/ui/select';
+import { Textarea } from '@components/ui/textarea';
+
+import { useGenreList } from '@catalog/hooks/queries';
 
 import type { ShowFormValues } from '@catalog/server/types';
 
@@ -898,84 +982,93 @@ interface ShowFormProps {
 }
 
 export function ShowForm({ form, onSubmit, onCancel, isPending, mode }: ShowFormProps) {
-  const { register, formState } = form;
-  const { errors } = formState;
+  const genresQuery = useGenreList();
+  const genres = genresQuery.data ?? [];
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4 rounded-lg border border-gray-200 p-4">
-      <h3 className="text-base font-semibold">
-        {mode === 'create' ? 'Novo espetáculo' : 'Editar espetáculo'}
-      </h3>
-
-      {mode === 'create' ? (
-        <p className="text-xs text-gray-500">
-          A imagem de capa é atribuída automaticamente.
-        </p>
-      ) : null}
-
-      <div className="flex flex-col gap-1">
-        <label htmlFor="show-title" className="text-sm font-medium">
-          Título
-        </label>
-        <input
-          id="show-title"
-          type="text"
-          {...register('title')}
-          className="min-h-11 rounded-md border border-gray-300 px-3"
-        />
-        {errors.title ? (
-          <p className="text-sm text-red-600">{errors.title.message}</p>
+    <Form {...form}>
+      <form onSubmit={onSubmit} className="flex flex-col gap-5">
+        {mode === 'create' ? (
+          <p className="flex items-center gap-2 rounded-lg bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
+            <Sparkles className="size-3.5 shrink-0 text-primary" />
+            A imagem de capa é sorteada automaticamente do pool padrão assim que o espetáculo é criado.
+          </p>
         ) : null}
-      </div>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor="show-synopsis" className="text-sm font-medium">
-          Sinopse
-        </label>
-        <textarea
-          id="show-synopsis"
-          rows={4}
-          {...register('synopsis')}
-          className="rounded-md border border-gray-300 px-3 py-2"
+        <FormField
+          control={form.control}
+          name="title"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Título</FormLabel>
+              <FormControl>
+                <Input placeholder="Ex.: Hamlet" disabled={isPending} className="min-h-11" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
         />
-        {errors.synopsis ? (
-          <p className="text-sm text-red-600">{errors.synopsis.message}</p>
-        ) : null}
-      </div>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor="show-genre" className="text-sm font-medium">
-          Categoria / gênero
-        </label>
-        <input
-          id="show-genre"
-          type="text"
-          {...register('genre')}
-          className="min-h-11 rounded-md border border-gray-300 px-3"
+        <FormField
+          control={form.control}
+          name="synopsis"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Sinopse</FormLabel>
+              <FormControl>
+                <Textarea rows={4} placeholder="Do que se trata o espetáculo?" disabled={isPending} {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
         />
-        {errors.genre ? (
-          <p className="text-sm text-red-600">{errors.genre.message}</p>
-        ) : null}
-      </div>
 
-      <div className="flex gap-3">
-        <button
-          type="submit"
-          disabled={isPending}
-          className="min-h-11 rounded-md bg-gray-900 px-4 text-sm font-medium text-white disabled:opacity-60"
-        >
-          {isPending ? 'Salvando...' : 'Salvar'}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          disabled={isPending}
-          className="min-h-11 rounded-md border border-gray-300 px-4 text-sm font-medium"
-        >
-          Cancelar
-        </button>
-      </div>
-    </form>
+        <FormField
+          control={form.control}
+          name="genre_id"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Categoria / gênero</FormLabel>
+              <FormControl>
+                <Select value={field.value} onValueChange={field.onChange} disabled={isPending || genres.length === 0}>
+                  <SelectTrigger className="min-h-11 w-full">
+                    <SelectValue placeholder="Selecione um gênero" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {genres.map((genre) => (
+                      <SelectItem key={genre.id} value={genre.id}>
+                        {genre.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormControl>
+
+              {!genresQuery.isLoading && genres.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  Nenhum gênero cadastrado —{' '}
+                  <Link href="/admin/generos" className="underline underline-offset-2">
+                    crie um primeiro
+                  </Link>
+                  .
+                </p>
+              ) : null}
+
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="flex justify-end gap-3 pt-1">
+          <Button type="button" variant="outline" className="min-h-11 px-4" onClick={onCancel} disabled={isPending}>
+            Cancelar
+          </Button>
+          <Button type="submit" className="min-h-11 px-5" disabled={isPending}>
+            {isPending ? 'Salvando...' : 'Salvar'}
+          </Button>
+        </div>
+      </form>
+    </Form>
   );
 }
 ```
@@ -1596,11 +1689,10 @@ export * from './services';
 
 ## 3. Contrato consumido
 
-Contrato-alvo: `docs.ludens/specs/catalog-admin-management/integration.md`
-(`status: alvo` — o frontend trabalha contra ele até o backend implementar; se
-o shape divergir na integração, o ajuste é um transform em
-`services/show.service.ts` + registro da divergência no `integration.md`,
-nunca editar o repo de backend).
+Contrato: `docs.ludens/specs/catalog-admin-management/integration.md`
+(`status: canônico` — reflete o código real já mergeado; se o shape divergir
+na integração, o ajuste é um transform em `services/show.service.ts` +
+registro da divergência no `integration.md`, nunca editar o repo de backend).
 
 Dependências herdadas de `identity-auth` (frontend, já mergeado), consumidas
 como contrato:
@@ -1683,6 +1775,11 @@ de dependência — não impedem escrever o código, impedem rodar ponta a ponta
 
 - **`NEXT_PUBLIC_API_URL`** precisa estar em `.env.local` e nos secrets/vars de
   CI de `web.ludens` (compartilhado com `identity-auth`).
-- **shadcn/ui não está no repo.** Os componentes usam elementos nativos + Tailwind
-  (já configurado). Quando o design system entrar, `components/ui/*` e os forms
-  são os arquivos a migrar — sem mudar hooks nem services.
+- ~~shadcn/ui não está no repo~~ — **entrou desde esta revisão.** `ShowForm.tsx`
+  já usa `Form`/`FormField`/`Select`/`Button`/`Input`/`Textarea` de
+  `@components/ui/*` (ver §2). O resto dos componentes desta fatia
+  (`SessionForm.tsx`, `ShowList.tsx`, `SessionRow.tsx`,
+  `ConfirmCancelSessionDialog.tsx`, `AdminCatalogManager.tsx`) não foi
+  reconferido nesta revisão — é provável que também tenham migrado para
+  shadcn/ui; tratar os blocos de código correspondentes acima como
+  desatualizados até serem reconferidos.
